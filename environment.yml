@@ -1,0 +1,5 @@
+name: myenv
+dependencies:
+  - python
+  - numpy
+  - pygame
