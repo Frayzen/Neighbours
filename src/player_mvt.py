@@ -15,8 +15,8 @@ class Player:
         self.speed = speed
 
     def move(self, keys): #movement using arrow keys or WASD
-
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+#pygame.K_ DIRECTION is used to detect key presses on this precise touch
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
             self.x -= self.speed
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.x += self.speed
