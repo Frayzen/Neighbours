@@ -6,13 +6,14 @@ from core.registry import Registry
 # Initialize Pygame
 pygame.init()
 
-# Initialize Registry
-Registry.load_environments(os.path.join(os.path.dirname(__file__), 'data', 'environments.json'))
-
 # Set up the display
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 SCREEN_WIDTH, SCREEN_HEIGHT = screen.get_size()
 clock = pygame.time.Clock()
+
+# Initialize Registry
+Registry.load_environments(os.path.join(os.path.dirname(__file__), 'data', 'environments.json'))
+
 running = True
 
 # Load Level 1
@@ -39,7 +40,13 @@ while running:
             env = world.get_environment(x, y)
             if env:
                 rect = pygame.Rect(start_x + x * TILE_SIZE, start_y + y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-                pygame.draw.rect(screen, env.color, rect)
+                
+                if env.texture:
+                    if env.texture.get_width() != TILE_SIZE or env.texture.get_height() != TILE_SIZE:
+                         env.texture = pygame.transform.scale(env.texture, (TILE_SIZE, TILE_SIZE))
+                    screen.blit(env.texture, rect)
+                else:
+                    pygame.draw.rect(screen, env.color, rect)
 
     pygame.display.flip()
     clock.tick(60)

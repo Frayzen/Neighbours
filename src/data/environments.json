@@ -1,17 +1,17 @@
 {
     "Grass": {
         "walkable": true,
-        "symbol": ".",
+        "texture_path": "../Img/Grass.Png",
         "color": [34, 139, 34]
     },
     "Wall": {
         "walkable": false,
-        "symbol": "#",
+        "texture_path": "",
         "color": [128, 128, 128]
     },
     "Water": {
         "walkable": false,
-        "symbol": "~",
+        "texture_path": "",
         "color": [0, 0, 255]
     }
 }

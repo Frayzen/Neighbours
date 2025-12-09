@@ -1,5 +1,6 @@
 import json
 import os
+import pygame
 from core.world import Environment
 
 class Registry:
@@ -14,13 +15,30 @@ class Registry:
         with open(filepath, 'r') as f:
             data = json.load(f)
         
+        base_path = os.path.dirname(filepath)
+
         for name, props in data.items():
-            Registry._environments[name] = Environment(
+            env = Environment(
                 name=name,
                 walkable=props['walkable'],
-                symbol=props['symbol'],
+                texture_path=props.get('texture_path', ""),
                 color=tuple(props['color'])
             )
+            
+            # Load texture if path is provided
+            if env.texture_path:
+                full_path = os.path.normpath(os.path.join(base_path, env.texture_path))
+                if os.path.exists(full_path):
+                    try:
+                        env.texture = pygame.image.load(full_path).convert_alpha()
+                        print(f"Loaded texture for {name} from {full_path}")
+                    except pygame.error as e:
+                        print(f"Failed to load texture for {name} from {full_path}: {e}")
+                else:
+                    print(f"Texture not found for {name}: {full_path}")
+
+            Registry._environments[name] = env
+            
         print(f"Loaded {len(Registry._environments)} environments.")
 
     @staticmethod

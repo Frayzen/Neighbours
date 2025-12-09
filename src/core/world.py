@@ -1,12 +1,13 @@
 class Environment:
-    def __init__(self, name, walkable=True, symbol=".", color=(255, 255, 255)):
+    def __init__(self, name, walkable=True, texture_path="", color=(255, 255, 255)):
         self.name = name
         self.walkable = walkable
-        self.symbol = symbol
+        self.texture_path = texture_path
         self.color = color
+        self.texture = None  # Will hold the pygame Surface
 
     def __str__(self):
-        return self.symbol
+        return self.name
 
 class World:
     def __init__(self, width=32, height=32):
