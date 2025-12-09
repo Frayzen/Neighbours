@@ -1,0 +1,111 @@
+from typing import List
+import pygame
+import os
+from random import randint, randrange
+
+from consts import *
+from enemy import Enemy
+from object import GridObject
+from player_mvt import Player
+from levels.loader import load_level
+from core.registry import Registry
+
+
+class Game:
+
+    def __init__(self):
+        # Initialize Pygame
+        pygame.init()
+
+        # Set up the display
+        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        self.screen_width, self.screen_height = self.screen.get_size()
+        self.clock = pygame.time.Clock()
+
+        # Initialize Registry
+        Registry.load_environments(os.path.join(os.path.dirname(__file__), 'data', 'environments.json'))
+
+        # Load Level 1
+        self.world = load_level(1)
+
+        # Calculate Tile Size and Offsets to center the map
+        self.tile_size = min(self.screen_width // self.world.width, self.screen_height // self.world.height)
+        self.start_x = (self.screen_width - (self.world.width * self.tile_size)) // 2
+        self.start_y = (self.screen_height - (self.world.height * self.tile_size)) // 2
+        
+        # Define Map Bounds (min_x, min_y, max_x, max_y)
+        self.map_bounds = (
+            self.start_x,
+            self.start_y,
+            self.start_x + self.world.width * self.tile_size,
+            self.start_y + self.world.height * self.tile_size
+        )
+
+        self.gridObjects: List[GridObject] = []
+        # Start player in the middle of the map
+        self.player = Player(
+            self.start_x + (self.world.width * self.tile_size) // 2,
+            self.start_y + (self.world.height * self.tile_size) // 2,
+            self.tile_size, # Player size matches tile size
+            5
+        )
+
+    def run(self):
+        running = True
+        # Main game loop
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+
+            self.screen.fill("black")
+
+            # Draw World
+            for y in range(self.world.height):
+                for x in range(self.world.width):
+                    env = self.world.get_environment(x, y)
+                    if env:
+                        rect = pygame.Rect(
+                            self.start_x + x * self.tile_size, 
+                            self.start_y + y * self.tile_size, 
+                            self.tile_size, 
+                            self.tile_size
+                        )
+                        
+                        if env.texture:
+                            if env.texture.get_width() != self.tile_size or env.texture.get_height() != self.tile_size:
+                                env.texture = pygame.transform.scale(env.texture, (self.tile_size, self.tile_size))
+                            self.screen.blit(env.texture, rect)
+                        else:
+                            pygame.draw.rect(self.screen, env.color, rect)
+
+            # Draw Player and Objects
+            self.player.draw(self.screen)
+            self.player.move(pygame.key.get_pressed(), self.map_bounds)
+
+            for obj in self.gridObjects:
+                obj.draw(self.screen)
+                obj.update((self.player.x, self.player.y))
+
+            pygame.display.flip()
+            self.clock.tick(60)
+            self.handleEvents()
+        pygame.quit()
+
+    def handleEvents(self):
+        keystate = pygame.key.get_pressed()
+        if keystate[pygame.K_SPACE]:
+            min_x, min_y, max_x, max_y = self.map_bounds
+            self.gridObjects.append(
+                Enemy(
+                    randint(min_x, max_x - self.tile_size),
+                    randint(min_y, max_y - self.tile_size),
+                    self.tile_size, 
+                    self.tile_size
+                )
+            )
+
+gameInstance = Game()
