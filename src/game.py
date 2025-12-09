@@ -5,6 +5,7 @@ from random import randint, randrange
 from consts import *
 from enemy import Enemy
 from object import GridObject
+from player_mvt import Player
 
 
 class Game:
@@ -18,10 +19,10 @@ class Game:
         self.clock = pygame.time.Clock()
 
         self.gridObjects: List[GridObject] = []
+        self.player = Player(100,100,50,5)
 
     def run(self):
         running = True
-
         # Main game loop
         while running:
             for event in pygame.event.get():
@@ -29,6 +30,8 @@ class Game:
                     running = False
 
             self.screen.fill("purple")
+            self.player.draw(self.screen)
+            self.player.move(pygame.key.get_pressed())
 
             for obj in self.gridObjects:
                 obj.draw(self.screen)
