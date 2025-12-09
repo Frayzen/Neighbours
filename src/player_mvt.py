@@ -14,14 +14,15 @@ class Player:
         self.size = size
         self.speed = speed
 
-    def move(self, keys): #movement using arrow keys 
-        if keys[pygame.K_LEFT]:
+    def move(self, keys): #movement using arrow keys or WASD
+
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.x -= self.speed
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.x += self.speed
-        if keys[pygame.K_UP]:
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.y -= self.speed
-        if keys[pygame.K_DOWN]:
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             self.y += self.speed
 
         # Keep cube inside the screen
@@ -32,7 +33,7 @@ class Player:
         pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.size, self.size))
 
     
-# Create cube object in the center of the screen
+# Create cube object in the center of the screenSS
 cube = Player(100, 100, 50, 5)
 cube.move(pygame.key.get_pressed())
 
