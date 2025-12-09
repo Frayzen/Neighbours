@@ -1,0 +1,17 @@
+{
+    "Grass": {
+        "walkable": true,
+        "symbol": ".",
+        "color": [34, 139, 34]
+    },
+    "Wall": {
+        "walkable": false,
+        "symbol": "#",
+        "color": [128, 128, 128]
+    },
+    "Water": {
+        "walkable": false,
+        "symbol": "~",
+        "color": [0, 0, 255]
+    }
+}
