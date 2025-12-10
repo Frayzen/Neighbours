@@ -18,8 +18,13 @@ class Game:
         pygame.init()
 
         # Set up the display
-        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-        self.screen_width, self.screen_height = self.screen.get_size()
+        if FULLSCREEN_MODE:
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            self.screen_width, self.screen_height = self.screen.get_size()
+        else:
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+            self.screen_width, self.screen_height = SCREEN_WIDTH, SCREEN_HEIGHT
+        
         self.clock = pygame.time.Clock()
 
         # Initialize Registry
@@ -63,39 +68,47 @@ class Game:
                     if event.key == pygame.K_ESCAPE:
                         running = False
 
-            self.screen.fill("black")
-
-            # Draw World
-            for y in range(self.world.height):
-                for x in range(self.world.width):
-                    env = self.world.get_environment(x, y)
-                    if env:
-                        rect = pygame.Rect(
-                            self.start_x + x * self.tile_size, 
-                            self.start_y + y * self.tile_size, 
-                            self.tile_size, 
-                            self.tile_size
-                        )
-                        
-                        if env.texture:
-                            if env.texture.get_width() != self.tile_size or env.texture.get_height() != self.tile_size:
-                                env.texture = pygame.transform.scale(env.texture, (self.tile_size, self.tile_size))
-                            self.screen.blit(env.texture, rect)
-                        else:
-                            pygame.draw.rect(self.screen, env.color, rect)
-
-            # Draw Player and Objects
-            self.player.draw(self.screen)
-            self.player.move(pygame.key.get_pressed(), self.map_bounds)
-
-            for obj in self.gridObjects:
-                obj.draw(self.screen)
-                obj.update((self.player.x, self.player.y))
-
-            pygame.display.flip()
+            self.update()
+            self.draw()
             self.clock.tick(60)
-            self.handleEvents()
         pygame.quit()
+
+    def update(self):
+        self.player.move(pygame.key.get_pressed(), self.map_bounds)
+
+        for obj in self.gridObjects:
+            obj.update((self.player.x, self.player.y))
+        
+        self.handleEvents()
+
+    def draw(self):
+        self.screen.fill("black")
+
+        # Draw World
+        for y in range(self.world.height):
+            for x in range(self.world.width):
+                env = self.world.get_environment(x, y)
+                if env:
+                    rect = pygame.Rect(
+                        self.start_x + x * self.tile_size, 
+                        self.start_y + y * self.tile_size, 
+                        self.tile_size, 
+                        self.tile_size
+                    )
+                    
+                    if env.texture:
+                        if env.texture.get_width() != self.tile_size or env.texture.get_height() != self.tile_size:
+                            env.texture = pygame.transform.scale(env.texture, (self.tile_size, self.tile_size))
+                        self.screen.blit(env.texture, rect)
+                    else:
+                        pygame.draw.rect(self.screen, env.color, rect)
+
+        # Draw Player and Objects
+        self.player.draw(self.screen)
+        for obj in self.gridObjects:
+            obj.draw(self.screen)
+
+        pygame.display.flip()
 
     def handleEvents(self):
         keystate = pygame.key.get_pressed()
