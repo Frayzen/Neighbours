@@ -1,5 +1,3 @@
-from config.settings import GRID_WIDTH, GRID_HEIGHT
-
 class Cell:
     def __init__(self, name, walkable=True, texture_path="", color=(255, 255, 255)):
         self.name = name
@@ -12,7 +10,7 @@ class Cell:
         return self.name
 
 class World:
-    def __init__(self, width=GRID_WIDTH, height=GRID_HEIGHT):
+    def __init__(self, width=32, height=32):
         self.width = width
         self.height = height
         self.grid = [[Cell("Empty", color=(0, 0, 0)) for _ in range(width)] for _ in range(height)]
