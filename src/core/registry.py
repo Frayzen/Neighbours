@@ -1,13 +1,13 @@
 import json
 import os
 import pygame
-from core.world import Environment
+from core.world import Cell
 
 class Registry:
-    _environments = {}
+    _cells = {}
 
     @staticmethod
-    def load_environments(filepath):
+    def load_cells(filepath):
         if not os.path.exists(filepath):
             print(f"Error: Environment file not found at {filepath}")
             return
@@ -18,7 +18,7 @@ class Registry:
         base_path = os.path.dirname(filepath)
 
         for name, props in data.items():
-            env = Environment(
+            cell = Cell(
                 name=name,
                 walkable=props['walkable'],
                 texture_path=props.get('texture_path', ""),
@@ -29,21 +29,21 @@ class Registry:
             )
             
             # Load texture if path is provided
-            if env.texture_path:
-                full_path = os.path.normpath(os.path.join(base_path, env.texture_path))
+            if cell.texture_path:
+                full_path = os.path.normpath(os.path.join(base_path, cell.texture_path))
                 if os.path.exists(full_path):
                     try:
-                        env.texture = pygame.image.load(full_path).convert_alpha()
+                        cell.texture = pygame.image.load(full_path).convert_alpha()
                         print(f"Loaded texture for {name} from {full_path}")
                     except pygame.error as e:
                         print(f"Failed to load texture for {name} from {full_path}: {e}")
                 else:
                     print(f"Texture not found for {name}: {full_path}")
 
-            Registry._environments[name] = env
+            Registry._cells[name] = cell
             
-        print(f"Loaded {len(Registry._environments)} environments.")
+        print(f"Loaded {len(Registry._cells)} cells.")
 
     @staticmethod
-    def get_environment(name):
-        return Registry._environments.get(name)
+    def get_cell(name):
+        return Registry._cells.get(name)
