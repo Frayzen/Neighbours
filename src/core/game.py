@@ -86,7 +86,7 @@ class Game:
 
             # Draw Player and Objects
             self.player.draw(self.screen)
-            self.player.move(pygame.key.get_pressed(), self.map_bounds)
+            self.player.move(pygame.key.get_pressed(), self.map_bounds, self.world, self.tile_size)
 
             for obj in self.gridObjects:
                 obj.draw(self.screen)
