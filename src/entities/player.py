@@ -32,7 +32,7 @@ class Player:
         collision_x = self.check_collision(new_x, self.y, bounds, world, tile_size)
         if not collision_x:
             self.x = new_x
-        elif isinstance(collision_x, object) and hasattr(collision_x, 'trigger') and collision_x.trigger:
+        elif isinstance(collision_x, tuple):
              return collision_x
 
         # Try moving Y
@@ -40,7 +40,7 @@ class Player:
         collision_y = self.check_collision(self.x, new_y, bounds, world, tile_size)
         if not collision_y:
             self.y = new_y
-        elif isinstance(collision_y, object) and hasattr(collision_y, 'trigger') and collision_y.trigger:
+        elif isinstance(collision_y, tuple):
              return collision_y
         
         return None
@@ -66,9 +66,14 @@ class Player:
             grid_x = int((cx - min_x) / tile_size)
             grid_y = int((cy - min_y) / tile_size)
             
-            env = world.get_environment(grid_x, grid_y)
-            if env and not env.walkable:
-                return env # Return the environment object causing collision
+            cell_data = world.get_environment_full(grid_x, grid_y)
+            if cell_data:
+                env, offset = cell_data
+                if not env.walkable:
+                    # Return environment and its origin grid coordinates
+                    origin_x = grid_x - offset[0]
+                    origin_y = grid_y - offset[1]
+                    return (env, origin_x, origin_y)
         
         return False
 

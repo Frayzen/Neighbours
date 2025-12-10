@@ -95,10 +95,12 @@ class Game:
 
             # Draw Player and Objects
             self.player.draw(self.screen)
-            triggered_env = self.player.move(pygame.key.get_pressed(), self.map_bounds, self.world, self.tile_size)
+            trigger_data = self.player.move(pygame.key.get_pressed(), self.map_bounds, self.world, self.tile_size)
             
-            if triggered_env:
-                execute_trigger(triggered_env.trigger, self, self.player.x, self.player.y)
+            if trigger_data:
+                env, grid_x, grid_y = trigger_data
+                if env.trigger:
+                    execute_trigger(env.trigger, self, grid_x, grid_y)
 
             for obj in self.gridObjects:
                 obj.draw(self.screen)
