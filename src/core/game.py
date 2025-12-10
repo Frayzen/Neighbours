@@ -30,7 +30,7 @@ class Game:
         # Initialize Registry
         # Go up one level from core/ to src/ then to config/environments.json
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        Registry.load_environments(os.path.join(base_dir, 'config', 'environments.json'))
+        Registry.load_cells(os.path.join(base_dir, 'config', 'environments.json'))
 
         # Load Level 1
         self.world = load_level(1)
@@ -53,7 +53,7 @@ class Game:
         self.player = Player(
             self.start_x + (self.world.width * self.tile_size) // 2,
             self.start_y + (self.world.height * self.tile_size) // 2,
-            self.tile_size, # Player size matches tile size
+            1, # Player size matches tile size
             5
         )
 
@@ -74,7 +74,7 @@ class Game:
         pygame.quit()
 
     def update(self):
-        self.player.move(pygame.key.get_pressed(), self.map_bounds)
+        self.player.move(pygame.key.get_pressed(), self.map_bounds, self.tile_size)
 
         for obj in self.gridObjects:
             obj.update((self.player.x, self.player.y))
@@ -87,8 +87,8 @@ class Game:
         # Draw World
         for y in range(self.world.height):
             for x in range(self.world.width):
-                env = self.world.get_environment(x, y)
-                if env:
+                cell = self.world.get_cell(x, y)
+                if cell:
                     rect = pygame.Rect(
                         self.start_x + x * self.tile_size, 
                         self.start_y + y * self.tile_size, 
@@ -96,17 +96,17 @@ class Game:
                         self.tile_size
                     )
                     
-                    if env.texture:
-                        if env.texture.get_width() != self.tile_size or env.texture.get_height() != self.tile_size:
-                            env.texture = pygame.transform.scale(env.texture, (self.tile_size, self.tile_size))
-                        self.screen.blit(env.texture, rect)
+                    if cell.texture:
+                        if cell.texture.get_width() != self.tile_size or cell.texture.get_height() != self.tile_size:
+                            cell.texture = pygame.transform.scale(cell.texture, (self.tile_size, self.tile_size))
+                        self.screen.blit(cell.texture, rect)
                     else:
-                        pygame.draw.rect(self.screen, env.color, rect)
+                        pygame.draw.rect(self.screen, cell.color, rect)
 
         # Draw Player and Objects
-        self.player.draw(self.screen)
+        self.player.draw(self.screen, self.tile_size)
         for obj in self.gridObjects:
-            obj.draw(self.screen)
+            obj.draw(self.screen, self.tile_size)
 
         pygame.display.flip()
 
@@ -118,8 +118,8 @@ class Game:
                 Enemy(
                     randint(min_x, max_x - self.tile_size),
                     randint(min_y, max_y - self.tile_size),
-                    self.tile_size, 
-                    self.tile_size
+                    1, 
+                    1
                 )
             )
 

@@ -1,7 +1,5 @@
 import pygame
 
-from config.settings import CELL_SIZE
-
 
 class GridObject:
 
@@ -11,12 +9,12 @@ class GridObject:
         self.w = w
         self.h = h
 
-    def draw(self, screen):
+    def draw(self, screen, tile_size):
         pygame.draw.rect(
             screen,
             "red",
-            (self.x, self.y, self.w, self.h),
+            (self.x, self.y, self.w * tile_size, self.h * tile_size),
         )
 
-    def update(self):
+    def update(self, target_pos=None):
         pass

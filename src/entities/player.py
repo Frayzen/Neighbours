@@ -1,5 +1,6 @@
 #0 at the top left corner of the screen
 #moving a cube smothly using arrow
+from typing import Tuple
 import pygame
 # Initialize Pygame
 pygame.init()
@@ -14,7 +15,7 @@ class Player:
         self.size = size
         self.speed = speed
 
-    def move(self, keys, bounds): #movement using arrow keys or WASD
+    def move(self, keys, bounds: Tuple[int, int, int, int], tile_size: int): #movement using arrow keys or WASD
 #pygame.K_ DIRECTION is used to detect key presses on this precise touch
         if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
             self.x -= self.speed
@@ -28,10 +29,11 @@ class Player:
         # Keep cube inside the bounds
         # bounds is a tuple (min_x, min_y, max_x, max_y)
         min_x, min_y, max_x, max_y = bounds
-        self.x = max(min_x, min(self.x, max_x - self.size))
-        self.y = max(min_y, min(self.y, max_y - self.size))
+        pixel_size = self.size * tile_size
+        self.x = max(min_x, min(self.x, max_x - pixel_size))
+        self.y = max(min_y, min(self.y, max_y - pixel_size))
 
-    def draw(self, surface):
-        pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.size, self.size))
+    def draw(self, surface, tile_size):
+        pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.size * tile_size, self.size * tile_size))
 
     
