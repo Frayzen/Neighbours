@@ -2,7 +2,7 @@ import pygame
 import os
 from typing import List
 
-from config.settings import FULLSCREEN_MODE, SCREEN_WIDTH, SCREEN_HEIGHT
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 from core.registry import Registry
 from levels.loader import load_level
 from entities.base import GridObject
@@ -21,12 +21,8 @@ class GameSetup:
         self._init_entities()
 
     def _init_display(self):
-        if FULLSCREEN_MODE:
-            self.game.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-            self.game.screen_width, self.game.screen_height = self.game.screen.get_size()
-        else:
-            self.game.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-            self.game.screen_width, self.game.screen_height = SCREEN_WIDTH, SCREEN_HEIGHT
+        self.game.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.game.screen_width, self.game.screen_height = SCREEN_WIDTH, SCREEN_HEIGHT
 
     def _load_resources(self):
         # Go up one level from core/ to src/ then to config/environments.json
