@@ -1,2 +1,23 @@
-src/__pycache__
-venv
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Build
+build/
+dist/
+*.spec
