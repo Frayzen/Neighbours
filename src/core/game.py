@@ -10,6 +10,7 @@ from entities.player import Player
 from levels.loader import load_level
 from core.registry import Registry
 from core.triggers import execute_trigger
+from core.debug import debug
 
 
 class Game:
@@ -102,6 +103,9 @@ class Game:
             for obj in self.gridObjects:
                 obj.draw(self.screen)
                 obj.update((self.player.x, self.player.y))
+
+            # Draw Debug Overlay
+            debug.draw(self.screen)
 
             pygame.display.flip()
             self.clock.tick(60)
