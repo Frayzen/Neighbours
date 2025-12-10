@@ -7,7 +7,7 @@ class GameLogic:
         self.game = game
 
     def update(self):
-        self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.tile_size)
+        self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
 
         for obj in self.game.gridObjects:
             obj.update((self.game.player.x, self.game.player.y))
