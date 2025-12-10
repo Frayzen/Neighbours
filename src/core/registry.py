@@ -22,7 +22,10 @@ class Registry:
                 name=name,
                 walkable=props['walkable'],
                 texture_path=props.get('texture_path', ""),
-                color=tuple(props['color'])
+                color=tuple(props['color']),
+                width=props.get('width', 1),
+                height=props.get('height', 1),
+                trigger=props.get('trigger', None)
             )
             
             # Load texture if path is provided

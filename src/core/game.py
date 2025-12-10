@@ -9,6 +9,7 @@ from entities.base import GridObject
 from entities.player import Player
 from levels.loader import load_level
 from core.registry import Registry
+from core.triggers import execute_trigger
 
 
 class Game:
@@ -68,25 +69,35 @@ class Game:
             # Draw World
             for y in range(self.world.height):
                 for x in range(self.world.width):
-                    env = self.world.get_environment(x, y)
-                    if env:
-                        rect = pygame.Rect(
-                            self.start_x + x * self.tile_size, 
-                            self.start_y + y * self.tile_size, 
-                            self.tile_size, 
-                            self.tile_size
-                        )
+                    # Get environment and offset
+                    cell_data = self.world.get_environment_full(x, y)
+                    if cell_data:
+                        env, offset = cell_data
                         
-                        if env.texture:
-                            if env.texture.get_width() != self.tile_size or env.texture.get_height() != self.tile_size:
-                                env.texture = pygame.transform.scale(env.texture, (self.tile_size, self.tile_size))
-                            self.screen.blit(env.texture, rect)
-                        else:
-                            pygame.draw.rect(self.screen, env.color, rect)
+                        # Only draw if it's the origin (0,0)
+                        if offset == (0, 0):
+                            rect = pygame.Rect(
+                                self.start_x + x * self.tile_size, 
+                                self.start_y + y * self.tile_size, 
+                                self.tile_size * env.width, 
+                                self.tile_size * env.height
+                            )
+                            
+                            if env.texture:
+                                # Scale texture if needed (assuming texture is full size of object)
+                                target_size = (self.tile_size * env.width, self.tile_size * env.height)
+                                if env.texture.get_size() != target_size:
+                                     env.texture = pygame.transform.scale(env.texture, target_size)
+                                self.screen.blit(env.texture, rect)
+                            else:
+                                pygame.draw.rect(self.screen, env.color, rect)
 
             # Draw Player and Objects
             self.player.draw(self.screen)
-            self.player.move(pygame.key.get_pressed(), self.map_bounds, self.world, self.tile_size)
+            triggered_env = self.player.move(pygame.key.get_pressed(), self.map_bounds, self.world, self.tile_size)
+            
+            if triggered_env:
+                execute_trigger(triggered_env.trigger, self, self.player.x, self.player.y)
 
             for obj in self.gridObjects:
                 obj.draw(self.screen)

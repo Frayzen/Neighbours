@@ -5,6 +5,7 @@ def setup(world):
     grass = Registry.get_environment("Grass")
     wall = Registry.get_environment("Wall")
     water = Registry.get_environment("Water")
+    door = Registry.get_environment("Door")
 
     # Fill background with grass
     for y in range(world.height):
@@ -34,3 +35,6 @@ def setup(world):
     world.set_environment(21, 20, water)
     world.set_environment(20, 21, water)
     world.set_environment(21, 21, water)
+
+    # Add a door
+    world.set_environment(10, 5, door)

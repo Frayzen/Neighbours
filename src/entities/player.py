@@ -29,13 +29,21 @@ class Player:
 
         # Try moving X
         new_x = self.x + dx
-        if not self.check_collision(new_x, self.y, bounds, world, tile_size):
+        collision_x = self.check_collision(new_x, self.y, bounds, world, tile_size)
+        if not collision_x:
             self.x = new_x
+        elif isinstance(collision_x, object) and hasattr(collision_x, 'trigger') and collision_x.trigger:
+             return collision_x
 
         # Try moving Y
         new_y = self.y + dy
-        if not self.check_collision(self.x, new_y, bounds, world, tile_size):
+        collision_y = self.check_collision(self.x, new_y, bounds, world, tile_size)
+        if not collision_y:
             self.y = new_y
+        elif isinstance(collision_y, object) and hasattr(collision_y, 'trigger') and collision_y.trigger:
+             return collision_y
+        
+        return None
 
     def check_collision(self, x, y, bounds, world, tile_size):
         min_x, min_y, max_x, max_y = bounds
@@ -60,7 +68,7 @@ class Player:
             
             env = world.get_environment(grid_x, grid_y)
             if env and not env.walkable:
-                return True
+                return env # Return the environment object causing collision
         
         return False
 
