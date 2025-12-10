@@ -1,6 +1,6 @@
 import pygame
 
-from consts import CELL_SIZE
+from config.settings import CELL_SIZE
 
 
 class GridObject:

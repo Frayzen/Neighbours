@@ -5,7 +5,7 @@ import pygame
 pygame.init()
 
 # Set up the display
-from consts import SCREEN_WIDTH, SCREEN_HEIGHT
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class Player:
     def __init__(self, x, y, size, speed):

@@ -1,6 +1,6 @@
 from pygame import mouse
 import numpy as np
-from object import GridObject
+from entities.base import GridObject
 
 
 class Enemy(GridObject):

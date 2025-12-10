@@ -1,4 +1,4 @@
-from game import gameInstance
+from core.game import gameInstance
 
 if __name__ == "__main__":
     gameInstance.run()

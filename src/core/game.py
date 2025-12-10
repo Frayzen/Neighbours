@@ -3,10 +3,10 @@ import pygame
 import os
 from random import randint, randrange
 
-from consts import *
-from enemy import Enemy
-from object import GridObject
-from player_mvt import Player
+from config.settings import *
+from entities.enemy import Enemy
+from entities.base import GridObject
+from entities.player import Player
 from levels.loader import load_level
 from core.registry import Registry
 
@@ -23,7 +23,9 @@ class Game:
         self.clock = pygame.time.Clock()
 
         # Initialize Registry
-        Registry.load_environments(os.path.join(os.path.dirname(__file__), 'data', 'environments.json'))
+        # Go up one level from core/ to src/ then to config/environments.json
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        Registry.load_environments(os.path.join(base_dir, 'config', 'environments.json'))
 
         # Load Level 1
         self.world = load_level(1)
