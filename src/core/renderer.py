@@ -1,4 +1,5 @@
 import pygame
+from core.debug import debug
 
 class GameRenderer:
     def __init__(self, game):
@@ -8,6 +9,7 @@ class GameRenderer:
         self.game.screen.fill("black")
         self._draw_world()
         self._draw_entities()
+        debug.draw(self.game.screen)
         pygame.display.flip()
 
     def _draw_world(self):

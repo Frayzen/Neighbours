@@ -1,13 +1,20 @@
 import pygame
 from random import randint
 from entities.enemy import Enemy
+from core.debug import debug
+from core.triggers import execute_trigger
 
 class GameLogic:
     def __init__(self, game):
         self.game = game
 
     def update(self):
-        self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.tile_size)
+        result = self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
+        
+        if result:
+            cell, x, y = result
+            if cell.trigger:
+                execute_trigger(cell.trigger, self.game, x, y)
 
         for obj in self.game.gridObjects:
             obj.update((self.game.player.x, self.game.player.y))
@@ -26,3 +33,4 @@ class GameLogic:
                     1
                 )
             )
+            debug.log("Spawned Enemy")

@@ -5,6 +5,7 @@ def setup(world):
     grass = Registry.get_cell("Grass")
     wall = Registry.get_cell("Wall")
     water = Registry.get_cell("Water")
+    door = Registry.get_cell("Door")
 
     # Fill background with grass
     for y in range(world.height):
@@ -34,3 +35,7 @@ def setup(world):
     world.set_cell(21, 20, water)
     world.set_cell(20, 21, water)
     world.set_cell(21, 21, water)
+
+    # Add a door
+    if door:
+        world.set_cell(10, 5, door)
