@@ -7,6 +7,8 @@ pygame.init()
 
 # Set up the display
 from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from combat.combat_manager import CombatManager
+from combat.factory import WeaponFactory
 
 class Player:
     def __init__(self, x, y, size, speed):
@@ -14,6 +16,19 @@ class Player:
         self.y = y
         self.size = size
         self.speed = speed
+        
+        # Combat setup
+        self.combat = CombatManager(self)
+        # Equip default weapons using the factory
+        try:
+            self.combat.add_weapon(WeaponFactory.create_weapon("fireball_staff"))
+            self.combat.add_weapon(WeaponFactory.create_weapon("basic_sword"))
+        except Exception as e:
+            print(f"Failed to equip default weapons: {e}")
+
+    def update(self, enemies):
+        current_time = pygame.time.get_ticks()
+        self.combat.update(enemies, current_time)
 
     def move(self, keys, bounds: Tuple[int, int, int, int], world, tile_size: int): #movement using arrow keys or WASD
 #pygame.K_ DIRECTION is used to detect key presses on this precise touch

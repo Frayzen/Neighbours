@@ -29,6 +29,8 @@ class Game:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
+                
+                self.logic.handle_event(event)
 
             self.logic.update()
             self.renderer.draw()
