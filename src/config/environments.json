@@ -1,0 +1,17 @@
+{
+    "Grass": {
+        "walkable": true,
+        "texture_path": "../assets/images/Grass.Png",
+        "color": [34, 139, 34]
+    },
+    "Wall": {
+        "walkable": false,
+        "texture_path": "",
+        "color": [128, 128, 128]
+    },
+    "Water": {
+        "walkable": false,
+        "texture_path": "",
+        "color": [0, 0, 255]
+    }
+}

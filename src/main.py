@@ -1,6 +1,4 @@
-import pygame
-from player_mvt import Player
-from game import gameInstance
+from core.game import gameInstance
 
-
-gameInstance.run()
+if __name__ == "__main__":
+    gameInstance.run()
