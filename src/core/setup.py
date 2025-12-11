@@ -2,7 +2,7 @@ import pygame
 import os
 from typing import List
 
-from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, BASE_DIR
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, BASE_DIR, PLAYER_SIZE, PLAYER_SPEED
 from core.registry import Registry
 from levels.loader import load_level
 from entities.base import GridObject
@@ -47,6 +47,6 @@ class GameSetup:
         self.game.player = Player(
             self.game.start_x + (self.game.world.width * self.game.tile_size) // 2,
             self.game.start_y + (self.game.world.height * self.game.tile_size) // 2,
-            1, # Player size matches tile size
-            5
+            PLAYER_SIZE, # Player size matches tile size
+            PLAYER_SPEED
         )

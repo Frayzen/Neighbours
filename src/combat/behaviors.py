@@ -54,7 +54,7 @@ class WeaponBehaviors:
         tx, ty = WeaponBehaviors._get_center(target)
         
         # Just a line for now, could be a projectile
-        vfx_manager.add_effect(SlashEffect(ox, oy, tx, ty, width=2, color=(255, 255, 0), duration=0.1))
+        vfx_manager.add_effect(SlashEffect(ox, oy, tx, ty, width=2, color=(255, 255, 0), duration=100))
         return True
 
     @staticmethod

@@ -6,7 +6,7 @@ import pygame
 pygame.init()
 
 # Set up the display
-from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_PLAYER
 from combat.combat_manager import CombatManager
 from combat.factory import WeaponFactory
 from entities.base import GridObject
@@ -14,7 +14,7 @@ from core.physics import check_collision
 
 class Player(GridObject):
     def __init__(self, x, y, size, speed):
-        super().__init__(x, y, size, size)
+        super().__init__(x, y, size, size, color=COLOR_PLAYER)
         self.speed = speed
         
         # Combat setup

@@ -1,5 +1,4 @@
 import pygame
-import time
 
 class VFXManager:
     _instance = None
@@ -14,7 +13,7 @@ class VFXManager:
         self.effects.append(effect)
 
     def update(self):
-        current_time = time.time()
+        current_time = pygame.time.get_ticks()
         self.effects = [e for e in self.effects if e.is_active(current_time)]
 
     def draw(self, surface):
@@ -23,7 +22,7 @@ class VFXManager:
 
 class VisualEffect:
     def __init__(self, duration):
-        self.start_time = time.time()
+        self.start_time = pygame.time.get_ticks()
         self.duration = duration
 
     def is_active(self, current_time):
@@ -33,7 +32,7 @@ class VisualEffect:
         pass
 
 class ExplosionEffect(VisualEffect):
-    def __init__(self, x, y, radius, color=(255, 100, 0), duration=0.5):
+    def __init__(self, x, y, radius, color=(255, 100, 0), duration=500):
         super().__init__(duration)
         self.x = x
         self.y = y
@@ -42,7 +41,7 @@ class ExplosionEffect(VisualEffect):
 
     def draw(self, surface):
         # Calculate progress (0.0 to 1.0)
-        elapsed = time.time() - self.start_time
+        elapsed = pygame.time.get_ticks() - self.start_time
         progress = min(1.0, max(0.0, elapsed / self.duration))
         
         # Fade out alpha
@@ -60,7 +59,7 @@ class ExplosionEffect(VisualEffect):
         surface.blit(s, (self.x - size // 2, self.y - size // 2))
 
 class SlashEffect(VisualEffect):
-    def __init__(self, x, y, target_x, target_y, width=5, color=(255, 255, 255), duration=0.2):
+    def __init__(self, x, y, target_x, target_y, width=5, color=(255, 255, 255), duration=200):
         super().__init__(duration)
         self.x = x
         self.y = y

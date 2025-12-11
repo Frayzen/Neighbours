@@ -1,13 +1,14 @@
 import pygame
 from core.debug import debug
 from core.vfx import vfx_manager
+from config.settings import COLOR_BACKGROUND
 
 class GameRenderer:
     def __init__(self, game):
         self.game = game
 
     def draw(self):
-        self.game.screen.fill("black")
+        self.game.screen.fill(COLOR_BACKGROUND)
         self._draw_world()
         self._draw_entities()
         vfx_manager.draw(self.game.screen)
