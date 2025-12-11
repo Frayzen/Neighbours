@@ -79,5 +79,6 @@ class CombatManager:
         targets_hit = self.current_weapon.get_targets(target, enemies)
         
         for hit_target in targets_hit:
-            debug.log(f"Hit enemy with {self.current_weapon.name} for {self.current_weapon.damage} damage!")
-            #TODO hit_target.take_damage(self.current_weapon.damage)
+            # debug.log(f"Hit enemy with {self.current_weapon.name} for {self.current_weapon.damage} damage!")
+            if hasattr(hit_target, 'take_damage'):
+                hit_target.take_damage(self.current_weapon.damage)

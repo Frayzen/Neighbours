@@ -29,6 +29,9 @@ class GameLogic:
         enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy)]
         self.game.player.update(enemies)
 
+        # Remove dead enemies
+        self.game.gridObjects = [obj for obj in self.game.gridObjects if not (isinstance(obj, Enemy) and obj.health <= 0)]
+
         for obj in self.game.gridObjects:
             obj.update((self.game.player.x, self.game.player.y))
         
