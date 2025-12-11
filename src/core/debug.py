@@ -1,5 +1,6 @@
 import pygame
 import time
+from config.settings import DEBUG_MODE
 
 class DebugOverlay:
     _instance = None
@@ -13,12 +14,18 @@ class DebugOverlay:
 
     def log(self, text, duration=3.0):
         """Adds a message to the debug overlay."""
+        if not DEBUG_MODE:
+            return
+
         expiration = time.time() + duration
         self.messages.append((text, expiration))
         print(f"[DEBUG] {text}")  # Also print to console
 
     def draw(self, surface):
         """Draws active messages to the surface."""
+        if not DEBUG_MODE:
+            return
+
         if self.font is None:
             self.font = pygame.font.SysFont("Arial", 20)
 
