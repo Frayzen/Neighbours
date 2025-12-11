@@ -6,7 +6,7 @@
     },
     "Wall": {
         "walkable": false,
-        "texture_path": "",
+        "texture_path": "../assets/images/wall.jpg",
         "color": [128, 128, 128]
     },
     "Water": {
@@ -16,7 +16,7 @@
     },
     "Door": {
         "walkable": false,
-        "texture_path": "",
+        "texture_path": "../assets/images/trapdoor.png",
         "color": [139, 69, 19],
         "width": 1,
         "height": 2,
