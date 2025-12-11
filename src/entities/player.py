@@ -96,4 +96,20 @@ class Player:
         return False
 
     def draw(self, surface, tile_size):
+        # Draw player
         pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.size * tile_size, self.size * tile_size))
+        
+        # Draw weapon
+        weapon = self.combat.current_weapon
+        if weapon:
+            # Simple representation: a small colored rect next to the player
+            weapon_color = (200, 200, 200)
+            if "fire" in weapon.name.lower():
+                weapon_color = (255, 100, 0)
+            elif "bow" in weapon.name.lower():
+                weapon_color = (100, 255, 100)
+            
+            # Draw slightly offset
+            wx = self.x + (self.size * tile_size) * 0.8
+            wy = self.y + (self.size * tile_size) * 0.2
+            pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))

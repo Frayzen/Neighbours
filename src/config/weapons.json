@@ -2,7 +2,7 @@
     "basic_sword": {
         "name": "Basic Sword",
         "damage": 10,
-        "range": 100,
+        "range": 50,
         "cooldown": 1000,
         "is_aoe": false,
         "aoe_radius": 0,

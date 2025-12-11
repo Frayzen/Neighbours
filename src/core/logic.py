@@ -3,6 +3,7 @@ from random import randint
 from entities.enemy import Enemy
 from core.debug import debug
 from core.triggers import execute_trigger
+from core.vfx import vfx_manager
 
 class GameLogic:
     def __init__(self, game):
@@ -14,7 +15,9 @@ class GameLogic:
                 self.game.player.combat.switch_weapon()
 
     def update(self):
+        vfx_manager.update()
         result = self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
+
         
         if result:
             cell, x, y = result

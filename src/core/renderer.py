@@ -1,5 +1,6 @@
 import pygame
 from core.debug import debug
+from core.vfx import vfx_manager
 
 class GameRenderer:
     def __init__(self, game):
@@ -9,6 +10,7 @@ class GameRenderer:
         self.game.screen.fill("black")
         self._draw_world()
         self._draw_entities()
+        vfx_manager.draw(self.game.screen)
         debug.draw(self.game.screen)
         pygame.display.flip()
 
