@@ -2,7 +2,7 @@ import math
 import pygame
 from core.debug import debug
 from combat.weapon import Weapon
-from config.settings import MAX_WEAPONS
+from config.settings import MAX_WEAPONS, TARGET_CHECK_INTERVAL
 
 class CombatManager:
     def __init__(self, owner):
@@ -11,7 +11,7 @@ class CombatManager:
         self.current_weapon_index = 0
         self.target = None
         self.last_target_check_time = 0
-        self.target_check_interval = 500  # Check for target every 500ms
+        self.target_check_interval = TARGET_CHECK_INTERVAL  # Check for target every 500ms
 
     @property
     def current_weapon(self):

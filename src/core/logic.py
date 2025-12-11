@@ -36,8 +36,12 @@ class GameLogic:
             obj.update((self.game.player.x, self.game.player.y))
         
         self._handle_input()
+        self._handle_debug_input()
 
     def _handle_input(self):
+        pass
+
+    def _handle_debug_input(self):
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_SPACE]:
             min_x, min_y, max_x, max_y = self.game.map_bounds

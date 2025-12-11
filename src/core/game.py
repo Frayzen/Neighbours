@@ -3,6 +3,7 @@ import pygame
 from core.setup import GameSetup
 from core.renderer import GameRenderer
 from core.logic import GameLogic
+from config.settings import FPS
 
 
 class Game:
@@ -34,7 +35,7 @@ class Game:
 
             self.logic.update()
             self.renderer.draw()
-            self.clock.tick(60)
+            self.clock.tick(FPS)
         pygame.quit()
 
 gameInstance = Game()

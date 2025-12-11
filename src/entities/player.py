@@ -9,12 +9,12 @@ pygame.init()
 from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT
 from combat.combat_manager import CombatManager
 from combat.factory import WeaponFactory
+from entities.base import GridObject
+from core.physics import check_collision
 
-class Player:
+class Player(GridObject):
     def __init__(self, x, y, size, speed):
-        self.x = x
-        self.y = y
-        self.size = size
+        super().__init__(x, y, size, size)
         self.speed = speed
         
         # Combat setup
@@ -45,7 +45,7 @@ class Player:
 
         # Try moving X
         new_x = self.x + dx
-        collision_x = self.check_collision(new_x, self.y, bounds, world, tile_size)
+        collision_x = check_collision(new_x, self.y, self.w, self.h, bounds, world, tile_size)
         if not collision_x:
             self.x = new_x
         elif isinstance(collision_x, tuple):
@@ -53,7 +53,7 @@ class Player:
 
         # Try moving Y
         new_y = self.y + dy
-        collision_y = self.check_collision(self.x, new_y, bounds, world, tile_size)
+        collision_y = check_collision(self.x, new_y, self.w, self.h, bounds, world, tile_size)
         if not collision_y:
             self.y = new_y
         elif isinstance(collision_y, tuple):
@@ -61,43 +61,9 @@ class Player:
         
         return None
 
-    def check_collision(self, x, y, bounds, world, tile_size):
-        min_x, min_y, max_x, max_y = bounds
-        
-        pixel_size = self.size * tile_size
-
-        # Constrain to bounds first
-        if x < min_x or x > max_x - pixel_size:
-            return True
-        if y < min_y or y > max_y - pixel_size:
-            return True
-
-        # Check corners against world grid
-        corners = [
-            (x, y),
-            (x + pixel_size - 0.1, y),
-            (x, y + pixel_size - 0.1),
-            (x + pixel_size - 0.1, y + pixel_size - 0.1)
-        ]
-
-        for cx, cy in corners:
-            grid_x = int((cx - min_x) / tile_size)
-            grid_y = int((cy - min_y) / tile_size)
-            
-            cell_data = world.get_cell_full(grid_x, grid_y)
-            if cell_data:
-                cell, offset = cell_data
-                if not cell.walkable:
-                    # Return cell and its origin grid coordinates
-                    origin_x = grid_x - offset[0]
-                    origin_y = grid_y - offset[1]
-                    return (cell, origin_x, origin_y)
-        
-        return False
-
     def draw(self, surface, tile_size):
         # Draw player
-        pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.size * tile_size, self.size * tile_size))
+        pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.w * tile_size, self.h * tile_size))
         
         # Draw weapon
         weapon = self.combat.current_weapon
@@ -110,6 +76,6 @@ class Player:
                 weapon_color = (100, 255, 100)
             
             # Draw slightly offset
-            wx = self.x + (self.size * tile_size) * 0.8
-            wy = self.y + (self.size * tile_size) * 0.2
+            wx = self.x + (self.w * tile_size) * 0.8
+            wy = self.y + (self.h * tile_size) * 0.2
             pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))

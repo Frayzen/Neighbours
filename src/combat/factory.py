@@ -2,6 +2,7 @@ import json
 import os
 from combat.weapon import Weapon
 from combat.behaviors import WeaponBehaviors
+from config.settings import BASE_DIR
 
 class WeaponFactory:
     _weapons_data = None
@@ -9,7 +10,7 @@ class WeaponFactory:
     @staticmethod
     def load_weapons():
         if WeaponFactory._weapons_data is None:
-            path = os.path.join(os.path.dirname(__file__), '..', 'config', 'weapons.json')
+            path = os.path.join(BASE_DIR, 'config', 'weapons.json')
             try:
                 with open(path, 'r') as f:
                     WeaponFactory._weapons_data = json.load(f)
