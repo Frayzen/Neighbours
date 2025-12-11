@@ -1,15 +1,16 @@
 import pygame
 from entities.base import GridObject
 from core.debug import debug
-from config.settings import ENEMY_SPEED, ENEMY_HEALTH, COLOR_ENEMY
+from config.settings import ENEMY_SPEED, ENEMY_HEALTH, COLOR_ENEMY, ENEMY_DAMAGE
 
 
 class Enemy(GridObject):
-    def __init__(self, x, y, w, h, speed=ENEMY_SPEED, health=ENEMY_HEALTH):
+    def __init__(self, x, y, w, h, speed=ENEMY_SPEED, health=ENEMY_HEALTH, damage=ENEMY_DAMAGE):
         super().__init__(x, y, w, h, color=COLOR_ENEMY)
         self.speed = speed
         self.health = health
         self.max_health = health
+        self.damage = damage
 
     def take_damage(self, amount):
         self.health -= amount

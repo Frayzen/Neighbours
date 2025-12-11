@@ -29,6 +29,13 @@ class GameLogic:
         enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy)]
         self.game.player.update(enemies)
 
+        # Check for collisions between player and enemies
+        player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * self.game.tile_size, self.game.player.h * self.game.tile_size)
+        for enemy in enemies:
+            enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.w * self.game.tile_size, enemy.h * self.game.tile_size)
+            if player_rect.colliderect(enemy_rect):
+                self.game.player.take_damage(enemy.damage)
+
         # Remove dead enemies
         self.game.gridObjects = [obj for obj in self.game.gridObjects if not (isinstance(obj, Enemy) and obj.health <= 0)]
 

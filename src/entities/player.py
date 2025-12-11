@@ -6,16 +6,22 @@ import pygame
 pygame.init()
 
 # Set up the display
-from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_PLAYER
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_PLAYER, PLAYER_MAX_HEALTH, PLAYER_INVULNERABILITY_DURATION
 from combat.combat_manager import CombatManager
 from combat.factory import WeaponFactory
 from entities.base import GridObject
 from core.physics import check_collision
+from core.debug import debug
 
 class Player(GridObject):
     def __init__(self, x, y, size, speed):
         super().__init__(x, y, size, size, color=COLOR_PLAYER)
         self.speed = speed
+        self.health = PLAYER_MAX_HEALTH
+        self.max_health = PLAYER_MAX_HEALTH
+        self.invulnerable = False
+        self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
+        self.last_hit_time = 0
         
         # Combat setup
         self.combat = CombatManager(self)
@@ -28,7 +34,29 @@ class Player(GridObject):
 
     def update(self, enemies):
         current_time = pygame.time.get_ticks()
+        
+        # Handle invulnerability
+        if self.invulnerable:
+            if current_time - self.last_hit_time > self.invulnerability_duration:
+                self.invulnerable = False
+
         self.combat.update(enemies, current_time)
+
+    def take_damage(self, amount):
+        if self.invulnerable:
+            return
+
+        self.health -= amount
+        self.invulnerable = True
+        self.last_hit_time = pygame.time.get_ticks()
+        debug.log(f"Player took {amount} damage! Health: {self.health}/{self.max_health}")
+        
+        if self.health <= 0:
+            self.die()
+
+    def die(self):
+        debug.log("Player died!")
+        # TODO: Handle player death (restart game, show game over screen, etc.)
 
     def move(self, keys, bounds: Tuple[int, int, int, int], world, tile_size: int): #movement using arrow keys or WASD
 #pygame.K_ DIRECTION is used to detect key presses on this precise touch
