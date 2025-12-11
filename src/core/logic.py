@@ -4,13 +4,14 @@ from entities.enemy import Enemy
 from core.debug import debug
 from core.triggers import execute_trigger
 
+
 class GameLogic:
     def __init__(self, game):
         self.game = game
 
     def update(self):
-        result = self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
-        
+        result = self.game.player.move(pygame.key.get_pressed(), self.game.world)
+
         if result:
             cell, x, y = result
             if cell.trigger:
@@ -18,7 +19,7 @@ class GameLogic:
 
         for obj in self.game.gridObjects:
             obj.update((self.game.player.x, self.game.player.y))
-        
+
         self._handle_input()
 
     def _handle_input(self):
@@ -27,10 +28,10 @@ class GameLogic:
             min_x, min_y, max_x, max_y = self.game.map_bounds
             self.game.gridObjects.append(
                 Enemy(
-                    randint(min_x, max_x - self.game.tile_size),
-                    randint(min_y, max_y - self.game.tile_size),
-                    1, 
-                    1
+                    randint(min_x, max_x - CELL_SIZE),
+                    randint(min_y, max_y - CELL_SIZE),
+                    1,
+                    1,
                 )
             )
             debug.log("Spawned Enemy")

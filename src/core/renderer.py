@@ -1,5 +1,7 @@
+from config.settings import CELL_SIZE
 import pygame
 from core.debug import debug
+
 
 class GameRenderer:
     def __init__(self, game):
@@ -18,20 +20,25 @@ class GameRenderer:
                 cell = self.game.world.get_cell(x, y)
                 if cell:
                     rect = pygame.Rect(
-                        self.game.start_x + x * self.game.tile_size, 
-                        self.game.start_y + y * self.game.tile_size, 
-                        self.game.tile_size, 
-                        self.game.tile_size
+                        x * CELL_SIZE,
+                        y * CELL_SIZE,
+                        CELL_SIZE,
+                        CELL_SIZE,
                     )
-                    
+
                     if cell.texture:
-                        if cell.texture.get_width() != self.game.tile_size or cell.texture.get_height() != self.game.tile_size:
-                            cell.texture = pygame.transform.scale(cell.texture, (self.game.tile_size, self.game.tile_size))
+                        if (
+                            cell.texture.get_width() != CELL_SIZE
+                            or cell.texture.get_height() != CELL_SIZE
+                        ):
+                            cell.texture = pygame.transform.scale(
+                                cell.texture, (CELL_SIZE, CELL_SIZE)
+                            )
                         self.game.screen.blit(cell.texture, rect)
                     else:
                         pygame.draw.rect(self.game.screen, cell.color, rect)
 
     def _draw_entities(self):
-        self.game.player.draw(self.game.screen, self.game.tile_size)
+        self.game.player.draw(self.game.screen)
         for obj in self.game.gridObjects:
-            obj.draw(self.game.screen, self.game.tile_size)
+            obj.draw(self.game.screen)

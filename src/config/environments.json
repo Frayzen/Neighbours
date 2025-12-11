@@ -1,7 +1,6 @@
 {
     "Grass": {
         "walkable": true,
-        "texture_path": "../assets/images/Grass.Png",
         "color": [34, 139, 34]
     },
     "Wall": {
@@ -19,7 +18,7 @@
         "texture_path": "",
         "color": [139, 69, 19],
         "width": 1,
-        "height": 2,
+        "height": 1,
         "trigger": "door"
     }
 }
