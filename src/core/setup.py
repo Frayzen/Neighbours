@@ -2,7 +2,7 @@ import pygame
 import os
 from typing import List
 
-from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, BASE_DIR, PLAYER_SIZE, PLAYER_SPEED
 from core.registry import Registry
 from levels.loader import load_level
 from entities.base import GridObject
@@ -25,9 +25,7 @@ class GameSetup:
         self.game.screen_width, self.game.screen_height = SCREEN_WIDTH, SCREEN_HEIGHT
 
     def _load_resources(self):
-        # Go up one level from core/ to src/ then to config/environments.json
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        Registry.load_cells(os.path.join(base_dir, 'config', 'environments.json'))
+        Registry.load_cells(os.path.join(BASE_DIR, 'config', 'environments.json'))
 
     def _init_level(self):
         self.game.world = load_level(1)
@@ -49,6 +47,6 @@ class GameSetup:
         self.game.player = Player(
             self.game.start_x + (self.game.world.width * self.game.tile_size) // 2,
             self.game.start_y + (self.game.world.height * self.game.tile_size) // 2,
-            1, # Player size matches tile size
-            5
+            PLAYER_SIZE, # Player size matches tile size
+            PLAYER_SPEED
         )

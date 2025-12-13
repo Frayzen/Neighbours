@@ -3,6 +3,7 @@ import pygame
 from core.setup import GameSetup
 from core.renderer import GameRenderer
 from core.logic import GameLogic
+from config.settings import FPS
 
 
 class Game:
@@ -29,10 +30,12 @@ class Game:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
+                
+                self.logic.handle_event(event)
 
             self.logic.update()
             self.renderer.draw()
-            self.clock.tick(60)
+            self.clock.tick(FPS)
         pygame.quit()
 
 gameInstance = Game()

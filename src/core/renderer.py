@@ -1,16 +1,46 @@
 import pygame
 from core.debug import debug
+from core.vfx import vfx_manager
+from config.settings import (
+    COLOR_BACKGROUND, 
+    COLOR_HEALTH_BAR_BG, 
+    COLOR_HEALTH_BAR_FG, 
+    COLOR_HEALTH_BAR_BORDER,
+    UI_HEALTH_BAR_WIDTH,
+    UI_HEALTH_BAR_HEIGHT,
+    UI_HEALTH_BAR_X,
+    UI_HEALTH_BAR_Y
+)
 
 class GameRenderer:
     def __init__(self, game):
         self.game = game
 
     def draw(self):
-        self.game.screen.fill("black")
+        self.game.screen.fill(COLOR_BACKGROUND)
         self._draw_world()
         self._draw_entities()
+        vfx_manager.draw(self.game.screen)
+        self._draw_ui()
         debug.draw(self.game.screen)
         pygame.display.flip()
+
+    def _draw_ui(self):
+        # Draw Health Bar
+        bar_width = UI_HEALTH_BAR_WIDTH
+        bar_height = UI_HEALTH_BAR_HEIGHT
+        x = UI_HEALTH_BAR_X
+        y = UI_HEALTH_BAR_Y
+        
+        # Background (Red)
+        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BG, (x, y, bar_width, bar_height))
+        
+        # Foreground (Green)
+        health_pct = max(0, self.game.player.health / self.game.player.max_health)
+        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_FG, (x, y, int(bar_width * health_pct), bar_height))
+        
+        # Border (White)
+        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BORDER, (x, y, bar_width, bar_height), 2)
 
     def _draw_world(self):
         for y in range(self.game.world.height):

@@ -1,0 +1,38 @@
+{
+    "basic_sword": {
+        "name": "Basic Sword",
+        "damage": 10,
+        "range": 50,
+        "cooldown": 1000,
+        "is_aoe": false,
+        "aoe_radius": 0,
+        "behavior": "melee_swing"
+    },
+    "fireball_staff": {
+        "name": "Fireball Staff",
+        "damage": 80,
+        "range": 400,
+        "cooldown": 4000,
+        "is_aoe": true,
+        "aoe_radius": 100,
+        "behavior": "fireball_cast"
+    },
+    "long_bow": {
+        "name": "Long Bow",
+        "damage": 15,
+        "range": 400,
+        "cooldown": 1500,
+        "is_aoe": false,
+        "aoe_radius": 0,
+        "behavior": "ranged_shot"
+    },
+    "mega_hammer": {
+        "name": "Mega Hammer",
+        "damage": 50,
+        "range": 50,
+        "cooldown": 3000,
+        "is_aoe": true,
+        "aoe_radius": 150,
+        "behavior": "ground_smash"
+    }
+}
