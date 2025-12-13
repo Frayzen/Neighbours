@@ -1,10 +1,11 @@
 import math
 
 class Weapon:
-    def __init__(self, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0):
+    def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0):
         """
         Initialize a new Weapon.
         
+        :param id: Unique identifier for the weapon (e.g., 'fireball_staff')
         :param name: Name of the weapon
         :param damage: Damage dealt by the weapon
         :param range: Attack range of the weapon
@@ -12,6 +13,7 @@ class Weapon:
         :param is_aoe: Whether the weapon deals Area of Effect damage
         :param aoe_radius: The radius of the AOE attack (if is_aoe is True)
         """
+        self.id = id
         self.name = name
         self.damage = damage
         self.range = range

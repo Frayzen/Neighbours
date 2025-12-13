@@ -29,6 +29,7 @@ class WeaponFactory:
         
         # Create the weapon instance
         weapon = Weapon(
+            id=weapon_id,
             name=data["name"],
             damage=data["damage"],
             range=data["range"],

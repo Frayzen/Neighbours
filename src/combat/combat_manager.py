@@ -26,6 +26,41 @@ class CombatManager:
         else:
             debug.log(f"Inventory full! Cannot add {weapon.name}")
 
+    def apply_upgrade(self, item):
+        target_name = getattr(item, 'target_weapon', None)
+        if not target_name and isinstance(item, dict): # Handle if item is a dict for some reason, though likely an object
+             target_name = item.get('target_weapon')
+        
+        # If item is an object (which it is), access attributes directly
+        if hasattr(item, 'target_weapon'):
+             target_name = item.target_weapon
+
+        if not target_name:
+            debug.log(f"Upgrade {item.name} has no target weapon specified.")
+            return
+
+        for weapon in self.weapons:
+            # Check if weapon id matches target_name (which is the ID from items.json)
+            if weapon.id == target_name:
+                debug.log(f"Upgrading {weapon.name} (ID: {weapon.id}) with {item.name}")
+                for effect, data in item.effects.items():
+                    op = data["op"]
+                    val = data["value"]
+                    
+                    if hasattr(weapon, effect):
+                        current_val = getattr(weapon, effect)
+                        if op == "add":
+                            setattr(weapon, effect, current_val + val)
+                        elif op == "multiply":
+                            setattr(weapon, effect, current_val * (1 + val))
+                            
+                        debug.log(f"  -> {effect} modified (Op: {op}, Val: {val}). New: {getattr(weapon, effect)}")
+                    else:
+                        debug.log(f"  -> Weapon has no attribute '{effect}'")
+                return
+        
+        debug.log(f"Target weapon {target_name} not found in inventory.")
+
     def switch_weapon(self):
         if not self.weapons:
             return
@@ -81,4 +116,5 @@ class CombatManager:
         for hit_target in targets_hit:
             # debug.log(f"Hit enemy with {self.current_weapon.name} for {self.current_weapon.damage} damage!")
             if hasattr(hit_target, 'take_damage'):
-                hit_target.take_damage(self.current_weapon.damage)
+                damage = self.current_weapon.damage * self.owner.damage_mult
+                hit_target.take_damage(damage)

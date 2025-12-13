@@ -40,3 +40,18 @@ UI_HEALTH_BAR_Y = 10
 # Base directory of the project (src/)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+# Item Settings
+GLOBAL_DROP_CHANCE = 0.3
+
+RARITY_WEIGHTS = {
+    "common": 70,
+    "rare": 25,
+    "legendary": 5
+}
+
+COLOR_RARITY = {
+    "common": (128, 128, 128),  # Grey
+    "rare": (0, 0, 255),        # Blue
+    "legendary": (255, 165, 0)  # Orange
+}

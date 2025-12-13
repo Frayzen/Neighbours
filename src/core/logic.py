@@ -1,6 +1,10 @@
 import pygame
+import random
 from random import randint
 from entities.enemy import Enemy
+from items.item import Item
+from items.factory import ItemFactory
+from config.settings import GLOBAL_DROP_CHANCE
 from core.debug import debug
 from core.triggers import execute_trigger
 from core.vfx import vfx_manager
@@ -36,8 +40,27 @@ class GameLogic:
             if player_rect.colliderect(enemy_rect):
                 self.game.player.take_damage(enemy.damage)
 
-        # Remove dead enemies
-        self.game.gridObjects = [obj for obj in self.game.gridObjects if not (isinstance(obj, Enemy) and obj.health <= 0)]
+        # Item Pickup System
+        items = [obj for obj in self.game.gridObjects if isinstance(obj, Item)]
+        for item in items:
+            item_rect = pygame.Rect(item.x, item.y, item.w * self.game.tile_size, item.h * self.game.tile_size)
+            if player_rect.colliderect(item_rect):
+                self.game.player.collect_item(item)
+                self.game.gridObjects.remove(item)
+
+        # Remove dead enemies and Drop System
+        dead_enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy) and obj.health <= 0]
+        for enemy in dead_enemies:
+            # Apply luck to drop chance
+            current_drop_chance = GLOBAL_DROP_CHANCE * self.game.player.luck_mult
+            
+            if random.random() < current_drop_chance:
+                # Pass luck to item factory for better rarity chances
+                item = ItemFactory.create_random_item(enemy.x, enemy.y, luck=self.game.player.luck_mult)
+                if item:
+                    self.game.gridObjects.append(item)
+                    debug.log(f"Item dropped: {item.name}")
+            self.game.gridObjects.remove(enemy)
 
         for obj in self.game.gridObjects:
             obj.update((self.game.player.x, self.game.player.y))

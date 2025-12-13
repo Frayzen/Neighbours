@@ -1,0 +1,71 @@
+[
+    {
+        "name": "Speed Boots",
+        "type": "stat_upgrade",
+        "rarity": "common",
+        "effects": {
+            "speed": {
+                "op": "add",
+                "value": 0.1
+            }
+        },
+        "description": "Increases movement speed slightly."
+    },
+    {
+        "name": "Power Ring",
+        "type": "stat_upgrade",
+        "rarity": "rare",
+        "effects": {
+            "damage": {
+                "op": "add",
+                "value": 0.2
+            }
+        },
+        "description": "Increases damage output."
+    },
+    {
+        "name": "Health Potion",
+        "type": "stat_upgrade",
+        "rarity": "common",
+        "effects": {
+            "heal": {
+                "op": "add",
+                "value": 20
+            }
+        },
+        "description": "Restores health."
+    },
+    {
+        "name": "Legendary Sword",
+        "type": "stat_upgrade",
+        "rarity": "legendary",
+        "effects": {
+            "damage": {
+                "op": "add",
+                "value": 0.5
+            },
+            "speed": {
+                "op": "add",
+                "value": 0.1
+            }
+        },
+        "description": "A legendary weapon that boosts damage and speed."
+    },
+    {
+        "name": "Fire Essence",
+        "type": "weapon_upgrade",
+        "rarity": "rare",
+        "target_weapon": "fireball_staff",
+        "effects": {
+            "aoe_radius": {
+                "op": "add",
+                "value": 50
+            },
+            "damage": {
+                "op": "add",
+                "value": 5
+            }
+        },
+        "description": "Increases the AOE and damage of the Fireball Staff."
+    }
+]

@@ -23,6 +23,13 @@ class Player(GridObject):
         self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
         self.last_hit_time = 0
         
+        # Stats Multipliers
+        self.speed_mult = 1.0
+        self.damage_mult = 1.0
+        self.defense_mult = 1.0
+        self.cooldown_mult = 1.0
+        self.luck_mult = 1.0
+
         # Combat setup
         self.combat = CombatManager(self)
         # Equip default weapons using the factory
@@ -31,6 +38,40 @@ class Player(GridObject):
             self.combat.add_weapon(WeaponFactory.create_weapon("basic_sword"))
         except Exception as e:
             print(f"Failed to equip default weapons: {e}")
+
+    def collect_item(self, item):
+        debug.log(f"Collected item: {item.name}")
+        
+        if item.type == "weapon_upgrade":
+            self.combat.apply_upgrade(item)
+            return
+
+        for effect, data in item.effects.items():
+            op = data["op"]
+            val = data["value"]
+
+            if effect == "heal":
+                 if op == "add":
+                     self.health = min(self.max_health, self.health + val)
+                 elif op == "multiply":
+                     self.health = min(self.max_health, self.health * (1 + val))
+                 
+                 debug.log(f"Healed (Op: {op}, Val: {val}). Health: {self.health}/{self.max_health}")
+                 continue
+
+            # Generic stat handling
+            attr_name = f"{effect}_mult"
+            if hasattr(self, attr_name):
+                current_val = getattr(self, attr_name)
+                
+                if op == "add":
+                    setattr(self, attr_name, current_val + val)
+                elif op == "multiply":
+                    setattr(self, attr_name, current_val * (1 + val))
+                    
+                debug.log(f"{effect.capitalize()} modified (Op: {op}, Val: {val}). New multiplier: {getattr(self, attr_name)}")
+            else:
+                 debug.log(f"Unknown stat upgrade: {effect}")
 
     def update(self, enemies):
         current_time = pygame.time.get_ticks()
@@ -62,14 +103,17 @@ class Player(GridObject):
 #pygame.K_ DIRECTION is used to detect key presses on this precise touch
         dx = 0
         dy = 0
+        
+        current_speed = self.speed * self.speed_mult
+        
         if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
-            dx -= self.speed
+            dx -= current_speed
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            dx += self.speed
+            dx += current_speed
         if keys[pygame.K_UP] or keys[pygame.K_w]:
-            dy -= self.speed
+            dy -= current_speed
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            dy += self.speed
+            dy += current_speed
 
         # Try moving X
         new_x = self.x + dx
