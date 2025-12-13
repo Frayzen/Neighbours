@@ -10,3 +10,5 @@ class Item(GridObject):
         self.effects = item_data["effects"]
         self.description = item_data["description"]
         self.target_weapon = item_data.get("target_weapon", None)
+        self.target_tag = item_data.get("target_tag", None)
+        self.duration = item_data.get("duration", 0)

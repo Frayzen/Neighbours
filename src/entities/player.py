@@ -30,6 +30,8 @@ class Player(GridObject):
         self.cooldown_mult = 1.0
         self.luck_mult = 1.0
 
+        self.active_effects = []
+        
         # Combat setup
         self.combat = CombatManager(self)
         # Equip default weapons using the factory
@@ -46,6 +48,16 @@ class Player(GridObject):
             self.combat.apply_upgrade(item)
             return
 
+        # Check if temporary effect
+        if item.duration > 0:
+            self.active_effects.append({
+                "item": item,
+                "start_time": pygame.time.get_ticks(),
+                "duration": item.duration
+            })
+            debug.log(f"Applied temporary effect: {item.name} for {item.duration}ms")
+
+        # Apply effect immediately (revert logic will handle removal)
         for effect, data in item.effects.items():
             op = data["op"]
             val = data["value"]
@@ -75,6 +87,31 @@ class Player(GridObject):
 
     def update(self, enemies):
         current_time = pygame.time.get_ticks()
+        
+        # Manage active effects
+        for effect_data in self.active_effects[:]: # Iterate copy to safe remove
+            if current_time - effect_data["start_time"] > effect_data["duration"]:
+                item = effect_data["item"]
+                debug.log(f"Effect expired: {item.name}")
+                
+                # Revert effects
+                for effect, data in item.effects.items():
+                    op = data["op"]
+                    val = data["value"]
+                    
+                    if effect == "heal": continue # Heal is instant, doesn't revert
+                    
+                    attr_name = f"{effect}_mult"
+                    if hasattr(self, attr_name):
+                        current_val = getattr(self, attr_name)
+                        if op == "add":
+                            setattr(self, attr_name, current_val - val)
+                        elif op == "multiply":
+                            setattr(self, attr_name, current_val / (1 + val))
+                            
+                        debug.log(f"  -> {effect} reverted. Multiplier: {getattr(self, attr_name)}")
+                
+                self.active_effects.remove(effect_data)
         
         # Handle invulnerability
         if self.invulnerable:

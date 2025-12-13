@@ -28,20 +28,28 @@ class CombatManager:
 
     def apply_upgrade(self, item):
         target_name = getattr(item, 'target_weapon', None)
-        if not target_name and isinstance(item, dict): # Handle if item is a dict for some reason, though likely an object
-             target_name = item.get('target_weapon')
+        target_tag = getattr(item, 'target_tag', None)
         
-        # If item is an object (which it is), access attributes directly
-        if hasattr(item, 'target_weapon'):
-             target_name = item.target_weapon
+        # Handle dict access for safety
+        if isinstance(item, dict):
+             if not target_name: target_name = item.get('target_weapon')
+             if not target_tag: target_tag = item.get('target_tag')
+        
+        # Handle object access if attribute missing from dict approach above
+        if hasattr(item, 'target_weapon'): target_name = item.target_weapon
+        if hasattr(item, 'target_tag'): target_tag = item.target_tag
 
-        if not target_name:
-            debug.log(f"Upgrade {item.name} has no target weapon specified.")
+        if not target_name and not target_tag:
+            debug.log(f"Upgrade {item.name} has no target weapon or tag specified.")
             return
 
+        upgraded_count = 0
         for weapon in self.weapons:
-            # Check if weapon id matches target_name (which is the ID from items.json)
-            if weapon.id == target_name:
+            # Check if weapon matches target_name OR matches target_tag
+            matches_id = (target_name and weapon.id == target_name)
+            matches_tag = (target_tag and target_tag in weapon.tags)
+            
+            if matches_id or matches_tag:
                 debug.log(f"Upgrading {weapon.name} (ID: {weapon.id}) with {item.name}")
                 for effect, data in item.effects.items():
                     op = data["op"]
@@ -55,11 +63,20 @@ class CombatManager:
                             setattr(weapon, effect, current_val * (1 + val))
                             
                         debug.log(f"  -> {effect} modified (Op: {op}, Val: {val}). New: {getattr(weapon, effect)}")
+                    if hasattr(weapon, effect):
+                        current_val = getattr(weapon, effect)
+                        if op == "add":
+                            setattr(weapon, effect, current_val + val)
+                        elif op == "multiply":
+                            setattr(weapon, effect, current_val * (1 + val))
+                            
+                        debug.log(f"  -> {effect} modified (Op: {op}, Val: {val}). New: {getattr(weapon, effect)}")
                     else:
                         debug.log(f"  -> Weapon has no attribute '{effect}'")
-                return
+                upgraded_count += 1
         
-        debug.log(f"Target weapon {target_name} not found in inventory.")
+        if upgraded_count == 0:
+            debug.log(f"Target weapon {target_name} or tag {target_tag} not found in inventory.")
 
     def switch_weapon(self):
         if not self.weapons:

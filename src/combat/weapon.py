@@ -1,7 +1,7 @@
 import math
 
 class Weapon:
-    def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0):
+    def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0, tags: list = None):
         """
         Initialize a new Weapon.
         
@@ -12,6 +12,7 @@ class Weapon:
         :param cooldown: Cooldown time in milliseconds
         :param is_aoe: Whether the weapon deals Area of Effect damage
         :param aoe_radius: The radius of the AOE attack (if is_aoe is True)
+        :param tags: List of tags associated with the weapon
         """
         self.id = id
         self.name = name
@@ -20,6 +21,7 @@ class Weapon:
         self.cooldown = cooldown
         self.is_aoe = is_aoe
         self.aoe_radius = aoe_radius
+        self.tags = tags if tags else []
         self.last_attack_time = 0
         self.behavior_func = None # Assigned by factory
 

@@ -6,7 +6,11 @@
         "cooldown": 1000,
         "is_aoe": false,
         "aoe_radius": 0,
-        "behavior": "melee_swing"
+        "behavior": "melee_swing",
+        "tags": [
+            "melee",
+            "physical"
+        ]
     },
     "fireball_staff": {
         "name": "Fireball Staff",
@@ -15,7 +19,12 @@
         "cooldown": 4000,
         "is_aoe": true,
         "aoe_radius": 100,
-        "behavior": "fireball_cast"
+        "behavior": "fireball_cast",
+        "tags": [
+            "magic",
+            "fire",
+            "ranged"
+        ]
     },
     "long_bow": {
         "name": "Long Bow",
@@ -24,7 +33,11 @@
         "cooldown": 1500,
         "is_aoe": false,
         "aoe_radius": 0,
-        "behavior": "ranged_shot"
+        "behavior": "ranged_shot",
+        "tags": [
+            "ranged",
+            "physical"
+        ]
     },
     "mega_hammer": {
         "name": "Mega Hammer",
@@ -33,6 +46,11 @@
         "cooldown": 3000,
         "is_aoe": true,
         "aoe_radius": 150,
-        "behavior": "ground_smash"
+        "behavior": "ground_smash",
+        "tags": [
+            "melee",
+            "physical",
+            "blunt"
+        ]
     }
 }

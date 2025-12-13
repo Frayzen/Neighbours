@@ -67,5 +67,35 @@
             }
         },
         "description": "Increases the AOE and damage of the Fireball Staff."
+    },
+    {
+        "name": "Magic Essence",
+        "type": "weapon_upgrade",
+        "rarity": "rare",
+        "target_tag": "magic",
+        "effects": {
+            "damage": {
+                "op": "multiply",
+                "value": 0.2
+            },
+            "cooldown": {
+                "op": "multiply",
+                "value": -0.1
+            }
+        },
+        "description": "Increases damage and reduces cooldown of all magic weapons."
+    },
+    {
+        "name": "Speed Potion",
+        "type": "stat_upgrade",
+        "rarity": "common",
+        "duration": 10000,
+        "effects": {
+            "speed": {
+                "op": "add",
+                "value": 0.5
+            }
+        },
+        "description": "Increases speed by 50% for 10 seconds."
     }
 ]

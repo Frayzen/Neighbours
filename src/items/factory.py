@@ -6,20 +6,39 @@ from items.item import Item
 
 class ItemFactory:
     _items = []
-
+    _sorted_items = {}
+    
     @staticmethod
     def load_items():
         items_path = os.path.join(BASE_DIR, "config", "items.json")
         try:
             with open(items_path, "r") as f:
                 ItemFactory._items = json.load(f)
+            
+            # Sort items into buckets for faster access
+            ItemFactory._sorted_items = {
+                "common": [],
+                "rare": [],
+                "legendary": []
+            }
+            
+            for item in ItemFactory._items:
+                rarity = item.get("rarity", "common")
+                if rarity in ItemFactory._sorted_items:
+                    ItemFactory._sorted_items[rarity].append(item)
+                else:
+                    # Fallback for unknown rarities
+                    pass
+            
             print(f"Loaded {len(ItemFactory._items)} items.")
         except FileNotFoundError:
             print(f"Error: items.json not found at {items_path}")
             ItemFactory._items = []
+            ItemFactory._sorted_items = {}
         except json.JSONDecodeError:
             print(f"Error: items.json is not valid JSON.")
             ItemFactory._items = []
+            ItemFactory._sorted_items = {}
 
     @staticmethod
     def create_random_item(x, y, luck=1.0):
@@ -40,8 +59,8 @@ class ItemFactory:
             
         selected_rarity = random.choices(rarities, weights=weights, k=1)[0]
 
-        # Filter items by rarity
-        possible_items = [item for item in ItemFactory._items if item["rarity"] == selected_rarity]
+        # Filter items by rarity using cached buckets
+        possible_items = ItemFactory._sorted_items.get(selected_rarity, [])
 
         # If no items of selected rarity, fallback to any item
         if not possible_items:

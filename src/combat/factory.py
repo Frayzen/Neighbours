@@ -35,7 +35,8 @@ class WeaponFactory:
             range=data["range"],
             cooldown=data["cooldown"],
             is_aoe=data.get("is_aoe", False),
-            aoe_radius=data.get("aoe_radius", 0)
+            aoe_radius=data.get("aoe_radius", 0),
+            tags=data.get("tags", [])
         )
         
         # Attach the behavior function
