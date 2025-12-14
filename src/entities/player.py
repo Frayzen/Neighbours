@@ -11,7 +11,9 @@ from combat.combat_manager import CombatManager
 from combat.factory import WeaponFactory
 from entities.base import GridObject
 from core.physics import check_collision
+from core.physics import check_collision
 from core.debug import debug
+from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL
 
 class Player(GridObject):
     def __init__(self, x, y, size, speed):
@@ -68,10 +70,10 @@ class Player(GridObject):
             op = data["op"]
             val = data["value"]
 
-            if effect == "heal":
-                 if op == "add":
+            if effect == STAT_HEAL:
+                 if op == OP_ADD:
                      self.health = min(self.max_health, self.health + val)
-                 elif op == "multiply":
+                 elif op == OP_MULTIPLY:
                      self.health = min(self.max_health, self.health * (1 + val))
                  
                  debug.log(f"Healed (Op: {op}, Val: {val}). Health: {self.health}/{self.max_health}")
@@ -82,9 +84,9 @@ class Player(GridObject):
             if hasattr(self, attr_name):
                 current_val = getattr(self, attr_name)
                 
-                if op == "add":
+                if op == OP_ADD:
                     setattr(self, attr_name, current_val + val)
-                elif op == "multiply":
+                elif op == OP_MULTIPLY:
                     setattr(self, attr_name, current_val * (1 + val))
                     
                 debug.log(f"{effect.capitalize()} modified (Op: {op}, Val: {val}). New multiplier: {getattr(self, attr_name)}")
@@ -105,14 +107,14 @@ class Player(GridObject):
                     op = data["op"]
                     val = data["value"]
                     
-                    if effect == "heal": continue # Heal is instant, doesn't revert
+                    if effect == STAT_HEAL: continue # Heal is instant, doesn't revert
                     
                     attr_name = f"{effect}_mult"
                     if hasattr(self, attr_name):
                         current_val = getattr(self, attr_name)
-                        if op == "add":
+                        if op == OP_ADD:
                             setattr(self, attr_name, current_val - val)
-                        elif op == "multiply":
+                        elif op == OP_MULTIPLY:
                             setattr(self, attr_name, current_val / (1 + val))
                             
                         debug.log(f"  -> {effect} reverted. Multiplier: {getattr(self, attr_name)}")

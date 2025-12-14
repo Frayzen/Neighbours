@@ -21,14 +21,26 @@ class GameLogic:
 
     def update(self):
         vfx_manager.update()
-        result = self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
-
         
+        self._handle_player_movement()
+        self._handle_combat()
+        self._handle_pickups()
+        self._handle_spawning_and_drops()
+
+        for obj in self.game.gridObjects:
+            obj.update((self.game.player.x, self.game.player.y))
+        
+        self._handle_input()
+        self._handle_debug_input()
+
+    def _handle_player_movement(self):
+        result = self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
         if result:
             cell, x, y = result
             if cell.trigger:
                 execute_trigger(cell.trigger, self.game, x, y)
 
+    def _handle_combat(self):
         # Update player combat logic
         # Filter enemies from gridObjects
         enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy)]
@@ -41,6 +53,7 @@ class GameLogic:
             if player_rect.colliderect(enemy_rect):
                 self.game.player.take_damage(enemy.damage)
 
+    def _handle_pickups(self):
         # Pickup System (Items & XP)
         pickupables = [obj for obj in self.game.gridObjects if isinstance(obj, (Item, XPOrb))]
         player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * self.game.tile_size, self.game.player.h * self.game.tile_size)
@@ -67,6 +80,7 @@ class GameLogic:
                 if obj in self.game.gridObjects: # Check existence to avoid double removal
                     self.game.gridObjects.remove(obj)
 
+    def _handle_spawning_and_drops(self):
         # Remove dead enemies and Drop System
         dead_enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy) and obj.health <= 0]
         for enemy in dead_enemies:
@@ -84,12 +98,6 @@ class GameLogic:
                     self.game.gridObjects.append(item)
                     debug.log(f"Item dropped: {item.name}")
             self.game.gridObjects.remove(enemy)
-
-        for obj in self.game.gridObjects:
-            obj.update((self.game.player.x, self.game.player.y))
-        
-        self._handle_input()
-        self._handle_debug_input()
 
     def _handle_input(self):
         pass

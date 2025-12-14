@@ -47,7 +47,6 @@ GLOBAL_DROP_CHANCE = 0.3
 RARITY_WEIGHTS = {
     "common": 70,
     "rare": 25,
-    "rare": 25,
     "legendary": 5
 }
 
