@@ -7,6 +7,7 @@
         "is_aoe": false,
         "aoe_radius": 0,
         "behavior": "melee_swing",
+        "texture_path": "assets/images/DiamondSword.png",
         "tags": [
             "melee",
             "physical"
@@ -20,6 +21,7 @@
         "is_aoe": true,
         "aoe_radius": 100,
         "behavior": "fireball_cast",
+        "texture_path": "",
         "tags": [
             "magic",
             "fire",
@@ -34,6 +36,7 @@
         "is_aoe": false,
         "aoe_radius": 0,
         "behavior": "ranged_shot",
+        "texture_path": "",
         "tags": [
             "ranged",
             "physical"
@@ -47,6 +50,7 @@
         "is_aoe": true,
         "aoe_radius": 150,
         "behavior": "ground_smash",
+        "texture_path": "",
         "tags": [
             "melee",
             "physical",

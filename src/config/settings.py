@@ -47,7 +47,14 @@ GLOBAL_DROP_CHANCE = 0.3
 RARITY_WEIGHTS = {
     "common": 70,
     "rare": 25,
+    "rare": 25,
     "legendary": 5
+}
+
+RARITY_SCALING = {
+    "common": 1.0,
+    "rare": 1.5,
+    "legendary": 3.0
 }
 
 COLOR_RARITY = {

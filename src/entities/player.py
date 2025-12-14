@@ -187,4 +187,12 @@ class Player(GridObject):
             # Draw slightly offset
             wx = self.x + (self.w * tile_size) * 0.8
             wy = self.y + (self.h * tile_size) * 0.2
-            pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))
+            
+            if weapon.image:
+                 # Scale weapon image if needed (arbitrary size choice or based on tiles)
+                 # Let's say weapon is same size as player width roughly? Or fixed small icon.
+                 # Using fixed small size for now to match rect
+                 scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
+                 surface.blit(scaled_weapon, (wx, wy))
+            else:
+                 pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))
