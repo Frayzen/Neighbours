@@ -190,8 +190,6 @@ class Player(GridObject):
         if not collision_y:
             self.y = new_y
         elif isinstance(collision_y, tuple):
-             # If we already have a collision from X (e.g. trigger), we might overwrite it or keep first.
-             # Usually triggers are unique per frame, keeping first valid one is fine.
              if final_collision is None:
                  final_collision = collision_y
         
@@ -219,8 +217,6 @@ class Player(GridObject):
             
             if weapon.image:
                  # Scale weapon image if needed (arbitrary size choice or based on tiles)
-                 # Let's say weapon is same size as player width roughly? Or fixed small icon.
-                 # Using fixed small size for now to match rect
                  scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
                  surface.blit(scaled_weapon, (wx, wy))
             else:

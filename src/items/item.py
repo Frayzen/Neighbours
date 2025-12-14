@@ -45,12 +45,8 @@ class Item(GridObject):
         if dist > 0:
             direction = direction.normalize()
             
-            # Move straight to target with high speed (or increasing speed based on closeness)
-            # "Easier" pickup might imply fast snap.
             speed = 12 # Higher constant speed for snappy pickup
             
-            # If close enough to overshoot, just snap to position (handled by collision logic in main loop usually, 
-            # but let's ensure we move closely)
             move_dist = min(dist, speed)
             
             self.x += direction.x * move_dist

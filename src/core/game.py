@@ -13,11 +13,16 @@ class Game:
         pygame.init()
         
         # Perform initial setup
-        setup = GameSetup(self)
-        setup.perform_setup()
+        self.setup = GameSetup(self)
+        self.setup.perform_setup()
         
         # Initialize subsystems
         self.renderer = GameRenderer(self)
+        self.logic = GameLogic(self)
+
+    def restart_game(self):
+        # Reset game state
+        self.setup.perform_setup()
         self.logic = GameLogic(self)
 
     def run(self):

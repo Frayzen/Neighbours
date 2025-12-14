@@ -24,6 +24,12 @@ class GameLogic:
         
         self._handle_player_movement()
         self._handle_combat()
+        
+        # Check for game over (restart)
+        if self.game.player.health <= 0:
+            self.game.restart_game()
+            return
+
         self._handle_pickups()
         self._handle_spawning_and_drops()
 
