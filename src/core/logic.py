@@ -56,16 +56,24 @@ class GameLogic:
     def _handle_pickups(self):
         # Pickup System (Items & XP)
         pickupables = [obj for obj in self.game.gridObjects if isinstance(obj, (Item, XPOrb))]
+        
+        # Pre-calculate player center and range squared
+        px = self.game.player.x + (self.game.player.w * self.game.tile_size) / 2
+        py = self.game.player.y + (self.game.player.h * self.game.tile_size) / 2
+        pickup_range_sq = self.game.player.pickup_range ** 2
+        
         player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * self.game.tile_size, self.game.player.h * self.game.tile_size)
         
         for obj in pickupables:
-            # Magnet Logic
-            obj_center = pygame.math.Vector2(obj.x + (obj.w * self.game.tile_size)/2, obj.y + (obj.h * self.game.tile_size)/2)
-            player_center = pygame.math.Vector2(self.game.player.x + (self.game.player.w * self.game.tile_size)/2, self.game.player.y + (self.game.player.h * self.game.tile_size)/2)
+            # Magnet Logic (Optimized)
+            ox = obj.x + (obj.w * self.game.tile_size)/2
+            oy = obj.y + (obj.h * self.game.tile_size)/2
             
-            dist = obj_center.distance_to(player_center)
+            dx = ox - px
+            dy = oy - py
+            dist_sq = dx*dx + dy*dy
             
-            if dist <= self.game.player.pickup_range:
+            if dist_sq <= pickup_range_sq:
                 if hasattr(obj, 'move_towards'):
                     obj.move_towards(self.game.player.x, self.game.player.y)
             

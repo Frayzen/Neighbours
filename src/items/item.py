@@ -34,6 +34,28 @@ class Item(GridObject):
             else:
                 debug.log(f"Texture not found: {full_path}")
 
+    def move_towards(self, target_x, target_y):
+        # Direct movement behavior (no inertia)
+        target = pygame.math.Vector2(target_x, target_y)
+        pos = pygame.math.Vector2(self.x, self.y)
+        
+        direction = target - pos
+        dist = direction.length()
+        
+        if dist > 0:
+            direction = direction.normalize()
+            
+            # Move straight to target with high speed (or increasing speed based on closeness)
+            # "Easier" pickup might imply fast snap.
+            speed = 12 # Higher constant speed for snappy pickup
+            
+            # If close enough to overshoot, just snap to position (handled by collision logic in main loop usually, 
+            # but let's ensure we move closely)
+            move_dist = min(dist, speed)
+            
+            self.x += direction.x * move_dist
+            self.y += direction.y * move_dist
+
     def draw(self, screen, tile_size):
         rect = (self.x, self.y, self.w * tile_size, self.h * tile_size)
         
