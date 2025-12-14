@@ -175,20 +175,28 @@ class Player(GridObject):
         # Try moving X
         new_x = self.x + dx
         collision_x = check_collision(new_x, self.y, self.w, self.h, bounds, world, tile_size)
+        
+        final_collision = None
+        
         if not collision_x:
             self.x = new_x
         elif isinstance(collision_x, tuple):
-             return collision_x
+             final_collision = collision_x
 
         # Try moving Y
         new_y = self.y + dy
         collision_y = check_collision(self.x, new_y, self.w, self.h, bounds, world, tile_size)
+        
         if not collision_y:
             self.y = new_y
         elif isinstance(collision_y, tuple):
-             return collision_y
+             # If we already have a collision from X (e.g. trigger), we might overwrite it or keep first.
+             # Usually triggers are unique per frame, keeping first valid one is fine.
+             if final_collision is None:
+                 final_collision = collision_y
         
-        return None
+        # Return trigger if any collision was a trigger
+        return final_collision
 
     def draw(self, surface, tile_size):
         # Draw player

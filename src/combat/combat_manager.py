@@ -2,7 +2,6 @@ import math
 import pygame
 from core.debug import debug
 from combat.weapon import Weapon
-from combat.weapon import Weapon
 from config.settings import MAX_WEAPONS, TARGET_CHECK_INTERVAL
 from config.constants import OP_ADD, OP_MULTIPLY
 
@@ -57,14 +56,6 @@ class CombatManager:
                     op = data["op"]
                     val = data["value"]
                     
-                    if hasattr(weapon, effect):
-                        current_val = getattr(weapon, effect)
-                        if op == OP_ADD:
-                            setattr(weapon, effect, current_val + val)
-                        elif op == OP_MULTIPLY:
-                            setattr(weapon, effect, current_val * (1 + val))
-                            
-                        debug.log(f"  -> {effect} modified (Op: {op}, Val: {val}). New: {getattr(weapon, effect)}")
                     if hasattr(weapon, effect):
                         current_val = getattr(weapon, effect)
                         if op == OP_ADD:
