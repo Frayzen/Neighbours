@@ -44,20 +44,22 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Item Settings
 GLOBAL_DROP_CHANCE = 0.3
 
+from config.constants import RARITY_COMMON, RARITY_RARE, RARITY_LEGENDARY
+
 RARITY_WEIGHTS = {
-    "common": 70,
-    "rare": 25,
-    "legendary": 5
+    RARITY_COMMON: 70,
+    RARITY_RARE: 25,
+    RARITY_LEGENDARY: 5
 }
 
 RARITY_SCALING = {
-    "common": 1.0,
-    "rare": 1.5,
-    "legendary": 3.0
+    RARITY_COMMON: 1.0,
+    RARITY_RARE: 1.5,
+    RARITY_LEGENDARY: 3.0
 }
 
 COLOR_RARITY = {
-    "common": (128, 128, 128),  # Grey
-    "rare": (0, 0, 255),        # Blue
-    "legendary": (255, 165, 0)  # Orange
+    RARITY_COMMON: (128, 128, 128),  # Grey
+    RARITY_RARE: (0, 0, 255),        # Blue
+    RARITY_LEGENDARY: (255, 165, 0)  # Orange
 }

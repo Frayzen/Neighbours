@@ -13,7 +13,7 @@ from entities.base import GridObject
 from core.physics import check_collision
 from core.physics import check_collision
 from core.debug import debug
-from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL
+from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL, ITEM_TYPE_WEAPON, TAG_FIRE, TAG_RANGED
 
 class Player(GridObject):
     def __init__(self, x, y, size, speed):
@@ -83,7 +83,7 @@ class Player(GridObject):
     def collect_item(self, item):
         debug.log(f"Collected item: {item.name}")
         
-        if item.type == "weapon_upgrade":
+        if item.type == ITEM_TYPE_WEAPON:
             self.combat.apply_upgrade(item)
             return
 
@@ -207,9 +207,10 @@ class Player(GridObject):
         if weapon:
             # Simple representation: a small colored rect next to the player
             weapon_color = (200, 200, 200)
-            if "fire" in weapon.name.lower():
+            weapon_color = (200, 200, 200)
+            if TAG_FIRE in weapon.tags:
                 weapon_color = (255, 100, 0)
-            elif "bow" in weapon.name.lower():
+            elif TAG_RANGED in weapon.tags:
                 weapon_color = (100, 255, 100)
             
             # Draw slightly offset

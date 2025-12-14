@@ -3,6 +3,7 @@ import random
 import os
 import copy
 from config.settings import BASE_DIR, RARITY_WEIGHTS, RARITY_SCALING
+from config.constants import RARITY_COMMON, RARITY_RARE, RARITY_LEGENDARY
 from items.item import Item
 
 class ItemFactory:
@@ -19,9 +20,9 @@ class ItemFactory:
             # Sort items into buckets for faster access
             ItemFactory._items = []
             ItemFactory._sorted_items = {
-                "common": [],
-                "rare": [],
-                "legendary": []
+                RARITY_COMMON: [],
+                RARITY_RARE: [],
+                RARITY_LEGENDARY: []
             }
             
             for raw_item in raw_items_data:
@@ -80,7 +81,7 @@ class ItemFactory:
         weights = []
         for r in rarities:
             w = RARITY_WEIGHTS[r]
-            if r in ["rare", "legendary"]:
+            if r in [RARITY_RARE, RARITY_LEGENDARY]:
                 w *= luck
             weights.append(w)
             

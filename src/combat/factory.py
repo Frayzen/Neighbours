@@ -3,6 +3,7 @@ import os
 from combat.weapon import Weapon
 from combat.behaviors import WeaponBehaviors
 from config.settings import BASE_DIR
+from config.constants import BEHAVIOR_MELEE_SWING
 
 class WeaponFactory:
     _weapons_data = None
@@ -41,7 +42,7 @@ class WeaponFactory:
         )
         
         # Attach the behavior function
-        behavior_name = data.get("behavior", "melee_swing")
+        behavior_name = data.get("behavior", BEHAVIOR_MELEE_SWING)
         weapon.behavior_func = WeaponBehaviors.get_behavior(behavior_name)
         
         return weapon

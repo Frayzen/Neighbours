@@ -78,15 +78,17 @@ class GameLogic:
                     obj.move_towards(self.game.player.x, self.game.player.y)
             
             # Collision/Collection Logic
-            obj_rect = pygame.Rect(obj.x, obj.y, obj.w * self.game.tile_size, obj.h * self.game.tile_size)
-            if player_rect.colliderect(obj_rect):
-                if isinstance(obj, Item):
-                    self.game.player.collect_item(obj)
-                elif isinstance(obj, XPOrb):
-                    self.game.player.gain_xp(obj.value)
-                
-                if obj in self.game.gridObjects: # Check existence to avoid double removal
-                    self.game.gridObjects.remove(obj)
+            # Optimization: Only check collision if close enough (e.g. < 2 tiles)
+            if dist_sq < (self.game.tile_size * 2) ** 2:
+                obj_rect = pygame.Rect(obj.x, obj.y, obj.w * self.game.tile_size, obj.h * self.game.tile_size)
+                if player_rect.colliderect(obj_rect):
+                    if isinstance(obj, Item):
+                        self.game.player.collect_item(obj)
+                    elif isinstance(obj, XPOrb):
+                        self.game.player.gain_xp(obj.value)
+                    
+                    if obj in self.game.gridObjects: # Check existence to avoid double removal
+                        self.game.gridObjects.remove(obj)
 
     def _handle_spawning_and_drops(self):
         # Remove dead enemies and Drop System
