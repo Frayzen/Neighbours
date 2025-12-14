@@ -182,5 +182,27 @@
             }
         },
         "description": "Increases the range of all ranged weapons."
+    },
+    {
+        "name": "Magnet Ring",
+        "type": "stat_upgrade",
+        "allowed_rarities": [
+            "common",
+            "rare",
+            "legendary"
+        ],
+        "color": [
+            100,
+            100,
+            255
+        ],
+        "texture_path": "",
+        "effects": {
+            "pickup_range": {
+                "op": "add",
+                "value": 50
+            }
+        },
+        "description": "Increases pickup range for items and XP."
     }
 ]

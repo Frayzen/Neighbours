@@ -30,6 +30,12 @@ class Player(GridObject):
         self.cooldown_mult = 1.0
         self.luck_mult = 1.0
 
+        # XP and Leveling
+        self.xp = 0
+        self.level = 1
+        self.xp_to_next_level = 100
+        self.pickup_range = 100 # Range in pixels for magnet effect
+        
         self.active_effects = []
         
         # Combat setup
@@ -135,6 +141,20 @@ class Player(GridObject):
     def die(self):
         debug.log("Player died!")
         # TODO: Handle player death (restart game, show game over screen, etc.)
+
+    def gain_xp(self, amount):
+        self.xp += amount
+        debug.log(f"Gained {amount} XP. Total: {self.xp}/{self.xp_to_next_level}")
+        
+        if self.xp >= self.xp_to_next_level:
+            self.level_up()
+
+    def level_up(self):
+        self.xp -= self.xp_to_next_level
+        self.level += 1
+        self.xp_to_next_level = int(self.xp_to_next_level * 1.5)
+        debug.log(f"Level Up! New Level: {self.level}")
+        # TODO: Trigger level up UI or choices
 
     def move(self, keys, bounds: Tuple[int, int, int, int], world, tile_size: int): #movement using arrow keys or WASD
 #pygame.K_ DIRECTION is used to detect key presses on this precise touch

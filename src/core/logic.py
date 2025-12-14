@@ -4,6 +4,7 @@ from random import randint
 from entities.enemy import Enemy
 from items.item import Item
 from items.factory import ItemFactory
+from entities.xp_orb import XPOrb
 from config.settings import GLOBAL_DROP_CHANCE
 from core.debug import debug
 from core.triggers import execute_trigger
@@ -40,17 +41,39 @@ class GameLogic:
             if player_rect.colliderect(enemy_rect):
                 self.game.player.take_damage(enemy.damage)
 
-        # Item Pickup System
-        items = [obj for obj in self.game.gridObjects if isinstance(obj, Item)]
-        for item in items:
-            item_rect = pygame.Rect(item.x, item.y, item.w * self.game.tile_size, item.h * self.game.tile_size)
-            if player_rect.colliderect(item_rect):
-                self.game.player.collect_item(item)
-                self.game.gridObjects.remove(item)
+        # Pickup System (Items & XP)
+        pickupables = [obj for obj in self.game.gridObjects if isinstance(obj, (Item, XPOrb))]
+        player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * self.game.tile_size, self.game.player.h * self.game.tile_size)
+        
+        for obj in pickupables:
+            # Magnet Logic
+            obj_center = pygame.math.Vector2(obj.x + (obj.w * self.game.tile_size)/2, obj.y + (obj.h * self.game.tile_size)/2)
+            player_center = pygame.math.Vector2(self.game.player.x + (self.game.player.w * self.game.tile_size)/2, self.game.player.y + (self.game.player.h * self.game.tile_size)/2)
+            
+            dist = obj_center.distance_to(player_center)
+            
+            if dist <= self.game.player.pickup_range:
+                if hasattr(obj, 'move_towards'):
+                    obj.move_towards(self.game.player.x, self.game.player.y)
+            
+            # Collision/Collection Logic
+            obj_rect = pygame.Rect(obj.x, obj.y, obj.w * self.game.tile_size, obj.h * self.game.tile_size)
+            if player_rect.colliderect(obj_rect):
+                if isinstance(obj, Item):
+                    self.game.player.collect_item(obj)
+                elif isinstance(obj, XPOrb):
+                    self.game.player.gain_xp(obj.value)
+                
+                if obj in self.game.gridObjects: # Check existence to avoid double removal
+                    self.game.gridObjects.remove(obj)
 
         # Remove dead enemies and Drop System
         dead_enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy) and obj.health <= 0]
         for enemy in dead_enemies:
+            # Drop XP
+            xp_orb = XPOrb(enemy.x, enemy.y, enemy.xp_value)
+            self.game.gridObjects.append(xp_orb)
+
             # Apply luck to drop chance
             current_drop_chance = GLOBAL_DROP_CHANCE * self.game.player.luck_mult
             
