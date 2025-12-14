@@ -49,6 +49,37 @@ class Player(GridObject):
         except Exception as e:
             print(f"Failed to equip default weapons: {e}")
 
+    def _modify_stat(self, effect, op, value, revert=False):
+        if effect == STAT_HEAL:
+             if revert: return # Heal is instant, doesn't revert
+             
+             if op == OP_ADD:
+                 self.health = min(self.max_health, self.health + value)
+             elif op == OP_MULTIPLY:
+                 self.health = min(self.max_health, self.health * (1 + value))
+             
+             debug.log(f"Healed (Op: {op}, Val: {value}). Health: {self.health}/{self.max_health}")
+             return
+
+        attr_name = f"{effect}_mult"
+        if hasattr(self, attr_name):
+            current_val = getattr(self, attr_name)
+            
+            if revert:
+                if op == OP_ADD:
+                    setattr(self, attr_name, current_val - value)
+                elif op == OP_MULTIPLY:
+                    setattr(self, attr_name, current_val / (1 + value))
+                debug.log(f"  -> {effect} reverted. Multiplier: {getattr(self, attr_name)}")
+            else:
+                if op == OP_ADD:
+                    setattr(self, attr_name, current_val + value)
+                elif op == OP_MULTIPLY:
+                    setattr(self, attr_name, current_val * (1 + value))
+                debug.log(f"{effect.capitalize()} modified (Op: {op}, Val: {value}). New multiplier: {getattr(self, attr_name)}")
+        else:
+             debug.log(f"Unknown stat upgrade: {effect}")
+
     def collect_item(self, item):
         debug.log(f"Collected item: {item.name}")
         
@@ -69,29 +100,7 @@ class Player(GridObject):
         for effect, data in item.effects.items():
             op = data["op"]
             val = data["value"]
-
-            if effect == STAT_HEAL:
-                 if op == OP_ADD:
-                     self.health = min(self.max_health, self.health + val)
-                 elif op == OP_MULTIPLY:
-                     self.health = min(self.max_health, self.health * (1 + val))
-                 
-                 debug.log(f"Healed (Op: {op}, Val: {val}). Health: {self.health}/{self.max_health}")
-                 continue
-
-            # Generic stat handling
-            attr_name = f"{effect}_mult"
-            if hasattr(self, attr_name):
-                current_val = getattr(self, attr_name)
-                
-                if op == OP_ADD:
-                    setattr(self, attr_name, current_val + val)
-                elif op == OP_MULTIPLY:
-                    setattr(self, attr_name, current_val * (1 + val))
-                    
-                debug.log(f"{effect.capitalize()} modified (Op: {op}, Val: {val}). New multiplier: {getattr(self, attr_name)}")
-            else:
-                 debug.log(f"Unknown stat upgrade: {effect}")
+            self._modify_stat(effect, op, val, revert=False)
 
     def update(self, enemies):
         current_time = pygame.time.get_ticks()
@@ -106,18 +115,7 @@ class Player(GridObject):
                 for effect, data in item.effects.items():
                     op = data["op"]
                     val = data["value"]
-                    
-                    if effect == STAT_HEAL: continue # Heal is instant, doesn't revert
-                    
-                    attr_name = f"{effect}_mult"
-                    if hasattr(self, attr_name):
-                        current_val = getattr(self, attr_name)
-                        if op == OP_ADD:
-                            setattr(self, attr_name, current_val - val)
-                        elif op == OP_MULTIPLY:
-                            setattr(self, attr_name, current_val / (1 + val))
-                            
-                        debug.log(f"  -> {effect} reverted. Multiplier: {getattr(self, attr_name)}")
+                    self._modify_stat(effect, op, val, revert=True)
                 
                 self.active_effects.remove(effect_data)
         
