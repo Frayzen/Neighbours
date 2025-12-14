@@ -11,7 +11,7 @@
     },
     "Water": {
         "walkable": false,
-        "texture_path": "",
+        "texture_path": "../assets/images/water.png",
         "color": [0, 0, 255]
     },
     "Door": {
