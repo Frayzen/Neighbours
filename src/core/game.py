@@ -19,11 +19,13 @@ class Game:
         # Initialize subsystems
         self.renderer = GameRenderer(self)
         self.logic = GameLogic(self)
+        self.current_time = 0
 
     def run(self):
         running = True
         # Main game loop
         while running:
+            self.current_time = pygame.time.get_ticks()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False

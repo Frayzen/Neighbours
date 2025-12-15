@@ -53,8 +53,10 @@ class GameRenderer:
         pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_FG, (x, y, int(bar_width * health_pct), bar_height))
 
         # Weapons if the player hold one
-        if CombatManager.current_weapon:
-            weapon_pct = min(1, Weapon.cooldown - (self.game.current_time - Weapon.last_attack_time) / Weapon.cooldown) if Weapon.cooldown > 0 else 1
+        current_weapon = self.game.player.combat.current_weapon
+        if current_weapon:
+            elapsed = self.game.current_time - current_weapon.last_attack_time
+            weapon_pct = min(1, elapsed / current_weapon.cooldown) if current_weapon.cooldown > 0 else 1
             pygame.draw.rect(self.game.screen, COLOR_WEAPON_BAR_FG, (x2, y2, int(bar_width * weapon_pct), bar_height))
 
         
