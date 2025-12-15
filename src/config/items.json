@@ -1,0 +1,208 @@
+[
+    {
+        "name": "Speed Boots",
+        "type": "stat_upgrade",
+        "allowed_rarities": [
+            "common",
+            "rare",
+            "legendary"
+        ],
+        "color": [
+            255,
+            255,
+            0
+        ],
+        "texture_path": "",
+        "effects": {
+            "speed": {
+                "op": "add",
+                "value": 0.1
+            }
+        },
+        "description": "Increases movement speed."
+    },
+    {
+        "name": "Power Ring",
+        "type": "stat_upgrade",
+        "allowed_rarities": [
+            "rare",
+            "legendary"
+        ],
+        "color": [
+            255,
+            0,
+            0
+        ],
+        "texture_path": "",
+        "effects": {
+            "damage": {
+                "op": "add",
+                "value": 0.2
+            }
+        },
+        "description": "Increases damage output."
+    },
+    {
+        "name": "Health Potion",
+        "type": "stat_upgrade",
+        "allowed_rarities": [
+            "common"
+        ],
+        "color": [
+            255,
+            105,
+            180
+        ],
+        "texture_path": "assets/images/HealthPotion.png",
+        "effects": {
+            "heal": {
+                "op": "add",
+                "value": 20
+            }
+        },
+        "description": "Restores health."
+    },
+    {
+        "name": "Sword Enchants",
+        "type": "stat_upgrade",
+        "allowed_rarities": [
+            "legendary"
+        ],
+        "color": [
+            0,
+            255,
+            255
+        ],
+        "texture_path": "",
+        "effects": {
+            "damage": {
+                "op": "add",
+                "value": 0.5
+            },
+            "speed": {
+                "op": "add",
+                "value": 0.1
+            }
+        },
+        "description": "Boosts damage and speed."
+    },
+    {
+        "name": "Fire Essence",
+        "type": "weapon_upgrade",
+        "allowed_rarities": [
+            "rare",
+            "legendary"
+        ],
+        "color": [
+            255,
+            165,
+            0
+        ],
+        "texture_path": "",
+        "target_weapon": "fireball_staff",
+        "effects": {
+            "aoe_radius": {
+                "op": "add",
+                "value": 50
+            },
+            "damage": {
+                "op": "add",
+                "value": 5
+            }
+        },
+        "description": "Increases the AOE and damage of the Fireball Staff."
+    },
+    {
+        "name": "Magic Essence",
+        "type": "weapon_upgrade",
+        "allowed_rarities": [
+            "rare",
+            "legendary"
+        ],
+        "color": [
+            128,
+            0,
+            128
+        ],
+        "texture_path": "",
+        "target_tag": "magic",
+        "effects": {
+            "damage": {
+                "op": "multiply",
+                "value": 0.2
+            },
+            "cooldown": {
+                "op": "multiply",
+                "value": -0.1
+            }
+        },
+        "description": "Increases damage and reduces cooldown of all magic weapons."
+    },
+    {
+        "name": "Speed Potion",
+        "type": "stat_upgrade",
+        "allowed_rarities": [
+            "common",
+            "rare"
+        ],
+        "color": [
+            0,
+            255,
+            0
+        ],
+        "texture_path": "",
+        "duration": 10000,
+        "effects": {
+            "speed": {
+                "op": "add",
+                "value": 0.5
+            }
+        },
+        "description": "Increases speed by 50% for 10 seconds."
+    },
+    {
+        "name": "Scope Lens",
+        "type": "weapon_upgrade",
+        "allowed_rarities": [
+            "common",
+            "rare",
+            "legendary"
+        ],
+        "color": [
+            192,
+            192,
+            192
+        ],
+        "texture_path": "",
+        "target_tag": "ranged",
+        "effects": {
+            "range": {
+                "op": "add",
+                "value": 100
+            }
+        },
+        "description": "Increases the range of all ranged weapons."
+    },
+    {
+        "name": "Magnet Ring",
+        "type": "stat_upgrade",
+        "allowed_rarities": [
+            "common",
+            "rare",
+            "legendary"
+        ],
+        "color": [
+            100,
+            100,
+            255
+        ],
+        "texture_path": "",
+        "effects": {
+            "pickup_range": {
+                "op": "add",
+                "value": 50
+            }
+        },
+        "description": "Increases pickup range for items and XP."
+    }
+]
