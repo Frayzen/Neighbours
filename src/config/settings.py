@@ -19,6 +19,8 @@ COLOR_ENEMY = "red"
 COLOR_HEALTH_BAR_BG = (255, 0, 0)
 COLOR_HEALTH_BAR_FG = (0, 255, 0)
 COLOR_HEALTH_BAR_BORDER = (255, 255, 255)
+COLOR_WEAPON_BAR_BG = (50, 50, 50)
+COLOR_WEAPON_BAR_FG = (200, 200, 200)
 
 # Player Settings
 PLAYER_SPEED = 5
@@ -31,11 +33,20 @@ ENEMY_SPEED = 0.5
 ENEMY_HEALTH = 100
 ENEMY_DAMAGE = 10
 
-# UI Settings
+# UI Settings health bar
 UI_HEALTH_BAR_WIDTH = 200
 UI_HEALTH_BAR_HEIGHT = 20
 UI_HEALTH_BAR_X = 10
 UI_HEALTH_BAR_Y = 10
+
+#UI Settings weapon display
+UI_WEAPON_X = 10
+UI_WEAPON_Y = 40
+UI_WEAPON_BAR_X = 10
+UI_WEAPON_BAR_Y = 10
+
+# UI Settings 
+
 
 # Base directory of the project (src/)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
