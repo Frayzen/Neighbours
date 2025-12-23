@@ -46,7 +46,7 @@ class GameRenderer:
         
         # Background (Red)
         pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BG, (x, y, bar_width, bar_height))
-        pygame.draw.rect(self.game.screen, COLOR_WEAPON_BAR_BG, (x2, y2, bar_width, bar_height))
+        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BG, (x2, y2, bar_width, bar_height))
         
         # Foreground (Green)
         health_pct = max(0, self.game.player.health / self.game.player.max_health)
@@ -54,14 +54,19 @@ class GameRenderer:
 
         # Weapons if the player hold one
         current_weapon = self.game.player.combat.current_weapon
-        if current_weapon:
-            elapsed = self.game.current_time - current_weapon.last_attack_time
-            weapon_pct = min(1, elapsed / current_weapon.cooldown) if current_weapon.cooldown > 0 else 1
-            pygame.draw.rect(self.game.screen, COLOR_WEAPON_BAR_FG, (x2, y2, int(bar_width * weapon_pct), bar_height))
+        elapsed = max(0, self.game.current_time - current_weapon.last_attack_time)
+
+        if current_weapon.cooldown > 0:
+            weapon_pct = min(elapsed / current_weapon.cooldown, 1)
+            pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_FG, (x2, y2, int(bar_width * weapon_pct), bar_height))
+        else:
+            weapon_pct = 1
+            pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_FG, (x2, y2, int(bar_width * weapon_pct), bar_height))
 
         
         # Border (White)
         pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BORDER, (x, y, bar_width, bar_height), 2)
+        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BORDER, (x2, y2, bar_width, bar_height), 2)
 
     def _draw_world(self):
         for y in range(self.game.world.height):
@@ -86,3 +91,4 @@ class GameRenderer:
         self.game.player.draw(self.game.screen, self.game.tile_size)
         for obj in self.game.gridObjects:
             obj.draw(self.game.screen, self.game.tile_size)
+
