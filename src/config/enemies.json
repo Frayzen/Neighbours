@@ -28,11 +28,11 @@
     },
     "JörnBoss": {
         "health": 500,
-        "speed": 0.5,
-        "damage": 25,
+        "speed": 0.2,
+        "damage": 69,
         "color": [0, 0, 255],
-        "texture_path": "../assets/images/Pixeljoern.png",
-        "width": 2,
-        "height": 2
+        "texture_path": "../assets/images/JoernBoss.png",
+        "width": 4,
+        "height": 4
     }
 }
