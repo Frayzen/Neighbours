@@ -1,9 +1,10 @@
 import pygame
-from random import randint
+from random import randint, choice
 from entities.enemy import Enemy
 from core.debug import debug
 from core.triggers import execute_trigger
 from core.vfx import vfx_manager
+from core.registry import Registry
 
 class GameLogic:
     def __init__(self, game):
@@ -52,13 +53,15 @@ class GameLogic:
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_SPACE]:
             min_x, min_y, max_x, max_y = self.game.map_bounds
-            self.game.gridObjects.append(
-                Enemy(
-                    self.game,
-                    randint(min_x, max_x - self.game.tile_size),
-                    randint(min_y, max_y - self.game.tile_size),
-                    1, 
-                    1
+            enemy_types = Registry.get_enemy_types()
+            if enemy_types:
+                enemy_type = choice(enemy_types)
+                self.game.gridObjects.append(
+                    Enemy(
+                        self.game,
+                        randint(min_x, max_x - self.game.tile_size),
+                        randint(min_y, max_y - self.game.tile_size),
+                        enemy_type=enemy_type
+                    )
                 )
-            )
-            debug.log("Spawned Enemy")
+                debug.log(f"Spawned {enemy_type}")
