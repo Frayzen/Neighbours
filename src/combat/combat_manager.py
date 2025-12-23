@@ -3,6 +3,7 @@ import pygame
 from core.debug import debug
 from combat.weapon import Weapon
 from config.settings import MAX_WEAPONS, TARGET_CHECK_INTERVAL
+from config.constants import OP_ADD, OP_MULTIPLY
 
 class CombatManager:
     def __init__(self, owner):
@@ -25,6 +26,50 @@ class CombatManager:
             debug.log(f"Added {weapon.name} to inventory")
         else:
             debug.log(f"Inventory full! Cannot add {weapon.name}")
+
+    def apply_upgrade(self, item):
+        target_name = getattr(item, 'target_weapon', None)
+        target_tag = getattr(item, 'target_tag', None)
+        
+        # Handle dict access for safety
+        if isinstance(item, dict):
+             if not target_name: target_name = item.get('target_weapon')
+             if not target_tag: target_tag = item.get('target_tag')
+        
+        # Handle object access if attribute missing from dict approach above
+        if hasattr(item, 'target_weapon'): target_name = item.target_weapon
+        if hasattr(item, 'target_tag'): target_tag = item.target_tag
+
+        if not target_name and not target_tag:
+            debug.log(f"Upgrade {item.name} has no target weapon or tag specified.")
+            return
+
+        upgraded_count = 0
+        for weapon in self.weapons:
+            # Check if weapon matches target_name OR matches target_tag
+            matches_id = (target_name and weapon.id == target_name)
+            matches_tag = (target_tag and target_tag in weapon.tags)
+            
+            if matches_id or matches_tag:
+                debug.log(f"Upgrading {weapon.name} (ID: {weapon.id}) with {item.name}")
+                for effect, data in item.effects.items():
+                    op = data["op"]
+                    val = data["value"]
+                    
+                    if hasattr(weapon, effect):
+                        current_val = getattr(weapon, effect)
+                        if op == OP_ADD:
+                            setattr(weapon, effect, current_val + val)
+                        elif op == OP_MULTIPLY:
+                            setattr(weapon, effect, current_val * (1 + val))
+                            
+                        debug.log(f"  -> {effect} modified (Op: {op}, Val: {val}). New: {getattr(weapon, effect)}")
+                    else:
+                        debug.log(f"  -> Weapon has no attribute '{effect}'")
+                upgraded_count += 1
+        
+        if upgraded_count == 0:
+            debug.log(f"Target weapon {target_name} or tag {target_tag} not found in inventory.")
 
     def switch_weapon(self):
         if not self.weapons:
@@ -81,4 +126,5 @@ class CombatManager:
         for hit_target in targets_hit:
             # debug.log(f"Hit enemy with {self.current_weapon.name} for {self.current_weapon.damage} damage!")
             if hasattr(hit_target, 'take_damage'):
-                hit_target.take_damage(self.current_weapon.damage)
+                damage = self.current_weapon.damage * self.owner.damage_mult
+                hit_target.take_damage(damage)

@@ -3,6 +3,7 @@ import os
 from combat.weapon import Weapon
 from combat.behaviors import WeaponBehaviors
 from config.settings import BASE_DIR
+from config.constants import BEHAVIOR_MELEE_SWING
 
 class WeaponFactory:
     _weapons_data = None
@@ -29,16 +30,19 @@ class WeaponFactory:
         
         # Create the weapon instance
         weapon = Weapon(
+            id=weapon_id,
             name=data["name"],
             damage=data["damage"],
             range=data["range"],
             cooldown=data["cooldown"],
             is_aoe=data.get("is_aoe", False),
-            aoe_radius=data.get("aoe_radius", 0)
+            aoe_radius=data.get("aoe_radius", 0),
+            tags=data.get("tags", []),
+            texture_path=data.get("texture_path", None)
         )
         
         # Attach the behavior function
-        behavior_name = data.get("behavior", "melee_swing")
+        behavior_name = data.get("behavior", BEHAVIOR_MELEE_SWING)
         weapon.behavior_func = WeaponBehaviors.get_behavior(behavior_name)
         
         return weapon

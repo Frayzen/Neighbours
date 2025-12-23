@@ -51,3 +51,26 @@ UI_WEAPON_BAR_Y = 5
 # Base directory of the project (src/)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+# Item Settings
+GLOBAL_DROP_CHANCE = 0.3
+
+from config.constants import RARITY_COMMON, RARITY_RARE, RARITY_LEGENDARY
+
+RARITY_WEIGHTS = {
+    RARITY_COMMON: 70,
+    RARITY_RARE: 25,
+    RARITY_LEGENDARY: 5
+}
+
+RARITY_SCALING = {
+    RARITY_COMMON: 1.0,
+    RARITY_RARE: 1.5,
+    RARITY_LEGENDARY: 3.0
+}
+
+COLOR_RARITY = {
+    RARITY_COMMON: (128, 128, 128),  # Grey
+    RARITY_RARE: (0, 0, 255),        # Blue
+    RARITY_LEGENDARY: (255, 165, 0)  # Orange
+}

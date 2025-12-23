@@ -20,6 +20,7 @@ class Enemy(GridObject):
         self.health = health
         self.max_health = health
         self.damage = damage
+        self.xp_value = 10 # Default XP value
 
     def take_damage(self, amount):
         self.health -= amount
