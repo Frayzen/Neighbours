@@ -16,8 +16,9 @@ from core.debug import debug
 from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL, ITEM_TYPE_WEAPON, TAG_FIRE, TAG_RANGED
 
 class Player(GridObject):
-    def __init__(self, x, y, size, speed):
+    def __init__(self, game, x, y, size, speed):
         super().__init__(x, y, size, size, color=COLOR_PLAYER)
+        self.game = game
         self.speed = speed
         self.health = PLAYER_MAX_HEALTH
         self.max_health = PLAYER_MAX_HEALTH
@@ -131,6 +132,7 @@ class Player(GridObject):
             return
 
         self.health -= amount
+        self.game.damage_texts.spawn(self.x, self.y - 10, amount)
         self.invulnerable = True
         self.last_hit_time = pygame.time.get_ticks()
         debug.log(f"Player took {amount} damage! Health: {self.health}/{self.max_health}")

@@ -45,6 +45,7 @@ class GameSetup:
     def _init_entities(self):
         self.game.gridObjects = []
         self.game.player = Player(
+            self.game,
             self.game.start_x + (self.game.world.width * self.game.tile_size) // 2,
             self.game.start_y + (self.game.world.height * self.game.tile_size) // 2,
             PLAYER_SIZE, # Player size matches tile size
