@@ -117,13 +117,13 @@ class GameRenderer:
 
         # Draw Level
         level_text = self.font.render(f"Level: {self.game.player.level}", True, (255, 255, 255))
-        self.game.screen.blit(level_text, (x, y + bar_height + 5))
+        self.game.screen.blit(level_text, (health_x, health_y + bar_height + 5))
         
         # Draw XP Bar (Optional but nice)
         xp_pct = self.game.player.xp / self.game.player.xp_to_next_level
-        pygame.draw.rect(self.game.screen, (50, 50, 50), (x, y + bar_height + 30, bar_width, 10))
-        pygame.draw.rect(self.game.screen, (0, 200, 255), (x, y + bar_height + 30, int(bar_width * xp_pct), 10))
-        pygame.draw.rect(self.game.screen, (255, 255, 255), (x, y + bar_height + 30, bar_width, 10), 1)
+        pygame.draw.rect(self.game.screen, (50, 50, 50), (health_x, health_y + bar_height + 30, bar_width, 10))
+        pygame.draw.rect(self.game.screen, (0, 200, 255), (health_x, health_y + bar_height + 30, int(bar_width * xp_pct), 10))
+        pygame.draw.rect(self.game.screen, (255, 255, 255), (health_x, health_y + bar_height + 30, bar_width, 10), 1)
 
     def _draw_world(self):
         for y in range(self.game.world.height):
