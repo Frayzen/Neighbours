@@ -30,6 +30,7 @@ class Enemy(GridObject):
             speed = config.get('speed', ENEMY_SPEED)
             health = config.get('health', ENEMY_HEALTH)
             damage = config.get('damage', ENEMY_DAMAGE)
+            xp_value = config.get('xp_value', 10)
             texture = config.get('texture')
 
         super().__init__(x, y, w, h, color=color)
@@ -38,6 +39,7 @@ class Enemy(GridObject):
         self.health = health
         self.max_health = health
         self.damage = damage
+        self.xp_value = xp_value
         self.texture = texture
 
     def draw(self, screen, tile_size):

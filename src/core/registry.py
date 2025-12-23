@@ -21,9 +21,9 @@ class Registry:
         for name, props in data.items():
             cell = Cell(
                 name=name,
-                walkable=props['walkable'],
+                walkable=props.get('walkable', True),
                 texture_path=props.get('texture_path', ""),
-                color=tuple(props['color']),
+                color=tuple(props.get('color', (255, 255, 255))),
                 width=props.get('width', 1),
                 height=props.get('height', 1),
                 trigger=props.get('trigger', None)
