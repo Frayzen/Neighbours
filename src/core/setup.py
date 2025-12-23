@@ -26,6 +26,7 @@ class GameSetup:
 
     def _load_resources(self):
         Registry.load_cells(os.path.join(BASE_DIR, 'config', 'environments.json'))
+        Registry.load_enemies(os.path.join(BASE_DIR, 'config', 'enemies.json'))
 
     def _init_level(self):
         self.game.world = load_level(1)
