@@ -28,7 +28,7 @@ class GameRenderer:
         self.game.screen.fill(COLOR_BACKGROUND)
         self._draw_world()
         self._draw_entities()
-        
+        self.game.damage_texts.draw(self.game.screen, self.game.camera)
         vfx_manager.draw(self.game.screen)
         self._draw_ui()
         debug.draw(self.game.screen)

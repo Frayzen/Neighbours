@@ -23,6 +23,7 @@ class Enemy(GridObject):
 
     def take_damage(self, amount):
         self.health -= amount
+  
 
         # Spawn floating damage text
         self.game.damage_texts.spawn(self.x, self.y - 10, amount)
@@ -32,7 +33,7 @@ class Enemy(GridObject):
 
     def die(self):
         debug.log("Enemy died!")
-        self.game.remove_enemy(self)
+        
         
     def update(self, target_pos):
         super().update(target_pos)
