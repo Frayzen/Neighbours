@@ -28,45 +28,91 @@ class GameRenderer:
         self.game.screen.fill(COLOR_BACKGROUND)
         self._draw_world()
         self._draw_entities()
+        
         vfx_manager.draw(self.game.screen)
         self._draw_ui()
         debug.draw(self.game.screen)
         pygame.display.flip()
 
     def _draw_ui(self):
-        #commun data for health bar and weapon display
+        # Common data 
         bar_width = UI_HEALTH_BAR_WIDTH
         bar_height = UI_HEALTH_BAR_HEIGHT
-        # Draw Health Bar
-        x = UI_HEALTH_BAR_X
-        y = UI_HEALTH_BAR_Y
-        #for the weapon display
-        x2= UI_WEAPON_X
-        y2= UI_WEAPON_Y
-        
-        # Background (Red)
-        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BG, (x, y, bar_width, bar_height))
-        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BG, (x2, y2, bar_width, bar_height))
-        
-        # Foreground (Green)
-        health_pct = max(0, self.game.player.health / self.game.player.max_health)
-        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_FG, (x, y, int(bar_width * health_pct), bar_height))
 
-        # Weapons if the player hold one
+        # Positions
+        health_x = UI_HEALTH_BAR_X
+        health_y = UI_HEALTH_BAR_Y
+
+        weapon_x = UI_WEAPON_X
+        weapon_y = UI_WEAPON_Y
+
+        # PLAYER HEALTH BAR
+        pygame.draw.rect(
+            self.game.screen,
+            COLOR_HEALTH_BAR_BG,
+            (health_x, health_y, bar_width, bar_height)
+        )
+
+        health_pct = max(
+            0,
+            self.game.player.health / self.game.player.max_health
+        )
+
+        pygame.draw.rect(
+            self.game.screen,
+            COLOR_HEALTH_BAR_FG,
+            (health_x, health_y, int(bar_width * health_pct), bar_height)
+        )
+
+        pygame.draw.rect(
+            self.game.screen,
+            COLOR_HEALTH_BAR_BORDER,
+            (health_x, health_y, bar_width, bar_height),2
+        )
+
+        # WEAPON COOLDOWN BAR
+        weapon_bar_height = bar_height // 2  # smaller height for weapon bar
+
+        pygame.draw.rect(
+            self.game.screen,
+            COLOR_WEAPON_BAR_BG,
+            (weapon_x, weapon_y, bar_width, weapon_bar_height)
+        )
+
         current_weapon = self.game.player.combat.current_weapon
-        elapsed = max(0, self.game.current_time - current_weapon.last_attack_time)
 
-        if current_weapon.cooldown > 0:
-            weapon_pct = min(elapsed / current_weapon.cooldown, 1)
-            pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_FG, (x2, y2, int(bar_width * weapon_pct), bar_height))
-        else:
-            weapon_pct = 1
-            pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_FG, (x2, y2, int(bar_width * weapon_pct), bar_height))
+        if current_weapon:
+            elapsed = max(
+                0,
+                self.game.current_time - current_weapon.last_attack_time
+            )
 
-        
-        # Border (White)
-        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BORDER, (x, y, bar_width, bar_height), 2)
-        pygame.draw.rect(self.game.screen, COLOR_HEALTH_BAR_BORDER, (x2, y2, bar_width, bar_height), 2)
+            if current_weapon.cooldown > 0:
+                weapon_pct = min(
+                    elapsed / current_weapon.cooldown,
+                    1
+                )
+            else:
+                weapon_pct = 1
+
+            pygame.draw.rect(
+                self.game.screen,
+                COLOR_WEAPON_BAR_FG,
+                (
+                    weapon_x,
+                    weapon_y,
+                    int(bar_width * weapon_pct),
+                    weapon_bar_height
+                )
+            )
+
+        pygame.draw.rect(
+            self.game.screen,
+            COLOR_HEALTH_BAR_BORDER,
+            (weapon_x, weapon_y, bar_width, weapon_bar_height),
+            2
+        )
+
 
     def _draw_world(self):
         for y in range(self.game.world.height):

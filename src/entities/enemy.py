@@ -4,9 +4,18 @@ from core.debug import debug
 from config.settings import ENEMY_SPEED, ENEMY_HEALTH, COLOR_ENEMY, ENEMY_DAMAGE
 
 
+
 class Enemy(GridObject):
-    def __init__(self, x, y, w, h, speed=ENEMY_SPEED, health=ENEMY_HEALTH, damage=ENEMY_DAMAGE):
+    def __init__(
+        self,
+        game,
+        x, y, w, h,
+        speed=ENEMY_SPEED,
+        health=ENEMY_HEALTH,
+        damage=ENEMY_DAMAGE
+    ):
         super().__init__(x, y, w, h, color=COLOR_ENEMY)
+        self.game = game
         self.speed = speed
         self.health = health
         self.max_health = health
@@ -14,21 +23,25 @@ class Enemy(GridObject):
 
     def take_damage(self, amount):
         self.health -= amount
-        debug.log(f"Enemy took {amount} damage. Health: {self.health}/{self.max_health}")
+
+        # Spawn floating damage text
+        self.game.damage_texts.spawn(self.x, self.y - 10, amount)
+
         if self.health <= 0:
             self.die()
 
     def die(self):
         debug.log("Enemy died!")
-        # Logic to remove from game will be handled in GameLogic or here if we have reference
-
+        self.game.remove_enemy(self)
+        
     def update(self, target_pos):
         super().update(target_pos)
 
         target = pygame.math.Vector2(target_pos)
         cur = pygame.math.Vector2(self.x, self.y)
-        
+
         if cur.distance_to(target) > 0:
             direction = (target - cur).normalize()
             self.x += direction.x * self.speed
             self.y += direction.y * self.speed
+

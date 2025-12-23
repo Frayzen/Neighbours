@@ -54,6 +54,7 @@ class GameLogic:
             min_x, min_y, max_x, max_y = self.game.map_bounds
             self.game.gridObjects.append(
                 Enemy(
+                    self.game,
                     randint(min_x, max_x - self.game.tile_size),
                     randint(min_y, max_y - self.game.tile_size),
                     1, 
