@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neighbours Game Flowchart</title>
+    <!-- Import Roboto Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+        const m3Colors = {
+            surface: '#141218',
+            surfaceContainer: '#1D1B20',
+            primaryContainer: '#4F378B',
+            onPrimaryContainer: '#EADDFF',
+            secondaryContainer: '#4A4458',
+            onSecondaryContainer: '#E8DEF8',
+            tertiaryContainer: '#633B48',
+            onTertiaryContainer: '#FFD8E4',
+            outline: '#938F99',
+            onSurface: '#E6E1E5'
+        };
+
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                darkMode: true,
+                background: m3Colors.surfaceContainer,
+                fontFamily: '"Roboto", sans-serif',
+                fontSize: '16px',
+
+                // Lines
+                lineColor: m3Colors.outline,
+
+                // Primary Nodes (rounded rectangles)
+                primaryColor: m3Colors.primaryContainer,
+                primaryTextColor: m3Colors.onPrimaryContainer,
+                primaryBorderColor: m3Colors.onPrimaryContainer,
+
+                // Secondary / other nodes
+                secondaryColor: m3Colors.secondaryContainer,
+                tertiaryColor: m3Colors.tertiaryContainer,
+
+                // Text
+                textColor: m3Colors.onSurface,
+
+                // Clusters/Subgraphs
+                clusterBkg: m3Colors.surface,
+                clusterBorder: m3Colors.outline,
+                titleColor: m3Colors.onSurface,
+
+                // Edge labels
+                edgeLabelBackground: m3Colors.surfaceContainer,
+            },
+            flowchart: {
+                curve: 'basis', // Smooth curves
+                nodeSpacing: 50,
+                rankSpacing: 50,
+                padding: 20
+            }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 40px;
+            background-color: #141218;
+            /* MD3 Surface */
+            color: #E6E1E5;
+            /* MD3 On Surface */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #EADDFF;
+            /* Primary pastel */
+            font-weight: 500;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .mermaid {
+            background-color: #1D1B20;
+            /* MD3 Surface Container */
+            padding: 40px;
+            border-radius: 28px;
+            /* MD3 Extra Large rounded corners */
+            box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+            /* Elevation 2 */
+            width: 100%;
+            max-width: 1200px;
+            overflow-x: auto;
+            /* Center the diagram inside */
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Neighbours Game Execution Flow</h1>
+    <div class="mermaid">
+        flowchart TD
+        %% Define styling classes
+        classDef default fill:#4A4458,stroke:#E8DEF8,stroke-width:1px,color:#E8DEF8,rx:12,ry:12;
+        classDef startEnd fill:#4F378B,stroke:#EADDFF,stroke-width:2px,color:#EADDFF,rx:24,ry:24;
+        classDef decision fill:#633B48,stroke:#FFD8E4,stroke-width:1px,color:#FFD8E4,rx:8,ry:8;
+        classDef subprocess fill:#605A68,stroke:#E8DEF8,stroke-width:1px,color:#E8DEF8,stroke-dasharray: 5 5;
+        classDef subgraphStyle fill:#141218,stroke:#938F99,stroke-width:1px,color:#E6E1E5,rx:12,ry:12;
+
+        %% Entry Point
+        Start([Start src/main.py]) --> Init[Initialize Game Instance]
+        Init --> Setup[GameSetup.perform_setup]
+        Setup --> InitSubsystems[Initialize Renderer, Logic, Camera]
+        InitSubsystems --> Run[game.run]
+
+        %% Main Loop
+        Run --> Loop{Running?}
+        Loop -- Yes --> Events[Handle Events pygame.event.get]
+        Loop -- No --> Quit([Quit Pygame])
+
+        %% Event Handling
+        Events --> |Quit/Escape| StopRunning[Set Running = False]
+        StopRunning --> Loop
+        Events --> |Input| LogicHandle[logic.handle_event]
+
+        %% Logic Update Phase
+        LogicHandle --> Update[logic.update]
+
+        subgraph UpdatePhase [Update Phase]
+        direction TB
+        Update --> VFX[vfx_manager.update]
+        VFX --> MovePlayer[Handle Player Movement]
+
+        MovePlayer --> Combat[Handle Combat]
+
+        Combat --> CheckDeath{Player Dead?}
+
+        CheckDeath -- No --> Pickups[Handle Pickups Items/XP]
+        CheckDeath -- Yes --> Restart[Restart Game]
+        Restart --> Setup
+
+        Pickups --> Spawning[Handle Spawning & Drops]
+        Spawning --> UpdateObjs[Update GridObjects Enemies, etc.]
+        UpdateObjs --> DebugInput[Handle Debug Input]
+        end
+
+        %% Rendering Phase
+        DebugInput --> Draw[renderer.draw]
+
+        subgraph RenderPhase [Render Phase]
+        direction TB
+        Draw --> Clear[Fill Background]
+        Clear --> DrawMap[Draw Map/Tiles]
+        DrawMap --> DrawEnts[Draw GridObjects & Player]
+        DrawEnts --> DrawVFX[Draw VFX]
+        DrawVFX --> DrawUI[Draw UI / DamageText / Debug]
+        end
+
+        DrawUI --> Tick[Clock Tick FPS]
+        Tick --> Loop
+
+        %% Apply Classes
+        class Start,Quit startEnd;
+        class Loop,CheckDeath decision;
+        class UpdatePhase,RenderPhase subgraphStyle;
+    </div>
+</body>
+
+</html>
