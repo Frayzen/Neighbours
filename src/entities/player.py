@@ -10,7 +10,9 @@ pygame.init()
 from config.settings import (
     CELL_SIZE,
     GRID_HEIGHT,
+    GRID_HEIGHT_PIX,
     GRID_WIDTH,
+    GRID_WIDTH_PIX,
     SCREEN_WIDTH_PIX,
     SCREEN_HEIGHT_PIX,
 )
@@ -183,7 +185,7 @@ class Player(GridObject):
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy += current_speed
 
-        bounds = (0, 0, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX)
+        bounds = (0, 0, GRID_WIDTH_PIX, GRID_HEIGHT_PIX)
 
         # Try moving X
         new_x = self.x + dx
