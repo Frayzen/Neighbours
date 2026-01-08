@@ -1,4 +1,4 @@
-from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX
+from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX, DEBUG_MODE
 import pygame
 from core.camera import Camera
 from core.debug import debug
@@ -52,6 +52,14 @@ class GameRenderer:
             self.draw_pause_menu()
             
         debug.draw(self.game.screen)
+        
+        if DEBUG_MODE:
+            fps = self.game.clock.get_fps()
+            fps_text = self.font.render(f"FPS: {int(fps)}", True, (0, 255, 0))
+            # Top right corner
+            rect = fps_text.get_rect(topright=(SCREEN_WIDTH_PIX - 10, 10))
+            self.game.screen.blit(fps_text, rect)
+            
         pygame.display.flip()
 
     def _draw_ui(self):

@@ -4,39 +4,90 @@
         "speed": 2,
         "damage": 10,
         "xp_value": 10,
-        "color": [255, 0, 0],
+        "color": [
+            255,
+            0,
+            0
+        ],
         "texture_path": "../assets/images/enemy.png",
         "width": 1,
-        "height": 1
+        "height": 1,
+        "behavior": "melee"
     },
     "fast_enemy": {
         "health": 50,
         "speed": 4,
         "damage": 5,
         "xp_value": 15,
-        "color": [255, 100, 0],
+        "color": [
+            255,
+            100,
+            0
+        ],
         "texture_path": "../assets/images/fast_enemy.png",
         "width": 1,
-        "height": 1
+        "height": 1,
+        "behavior": "melee"
     },
     "tank_enemy": {
         "health": 200,
         "speed": 1,
         "damage": 20,
         "xp_value": 25,
-        "color": [100, 0, 0],
+        "color": [
+            100,
+            0,
+            0
+        ],
         "texture_path": "../assets/images/tank_enemy.png",
         "width": 1.5,
-        "height": 1.5
+        "height": 1.5,
+        "behavior": "melee"
+    },
+    "ranger": {
+        "health": 40,
+        "speed": 3,
+        "damage": 8,
+        "xp_value": 15,
+        "color": [
+            0,
+            255,
+            255
+        ],
+        "texture_path": "../assets/images/enemy.png",
+        "width": 1,
+        "height": 1,
+        "behavior": "ranged",
+        "attack_range": 6
+    },
+    "healer": {
+        "health": 60,
+        "speed": 1.5,
+        "damage": 0,
+        "xp_value": 20,
+        "color": [
+            255,
+            0,
+            255
+        ],
+        "texture_path": "../assets/images/enemy.png",
+        "width": 1,
+        "height": 1,
+        "behavior": "healer"
     },
     "JörnBoss": {
         "health": 500,
         "speed": 0.2,
         "damage": 69,
         "xp_value": 100,
-        "color": [0, 0, 255],
+        "color": [
+            0,
+            0,
+            255
+        ],
         "texture_path": "../assets/images/JoernBoss.png",
         "width": 4,
-        "height": 4
+        "height": 4,
+        "behavior": "melee"
     }
 }

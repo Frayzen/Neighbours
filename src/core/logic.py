@@ -5,16 +5,20 @@ from entities.enemy import Enemy
 from items.item import Item
 from items.factory import ItemFactory
 from entities.xp_orb import XPOrb
-from config.settings import CELL_SIZE, GLOBAL_DROP_CHANCE, SCREEN_HEIGHT_PIX, SCREEN_WIDTH_PIX
+from config.settings import CELL_SIZE, GLOBAL_DROP_CHANCE, SCREEN_HEIGHT_PIX, SCREEN_WIDTH_PIX, SPAWN_ACTIVATION_DISTANCE
 from core.debug import debug
 from core.triggers import execute_trigger
 from core.vfx import vfx_manager
+from core.triggers import execute_trigger
+from core.vfx import vfx_manager
 from core.registry import Registry
+from core.pathfinding import FlowField
 
 
 class GameLogic:
     def __init__(self, game):
         self.game = game
+        self.flow_field = FlowField()
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -23,6 +27,9 @@ class GameLogic:
 
     def update(self):
         vfx_manager.update()
+        
+        # Update Flow Field
+        self.flow_field.update(self.game.player.x, self.game.player.y, self.game.world)
         
         self._handle_player_movement()
         self._handle_combat()
@@ -34,9 +41,13 @@ class GameLogic:
 
         self._handle_pickups()
         self._handle_spawning_and_drops()
+        self._handle_proximity_spawning()
 
         for obj in self.game.gridObjects:
-            obj.update((self.game.player.x, self.game.player.y))
+            if isinstance(obj, Enemy):
+                obj.update(self.flow_field, entities=self.game.gridObjects)
+            else:
+                obj.update((self.game.player.x, self.game.player.y))
 
         self._handle_input()
         self._handle_debug_input()
@@ -152,6 +163,53 @@ class GameLogic:
                     self.game.gridObjects.append(item)
                     debug.log(f"Item dropped: {item.name}")
             self.game.gridObjects.remove(enemy)
+        
+    def _handle_proximity_spawning(self):
+        px = self.game.player.x
+        py = self.game.player.y
+        act_dist_sq = (SPAWN_ACTIVATION_DISTANCE * CELL_SIZE) ** 2
+        
+        for point in self.game.world.spawn_points:
+            if point['spawned']:
+                continue
+                
+            cx = point['x'] * CELL_SIZE
+            cy = point['y'] * CELL_SIZE
+            
+            dx = cx - px
+            dy = cy - py
+            dist_sq = dx*dx + dy*dy
+            
+            if dist_sq < act_dist_sq:
+                # Activate Spawner
+                point['spawned'] = True
+                
+                count = point['enemy_count']
+                e_type = point['type']
+                
+                for _ in range(count):
+                    # Spawn logic
+                    valid = False
+                    spawn_x, spawn_y = 0, 0
+                    
+                    for _ in range(10): 
+                        off_x = randint(-2, 2)
+                        off_y = randint(-2, 2)
+                        tx = point['x'] + off_x
+                        ty = point['y'] + off_y
+                        
+                        cell = self.game.world.get_cell(tx, ty)
+                        if cell and cell.walkable:
+                            spawn_x = tx * CELL_SIZE 
+                            spawn_y = ty * CELL_SIZE
+                            valid = True
+                            break
+                    
+                    if valid:
+                         self.game.gridObjects.append(
+                            Enemy(self.game, spawn_x, spawn_y, enemy_type=e_type)
+                         )
+                         debug.log(f"Spawned {e_type} from spawner.")
 
     def _handle_input(self):
         pass
@@ -162,13 +220,27 @@ class GameLogic:
             min_x, min_y, max_x, max_y = 0, 0, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX
             enemy_types = Registry.get_enemy_types()
             if enemy_types:
-                enemy_type = choice(enemy_types)
-                self.game.gridObjects.append(
-                    Enemy(
-                        self.game,
-                        randint(min_x, max_x - CELL_SIZE),
-                        randint(min_y, max_y - CELL_SIZE),
-                        enemy_type=enemy_type
-                    )
-                )
-                debug.log(f"Spawned {enemy_type}")
+                # Try to find a valid spawn position
+                for _ in range(50):
+                    rx = randint(min_x, max_x - CELL_SIZE)
+                    ry = randint(min_y, max_y - CELL_SIZE)
+                    
+                    # Check walkability
+                    grid_x = int(rx / CELL_SIZE)
+                    grid_y = int(ry / CELL_SIZE)
+                    
+                    cell = self.game.world.get_cell(grid_x, grid_y)
+                    if cell and cell.walkable:
+                        enemy_type = choice(enemy_types)
+                        self.game.gridObjects.append(
+                            Enemy(
+                                self.game,
+                                rx,
+                                ry,
+                                enemy_type=enemy_type
+                            )
+                        )
+                        debug.log(f"Spawned {enemy_type} at ({rx}, {ry})")
+                        break
+                else:
+                    debug.log("Failed to find valid spawn location for enemy.")

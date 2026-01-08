@@ -36,6 +36,7 @@ class World:
         self.grid: List[List[Tuple[Cell, Tuple[int, int]]]] = [
             [(empty_cell, (0, 0)) for _ in range(width)] for _ in range(height)
         ]
+        self.spawn_points = []
 
     def set_cell(self, x, y, cell):
         if 0 <= x < self.width and 0 <= y < self.height:

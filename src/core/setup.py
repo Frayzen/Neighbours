@@ -1,4 +1,4 @@
-from random import randint
+from random import randint, choice
 from levels.loader import WorldLoader
 import pygame
 import os
@@ -19,6 +19,7 @@ from config.settings import (
 from core.registry import Registry
 from entities.base import GridObject
 from entities.player import Player
+from entities.enemy import Enemy
 
 
 class GameSetup:
@@ -62,3 +63,5 @@ class GameSetup:
             PLAYER_SIZE,  # Player size matches tile size
             PLAYER_SPEED,
         )
+        
+        # Enemies will now be spawned by the Logic system based on proximity using self.game.world.spawn_points

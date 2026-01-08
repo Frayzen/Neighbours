@@ -1,22 +1,38 @@
 {
     "Grass": {
         "walkable": true,
-        "color": [34, 139, 34]
+        "color": [
+            34,
+            139,
+            34
+        ]
     },
     "Wall": {
         "walkable": false,
         "texture_path": "../assets/images/wall.jpg",
-        "color": [128, 128, 128]
+        "color": [
+            128,
+            128,
+            128
+        ]
     },
     "Water": {
         "walkable": false,
         "texture_path": "../assets/images/water.png",
-        "color": [0, 0, 255]
+        "color": [
+            0,
+            0,
+            255
+        ]
     },
     "Door": {
         "walkable": false,
         "texture_path": "../assets/images/trapdoor.png",
-        "color": [139, 69, 19],
+        "color": [
+            139,
+            69,
+            19
+        ],
         "width": 1,
         "height": 1,
         "trigger": "door"
@@ -27,5 +43,15 @@
         "speed": 2,
         "texture_path": "../assets/images/monster.png",
         "xp_value": 20
+    },
+    "Spawner": {
+        "walkable": true,
+        "color": [
+            128,
+            0,
+            128
+        ],
+        "width": 1,
+        "height": 1
     }
 }

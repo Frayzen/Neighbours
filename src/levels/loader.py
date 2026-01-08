@@ -26,6 +26,7 @@ class WorldLoader:
         self.wall = Registry.get_cell("Wall")
         self.water = Registry.get_cell("Water")
         self.door = Registry.get_cell("Door")
+        self.spawner = Registry.get_cell("Spawner")
 
         # Region tracking (Option A)
         self.regions = [[None for _ in range(self.world.width)]
@@ -159,6 +160,28 @@ class WorldLoader:
             for dx in range(width):
                 for dy in range(height):
                     self._carve(x + dx, y + dy)
+                    
+            # Place Spawner in center
+            center_x = x + width // 2
+            center_y = y + height // 2
+            self.world.set_cell(center_x, center_y, self.spawner)
+            
+            # Add spawn metadata
+            # For now picking a random enemy type - ideally we'd have a weighted list or valid set
+            from core.registry import Registry # Import here to avoid circular if any
+            enemy_types = Registry.get_enemy_types()
+            
+            spawn_type = "basic_enemy"
+            if enemy_types:
+                spawn_type = enemy_types[randint(0, len(enemy_types)-1)]
+                
+            self.world.spawn_points.append({
+                'x': center_x, 
+                'y': center_y, 
+                'enemy_count': randint(2, 5), 
+                'type': spawn_type,
+                'spawned': False
+            })
 
     # -------------------------------------------------------------------------
     # CONNECT REGIONS
