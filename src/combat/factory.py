@@ -28,6 +28,9 @@ class WeaponFactory:
 
         data = WeaponFactory._weapons_data[weapon_id]
         
+        # Get behavior name
+        behavior_name = data.get("behavior", BEHAVIOR_MELEE_SWING)
+
         # Create the weapon instance
         weapon = Weapon(
             id=weapon_id,
@@ -38,11 +41,11 @@ class WeaponFactory:
             is_aoe=data.get("is_aoe", False),
             aoe_radius=data.get("aoe_radius", 0),
             tags=data.get("tags", []),
-            texture_path=data.get("texture_path", None)
+            texture_path=data.get("texture_path", None),
+            behavior_name=behavior_name
         )
         
         # Attach the behavior function
-        behavior_name = data.get("behavior", BEHAVIOR_MELEE_SWING)
         weapon.behavior_func = WeaponBehaviors.get_behavior(behavior_name)
         
         return weapon

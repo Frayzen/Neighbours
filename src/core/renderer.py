@@ -17,7 +17,9 @@ from config.settings import (
     UI_WEAPON_BAR_X,
     UI_WEAPON_BAR_Y,
     UI_WEAPON_X,
-    UI_WEAPON_Y
+    UI_WEAPON_Y,
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT
     )
 
 class GameRenderer:
@@ -32,6 +34,10 @@ class GameRenderer:
         self.game.damage_texts.draw(self.game.screen, self.game.camera)
         vfx_manager.draw(self.game.screen)
         self._draw_ui()
+        
+        if self.game.paused:
+            self.draw_pause_menu()
+            
         debug.draw(self.game.screen)
         pygame.display.flip()
 
@@ -148,4 +154,80 @@ class GameRenderer:
         self.game.player.draw(self.game.screen, self.game.tile_size)
         for obj in self.game.gridObjects:
             obj.draw(self.game.screen, self.game.tile_size)
+
+    def draw_pause_menu(self):
+        # Semi-transparent overlay
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay.set_alpha(180) # 0-255
+        overlay.fill((0, 0, 0))
+        self.game.screen.blit(overlay, (0, 0))
+        
+        # Menu Title
+        title_font = pygame.font.SysFont("Arial", 48, bold=True)
+        title_text = title_font.render("PAUSED", True, (255, 255, 255))
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
+        self.game.screen.blit(title_text, title_rect)
+        
+        # Stats
+        player = self.game.player
+        stats = [
+            f"Health: {int(player.health)} / {player.max_health}",
+            f"Level: {player.level}",
+            f"XP: {player.xp} / {player.xp_to_next_level}",
+            f"Speed: {player.speed * player.speed_mult:.1f}",
+            f"Damage: x{player.damage_mult:.2f}",
+            f"Defense: x{player.defense_mult:.2f}",
+            f"Cooldown: x{player.cooldown_mult:.2f}",
+            f"Luck: x{player.luck_mult:.2f}"
+        ]
+        
+        # Stats Position - Shifted UP
+        start_y = 150 
+        line_height = 35
+        
+        for i, stat in enumerate(stats):
+            text = self.font.render(stat, True, (200, 200, 200))
+            rect = text.get_rect(center=(SCREEN_WIDTH // 2, start_y + i * line_height))
+            self.game.screen.blit(text, rect)
+            
+        # Border around stats
+        stats_height = len(stats) * line_height
+        border_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, start_y - 10, 300, stats_height + 20)
+        pygame.draw.rect(self.game.screen, (255, 255, 255), border_rect, 2)
+        
+        # Buttons Position - Shifted DOWN
+        # Button data (must match logic.py)
+        btn_w = 200
+        btn_h = 50
+        btn_y = SCREEN_HEIGHT - 250
+        
+        # Save Button
+        save_x = SCREEN_WIDTH//2 - btn_w//2 - 110
+        save_rect = pygame.Rect(save_x, btn_y, btn_w, btn_h)
+        pygame.draw.rect(self.game.screen, (50, 200, 50), save_rect)
+        pygame.draw.rect(self.game.screen, (255, 255, 255), save_rect, 2)
+        save_text = self.font.render("Save Game", True, (255, 255, 255))
+        save_text_rect = save_text.get_rect(center=save_rect.center)
+        self.game.screen.blit(save_text, save_text_rect)
+
+        # Close Button
+        close_x = SCREEN_WIDTH//2 + 10
+        close_rect = pygame.Rect(close_x, btn_y, btn_w, btn_h)
+        pygame.draw.rect(self.game.screen, (200, 50, 50), close_rect)
+        pygame.draw.rect(self.game.screen, (255, 255, 255), close_rect, 2)
+        close_text = self.font.render("Close Game", True, (255, 255, 255))
+        close_text_rect = close_text.get_rect(center=close_rect.center)
+        self.game.screen.blit(close_text, close_text_rect)
+
+        # New Game Button (Restart)
+        new_y = btn_y + 70
+        new_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, new_y, btn_w, btn_h)
+        pygame.draw.rect(self.game.screen, (100, 100, 200), new_rect)
+        pygame.draw.rect(self.game.screen, (255, 255, 255), new_rect, 2)
+        new_text = self.font.render("New Game", True, (255, 255, 255))
+        new_rect_center = new_text.get_rect(center=new_rect.center)
+        self.game.screen.blit(new_text, new_rect_center)
+        
+        # Draw Start Menu overlay if active (renderer needs to know)
+        # ^ This line might be redundant if we call this FROM draw_start_menu which is called by Game
 

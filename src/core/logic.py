@@ -40,6 +40,42 @@ class GameLogic:
         self._handle_input()
         self._handle_debug_input()
 
+    def handle_pause_input(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = pygame.mouse.get_pos()
+            # Define button areas (must match renderer)
+            # Screen props
+            screen_w = pygame.display.get_surface().get_width()
+            screen_h = pygame.display.get_surface().get_height()
+            
+            # Button dims
+            btn_w = 200
+            btn_h = 50
+            start_y = screen_h - 250
+            
+            # Save Button
+            save_rect = pygame.Rect(screen_w//2 - btn_w//2 - 110, start_y, btn_w, btn_h)
+            # Close Button
+            close_rect = pygame.Rect(screen_w//2 + 10, start_y, btn_w, btn_h)
+            
+            # New Game Button
+            new_y = start_y + 70
+            new_rect = pygame.Rect(screen_w//2 - btn_w//2, new_y, btn_w, btn_h)
+            
+            if save_rect.collidepoint(mouse_pos):
+                from core.save_manager import SaveManager
+                SaveManager.save_game(self.game)
+                # Ensure we don't spam save
+                
+            elif close_rect.collidepoint(mouse_pos):
+                # Quit game
+                pygame.event.post(pygame.event.Event(pygame.QUIT))
+            
+            elif new_rect.collidepoint(mouse_pos):
+                from core.save_manager import SaveManager
+                SaveManager.delete_save_file()
+                self.game.restart_game()
+
     def _handle_player_movement(self):
         result = self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
         if result:

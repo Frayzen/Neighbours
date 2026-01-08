@@ -23,11 +23,28 @@ class Game:
         self.camera = Camera()
         self.damage_texts = DamageTexts()
         self.enemies = []
+        
+        self.paused = False
+        
+        # Auto-load logic
+        from core.save_manager import SaveManager
+        print(f"DEBUG: Checking for save file at {SaveManager.SAVE_FILE_PATH}")
+        if SaveManager.has_save_file():
+            print("DEBUG: Save file found. Auto-loading...")
+            if SaveManager.load_game(self):
+                self.paused = True # Start in pause menu as requested
+            else:
+                print("DEBUG: Load failed. Starting fresh.")
+                self.paused = False
+        else:
+            print("DEBUG: No save file. Starting fresh.")
+            self.paused = False
 
     def restart_game(self):
         # Reset game state
         self.setup.perform_setup()
         self.logic = GameLogic(self)
+        self.paused = False
 
     def run(self):
         running = True
@@ -37,15 +54,24 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        running = False
+                        self.paused = not self.paused
                 
-                self.logic.handle_event(event)
+                # Handle Pause Menu Inputs (Mouse)
+                if self.paused:
+                    self.logic.handle_pause_input(event)
+                
+                if not self.paused:
+                    self.logic.handle_event(event)
 
-            self.logic.update()
-            self.damage_texts.update()
+            if not self.paused:
+                self.logic.update()
+                self.damage_texts.update()
+            
             self.renderer.draw()
+
             self.clock.tick(FPS)
         pygame.quit()
 

@@ -41,6 +41,7 @@ class Enemy(GridObject):
         self.damage = damage
         self.xp_value = xp_value
         self.texture = texture
+        self.enemy_type = enemy_type
 
     def draw(self, screen, tile_size):
         if self.texture:
@@ -89,4 +90,24 @@ class Enemy(GridObject):
             direction = (target - cur).normalize()
             self.x += direction.x * self.speed
             self.y += direction.y * self.speed
+
+    # Serialization
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['game']
+        state['texture'] = None # We might need to store texture path/type if we want to restore it exact
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.game = None
+        self.texture = None
+
+    def post_load(self):
+        # Restore texture
+        if hasattr(self, 'enemy_type'):
+            from core.registry import Registry
+            config = Registry.get_enemy_config(self.enemy_type)
+            if config:
+                self.texture = config.get('texture')
 

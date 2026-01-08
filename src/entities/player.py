@@ -223,3 +223,23 @@ class Player(GridObject):
                  surface.blit(scaled_weapon, (wx, wy))
             else:
                  pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))
+
+    # Serialization
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Exclude non-serializable game reference
+        del state['game']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # 'game' will be re-assigned by SaveManager
+        self.game = None 
+
+    def post_load(self):
+        # Reload weapon images
+        for weapon in self.combat.weapons:
+            if hasattr(weapon, 'reload_texture'):
+                weapon.reload_texture()
+            if hasattr(weapon, 'reload_behavior'):
+                weapon.reload_behavior()
