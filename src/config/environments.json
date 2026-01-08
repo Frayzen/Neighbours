@@ -5,20 +5,27 @@
     },
     "Wall": {
         "walkable": false,
-        "texture_path": "",
+        "texture_path": "../assets/images/wall.jpg",
         "color": [128, 128, 128]
     },
     "Water": {
         "walkable": false,
-        "texture_path": "",
+        "texture_path": "../assets/images/water.png",
         "color": [0, 0, 255]
     },
     "Door": {
         "walkable": false,
-        "texture_path": "",
+        "texture_path": "../assets/images/trapdoor.png",
         "color": [139, 69, 19],
         "width": 1,
         "height": 1,
         "trigger": "door"
+    },
+    "Monster": {
+        "health": 50,
+        "damage": 15,
+        "speed": 2,
+        "texture_path": "../assets/images/monster.png",
+        "xp_value": 20
     }
 }

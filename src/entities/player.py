@@ -11,88 +11,246 @@ from config.settings import (
     CELL_SIZE,
     GRID_HEIGHT,
     GRID_WIDTH,
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT,
+    SCREEN_WIDTH_PIX,
+    SCREEN_HEIGHT_PIX,
 )
 
+from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_PLAYER, PLAYER_MAX_HEALTH, PLAYER_INVULNERABILITY_DURATION
+from combat.combat_manager import CombatManager
+from combat.factory import WeaponFactory
+from entities.base import GridObject
+from core.physics import check_collision
+from core.physics import check_collision
+from core.debug import debug
+from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL, ITEM_TYPE_WEAPON, TAG_FIRE, TAG_RANGED
 
-class Player:
-    def __init__(self, x, y, size, speed):
-        self.x = x
-        self.y = y
-        self.size = size
+class Player(GridObject):
+    def __init__(self, game, x, y, size, speed):
+        super().__init__(x, y, size, size, color=COLOR_PLAYER)
+        self.game = game
         self.speed = speed
+        self.health = PLAYER_MAX_HEALTH
+        self.max_health = PLAYER_MAX_HEALTH
+        self.invulnerable = False
+        self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
+        self.last_hit_time = 0
+        
+        # Stats Multipliers
+        self.speed_mult = 1.0
+        self.damage_mult = 1.0
+        self.defense_mult = 1.0
+        self.cooldown_mult = 1.0
+        self.luck_mult = 1.0
+
+        # XP and Leveling
+        self.xp = 0
+        self.level = 1
+        self.xp_to_next_level = 100
+        self.pickup_range = 100 # Range in pixels for magnet effect
+        
+        self.active_effects = []
+        
+        # Combat setup
+        self.combat = CombatManager(self)
+        # Equip default weapons using the factory
+        try:
+            self.combat.add_weapon(WeaponFactory.create_weapon("fireball_staff"))
+            self.combat.add_weapon(WeaponFactory.create_weapon("basic_sword"))
+        except Exception as e:
+            print(f"Failed to equip default weapons: {e}")
+
+    def _modify_stat(self, effect, op, value, revert=False):
+        if effect == STAT_HEAL:
+             if revert: return # Heal is instant, doesn't revert
+             
+             if op == OP_ADD:
+                 self.health = min(self.max_health, self.health + value)
+             elif op == OP_MULTIPLY:
+                 self.health = min(self.max_health, self.health * (1 + value))
+             
+             debug.log(f"Healed (Op: {op}, Val: {value}). Health: {self.health}/{self.max_health}")
+             return
+
+        attr_name = f"{effect}_mult"
+        if hasattr(self, attr_name):
+            current_val = getattr(self, attr_name)
+            
+            if revert:
+                if op == OP_ADD:
+                    setattr(self, attr_name, current_val - value)
+                elif op == OP_MULTIPLY:
+                    setattr(self, attr_name, current_val / (1 + value))
+                debug.log(f"  -> {effect} reverted. Multiplier: {getattr(self, attr_name)}")
+            else:
+                if op == OP_ADD:
+                    setattr(self, attr_name, current_val + value)
+                elif op == OP_MULTIPLY:
+                    setattr(self, attr_name, current_val * (1 + value))
+                debug.log(f"{effect.capitalize()} modified (Op: {op}, Val: {value}). New multiplier: {getattr(self, attr_name)}")
+        else:
+             debug.log(f"Unknown stat upgrade: {effect}")
+
+    def collect_item(self, item):
+        debug.log(f"Collected item: {item.name}")
+        
+        if item.type == ITEM_TYPE_WEAPON:
+            self.combat.apply_upgrade(item)
+            return
+
+        # Check if temporary effect
+        if item.duration > 0:
+            self.active_effects.append({
+                "item": item,
+                "start_time": pygame.time.get_ticks(),
+                "duration": item.duration
+            })
+            debug.log(f"Applied temporary effect: {item.name} for {item.duration}ms")
+
+        # Apply effect immediately (revert logic will handle removal)
+        for effect, data in item.effects.items():
+            op = data["op"]
+            val = data["value"]
+            self._modify_stat(effect, op, val, revert=False)
+
+    def update(self, target_pos=None):
+        current_time = pygame.time.get_ticks()
+        
+        # Manage active effects
+        for effect_data in self.active_effects[:]: # Iterate copy to safe remove
+            if current_time - effect_data["start_time"] > effect_data["duration"]:
+                item = effect_data["item"]
+                debug.log(f"Effect expired: {item.name}")
+                
+                # Revert effects
+                for effect, data in item.effects.items():
+                    op = data["op"]
+                    val = data["value"]
+                    self._modify_stat(effect, op, val, revert=True)
+                
+                self.active_effects.remove(effect_data)
+        
+        # Handle invulnerability
+        if self.invulnerable:
+            if current_time - self.last_hit_time > self.invulnerability_duration:
+                self.invulnerable = False
+
+        self.combat.update(target_pos, current_time)
+
+    def take_damage(self, amount):
+        if self.invulnerable:
+            return
+
+        self.health -= amount
+        self.game.damage_texts.spawn(self.x, self.y - 10, amount)
+        self.invulnerable = True
+        self.last_hit_time = pygame.time.get_ticks()
+        debug.log(f"Player took {amount} damage! Health: {self.health}/{self.max_health}")
+        
+        if self.health <= 0:
+            self.die()
+
+    def die(self):
+        debug.log("Player died!")
+        # TODO: Handle player death (restart game, show game over screen, etc.)
+
+    def gain_xp(self, amount):
+        self.xp += amount
+        debug.log(f"Gained {amount} XP. Total: {self.xp}/{self.xp_to_next_level}")
+        
+        if self.xp >= self.xp_to_next_level:
+            self.level_up()
+
+    def level_up(self):
+        self.xp -= self.xp_to_next_level
+        self.level += 1
+        self.xp_to_next_level = int(self.xp_to_next_level * 1.5)
+        debug.log(f"Level Up! New Level: {self.level}")
+        # TODO: Trigger level up UI or choices
 
     def move(self, keys, world):  # movement using arrow keys or WASD
         # pygame.K_ DIRECTION is used to detect key presses on this precise touch
         dx = 0
         dy = 0
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            dx -= self.speed
+        
+        current_speed = self.speed * self.speed_mult
+        
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
+            dx -= current_speed
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            dx += self.speed
+            dx += current_speed
         if keys[pygame.K_UP] or keys[pygame.K_w]:
-            dy -= self.speed
+            dy -= current_speed
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            dy += self.speed
+            dy += current_speed
 
-        bounds = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+        bounds = (0, 0, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX)
 
         # Try moving X
         new_x = self.x + dx
-        collision_x = self.check_collision(new_x, self.y, bounds, world, CELL_SIZE)
+        collision_x = check_collision(new_x, self.y, self.w, self.h, bounds, world)
+        
+        final_collision = None
+        
         if not collision_x:
             self.x = new_x
         elif isinstance(collision_x, tuple):
-            return collision_x
+             final_collision = collision_x
 
         # Try moving Y
         new_y = self.y + dy
-        collision_y = self.check_collision(self.x, new_y, bounds, world, CELL_SIZE)
+        collision_y = check_collision(self.x, new_y, self.w, self.h, bounds, world)
+        
         if not collision_y:
             self.y = new_y
         elif isinstance(collision_y, tuple):
-            return collision_y
+             if final_collision is None:
+                 final_collision = collision_y
+        
+        # Return trigger if any collision was a trigger
+        return final_collision
 
-        return None
+    def draw(self, screen):
+        # Draw player
+        pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
+        
+        # Draw weapon
+        weapon = self.combat.current_weapon
+        if weapon:
+            # Simple representation: a small colored rect next to the player
+            weapon_color = (200, 200, 200)
+            weapon_color = (200, 200, 200)
+            if TAG_FIRE in weapon.tags:
+                weapon_color = (255, 100, 0)
+            elif TAG_RANGED in weapon.tags:
+                weapon_color = (100, 255, 100)
+            
+            # Draw slightly offset
+            wx = self.x + (self.w * CELL_SIZE) * 0.8
+            wy = self.y + (self.h * CELL_SIZE) * 0.2
+            
+            if weapon.image:
+                 # Scale weapon image if needed (arbitrary size choice or based on tiles)
+                 scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
+                 screen.blit(scaled_weapon, (wx, wy))
+            else:
+                 pygame.draw.rect(screen, weapon_color, (wx, wy, 4, 10))
 
-    def check_collision(self, x, y, bounds, world, CELL_SIZE):
-        min_x, min_y, max_x, max_y = bounds
+    # Serialization
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Exclude non-serializable game reference
+        del state['game']
+        return state
 
-        pixel_size = self.size * CELL_SIZE
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # 'game' will be re-assigned by SaveManager
+        self.game = None 
 
-        # Constrain to bounds first
-        if x < min_x or x > max_x - pixel_size:
-            return True
-        if y < min_y or y > max_y - pixel_size:
-            return True
-
-        # Check corners against world grid
-        corners = [
-            (x, y),
-            (x + pixel_size - 0.1, y),
-            (x, y + pixel_size - 0.1),
-            (x + pixel_size - 0.1, y + pixel_size - 0.1),
-        ]
-
-        for cx, cy in corners:
-            grid_x = int((cx - min_x) / CELL_SIZE)
-            grid_y = int((cy - min_y) / CELL_SIZE)
-
-            cell_data = world.get_cell_full(grid_x, grid_y)
-            if cell_data:
-                cell, offset = cell_data
-                if not cell.walkable:
-                    # Return cell and its origin grid coordinates
-                    origin_x = grid_x - offset[0]
-                    origin_y = grid_y - offset[1]
-                    return (cell, origin_x, origin_y)
-
-        return False
-
-    def draw(self, surface):
-        pygame.draw.rect(
-            surface,
-            (255, 255, 255),
-            (self.x, self.y, self.size * CELL_SIZE, self.size * CELL_SIZE),
-        )
+    def post_load(self):
+        # Reload weapon images
+        for weapon in self.combat.weapons:
+            if hasattr(weapon, 'reload_texture'):
+                weapon.reload_texture()
+            if hasattr(weapon, 'reload_behavior'):
+                weapon.reload_behavior()

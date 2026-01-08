@@ -1,0 +1,42 @@
+{
+    "basic_enemy": {
+        "health": 100,
+        "speed": 2,
+        "damage": 10,
+        "xp_value": 10,
+        "color": [255, 0, 0],
+        "texture_path": "../assets/images/enemy.png",
+        "width": 1,
+        "height": 1
+    },
+    "fast_enemy": {
+        "health": 50,
+        "speed": 4,
+        "damage": 5,
+        "xp_value": 15,
+        "color": [255, 100, 0],
+        "texture_path": "../assets/images/fast_enemy.png",
+        "width": 1,
+        "height": 1
+    },
+    "tank_enemy": {
+        "health": 200,
+        "speed": 1,
+        "damage": 20,
+        "xp_value": 25,
+        "color": [100, 0, 0],
+        "texture_path": "../assets/images/tank_enemy.png",
+        "width": 1.5,
+        "height": 1.5
+    },
+    "JörnBoss": {
+        "health": 500,
+        "speed": 0.2,
+        "damage": 69,
+        "xp_value": 100,
+        "color": [0, 0, 255],
+        "texture_path": "../assets/images/JoernBoss.png",
+        "width": 4,
+        "height": 4
+    }
+}

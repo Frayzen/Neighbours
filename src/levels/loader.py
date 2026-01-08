@@ -127,7 +127,7 @@ class WorldLoader:
     # ROOM GENERATOR
     # -------------------------------------------------------------------------
     def __generate_rooms(self):
-        rooms: List[Tuple[int, int, int, int]] = []
+        self.rooms: List[Tuple[int, int, int, int]] = []
 
         for _ in range(ROOM_AMOUNT):
 
@@ -146,14 +146,14 @@ class WorldLoader:
             current = (x, y, width, height)
 
             intersects = False
-            for other in rooms:
+            for other in self.rooms:
                 if quadrangle_intersect(current, other):
                     intersects = True
                     break
             if intersects:
                 continue
 
-            rooms.append(current)
+            self.rooms.append(current)
 
             self._start_region()
             for dx in range(width):

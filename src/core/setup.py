@@ -1,9 +1,21 @@
+from random import randint
 from levels.loader import WorldLoader
 import pygame
 import os
 from typing import List
 
-from config.settings import GRID_HEIGHT, GRID_WIDTH, SCREEN_WIDTH, SCREEN_HEIGHT
+from config.settings import (
+    CELL_SIZE,
+    GRID_HEIGHT,
+    GRID_WIDTH,
+    SCREEN_WIDTH_PIX,
+    SCREEN_HEIGHT_PIX,
+)
+from config.settings import (
+    BASE_DIR,
+    PLAYER_SIZE,
+    PLAYER_SPEED,
+)
 from core.registry import Registry
 from entities.base import GridObject
 from entities.player import Player
@@ -21,21 +33,32 @@ class GameSetup:
         self._init_entities()
 
     def _init_display(self):
-        self.game.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.game.screen = pygame.display.set_mode(
+            (SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX)
+        )
 
     def _load_resources(self):
-        # Go up one level from core/ to src/ then to config/environments.json
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        Registry.load_cells(os.path.join(base_dir, "config", "environments.json"))
+        Registry.load_cells(os.path.join(BASE_DIR, "config", "environments.json"))
+        Registry.load_enemies(os.path.join(BASE_DIR, "config", "enemies.json"))
 
     def _init_level(self):
-        self.game.world = WorldLoader().generate()
+        self.world_loader = WorldLoader()
+        self.game.world = self.world_loader.generate()
 
     def _init_entities(self):
         self.game.gridObjects = []
+        rooms = self.world_loader.rooms
+        spawn_room = rooms[randint(0, len(rooms) - 1)]
+        # INDEX FOR CLARITY
+        MINX, MINY, HEIGHT, WIDTH = (0, 1, 2, 3)
+        room_mid = [
+            spawn_room[MINX] + spawn_room[HEIGHT] // 2,
+            spawn_room[MINY] + spawn_room[WIDTH] // 2,
+        ]
         self.game.player = Player(
-            GRID_WIDTH // 2,
-            GRID_HEIGHT // 2,
-            1,
-            5,
+            self.game,
+            room_mid[0] * CELL_SIZE,
+            room_mid[1] * CELL_SIZE,
+            PLAYER_SIZE,  # Player size matches tile size
+            PLAYER_SPEED,
         )
