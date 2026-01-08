@@ -1,4 +1,6 @@
+from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX
 import pygame
+from core.camera import Camera
 from core.debug import debug
 from core.vfx import vfx_manager
 from combat.weapon import Weapon
@@ -18,19 +20,30 @@ from config.settings import (
     UI_WEAPON_BAR_Y,
     UI_WEAPON_X,
     UI_WEAPON_Y,
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT
+    SCREEN_WIDTH_PIX,
+    SCREEN_HEIGHT_PIX
     )
+
 
 class GameRenderer:
     def __init__(self, game):
         self.game = game
+        self.rendering_surface = pygame.Surface((GRID_WIDTH_PIX, GRID_HEIGHT_PIX))
         self.font = pygame.font.SysFont("Arial", 24)
 
-    def draw(self):
-        self.game.screen.fill(COLOR_BACKGROUND)
+        self.background_world = pygame.Surface((GRID_WIDTH_PIX, GRID_HEIGHT_PIX))
+        self.background_world.fill(COLOR_BACKGROUND)
         self._draw_world()
+
+    def draw(self, camera : Camera):
+        self.game.screen.fill(COLOR_BACKGROUND)
+        self.rendering_surface.blit(self.background_world, (0,0))
+
+        self.cam_rect = camera.get_subregion()
         self._draw_entities()
+
+        self.game.screen.blit(self.rendering_surface, (0,0), area=self.cam_rect)
+
         self.game.damage_texts.draw(self.game.screen, self.game.camera)
         vfx_manager.draw(self.game.screen)
         self._draw_ui()
@@ -132,32 +145,38 @@ class GameRenderer:
         pygame.draw.rect(self.game.screen, (255, 255, 255), (health_x, health_y + bar_height + 30, bar_width, 10), 1)
 
     def _draw_world(self):
+        skip = 0
         for y in range(self.game.world.height):
             for x in range(self.game.world.width):
                 cell = self.game.world.get_cell(x, y)
                 if cell:
                     rect = pygame.Rect(
-                        self.game.start_x + x * self.game.tile_size, 
-                        self.game.start_y + y * self.game.tile_size, 
-                        self.game.tile_size, 
-                        self.game.tile_size
+                        x * CELL_SIZE,
+                        y * CELL_SIZE,
+                        CELL_SIZE,
+                        CELL_SIZE,
                     )
-                    
                     if cell.texture:
-                        if cell.texture.get_width() != self.game.tile_size or cell.texture.get_height() != self.game.tile_size:
-                            cell.texture = pygame.transform.scale(cell.texture, (self.game.tile_size, self.game.tile_size))
-                        self.game.screen.blit(cell.texture, rect)
+                        if (
+                            cell.texture.get_width() != CELL_SIZE
+                            or cell.texture.get_height() != CELL_SIZE
+                        ):
+                            cell.texture = pygame.transform.scale(
+                                cell.texture, (CELL_SIZE, CELL_SIZE)
+                            )
+                        self.background_world.blit(cell.texture, rect)
                     else:
-                        pygame.draw.rect(self.game.screen, cell.color, rect)
+                        pygame.draw.rect(self.background_world, cell.color, rect)
+        print("SKIP", skip)
 
     def _draw_entities(self):
-        self.game.player.draw(self.game.screen, self.game.tile_size)
+        self.game.player.draw(self.rendering_surface)
         for obj in self.game.gridObjects:
-            obj.draw(self.game.screen, self.game.tile_size)
+            obj.draw(self.rendering_surface)
 
     def draw_pause_menu(self):
         # Semi-transparent overlay
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay = pygame.Surface((SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX))
         overlay.set_alpha(180) # 0-255
         overlay.fill((0, 0, 0))
         self.game.screen.blit(overlay, (0, 0))
@@ -165,7 +184,7 @@ class GameRenderer:
         # Menu Title
         title_font = pygame.font.SysFont("Arial", 48, bold=True)
         title_text = title_font.render("PAUSED", True, (255, 255, 255))
-        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, 80))
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH_PIX // 2, 80))
         self.game.screen.blit(title_text, title_rect)
         
         # Stats
@@ -187,22 +206,22 @@ class GameRenderer:
         
         for i, stat in enumerate(stats):
             text = self.font.render(stat, True, (200, 200, 200))
-            rect = text.get_rect(center=(SCREEN_WIDTH // 2, start_y + i * line_height))
+            rect = text.get_rect(center=(SCREEN_WIDTH_PIX // 2, start_y + i * line_height))
             self.game.screen.blit(text, rect)
             
         # Border around stats
         stats_height = len(stats) * line_height
-        border_rect = pygame.Rect(SCREEN_WIDTH//2 - 150, start_y - 10, 300, stats_height + 20)
+        border_rect = pygame.Rect(SCREEN_WIDTH_PIX//2 - 150, start_y - 10, 300, stats_height + 20)
         pygame.draw.rect(self.game.screen, (255, 255, 255), border_rect, 2)
         
         # Buttons Position - Shifted DOWN
         # Button data (must match logic.py)
         btn_w = 200
         btn_h = 50
-        btn_y = SCREEN_HEIGHT - 250
+        btn_y = SCREEN_HEIGHT_PIX - 250
         
         # Save Button
-        save_x = SCREEN_WIDTH//2 - btn_w//2 - 110
+        save_x = SCREEN_WIDTH_PIX//2 - btn_w//2 - 110
         save_rect = pygame.Rect(save_x, btn_y, btn_w, btn_h)
         pygame.draw.rect(self.game.screen, (50, 200, 50), save_rect)
         pygame.draw.rect(self.game.screen, (255, 255, 255), save_rect, 2)
@@ -211,7 +230,7 @@ class GameRenderer:
         self.game.screen.blit(save_text, save_text_rect)
 
         # Close Button
-        close_x = SCREEN_WIDTH//2 + 10
+        close_x = SCREEN_WIDTH_PIX//2 + 10
         close_rect = pygame.Rect(close_x, btn_y, btn_w, btn_h)
         pygame.draw.rect(self.game.screen, (200, 50, 50), close_rect)
         pygame.draw.rect(self.game.screen, (255, 255, 255), close_rect, 2)
@@ -221,7 +240,7 @@ class GameRenderer:
 
         # New Game Button (Restart)
         new_y = btn_y + 70
-        new_rect = pygame.Rect(SCREEN_WIDTH//2 - btn_w//2, new_y, btn_w, btn_h)
+        new_rect = pygame.Rect(SCREEN_WIDTH_PIX//2 - btn_w//2, new_y, btn_w, btn_h)
         pygame.draw.rect(self.game.screen, (100, 100, 200), new_rect)
         pygame.draw.rect(self.game.screen, (255, 255, 255), new_rect, 2)
         new_text = self.font.render("New Game", True, (255, 255, 255))

@@ -1,12 +1,25 @@
+from random import randint
+from levels.loader import WorldLoader
 import pygame
 import os
 from typing import List
 
-from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, BASE_DIR, PLAYER_SIZE, PLAYER_SPEED
+from config.settings import (
+    CELL_SIZE,
+    GRID_HEIGHT,
+    GRID_WIDTH,
+    SCREEN_WIDTH_PIX,
+    SCREEN_HEIGHT_PIX,
+)
+from config.settings import (
+    BASE_DIR,
+    PLAYER_SIZE,
+    PLAYER_SPEED,
+)
 from core.registry import Registry
-from levels.loader import load_level
 from entities.base import GridObject
 from entities.player import Player
+
 
 class GameSetup:
     def __init__(self, game):
@@ -17,38 +30,35 @@ class GameSetup:
         self.game.clock = pygame.time.Clock()
         self._load_resources()
         self._init_level()
-        self._calculate_layout()
         self._init_entities()
 
     def _init_display(self):
-        self.game.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.game.screen_width, self.game.screen_height = SCREEN_WIDTH, SCREEN_HEIGHT
+        self.game.screen = pygame.display.set_mode(
+            (SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX)
+        )
 
     def _load_resources(self):
-        Registry.load_cells(os.path.join(BASE_DIR, 'config', 'environments.json'))
-        Registry.load_enemies(os.path.join(BASE_DIR, 'config', 'enemies.json'))
+        Registry.load_cells(os.path.join(BASE_DIR, "config", "environments.json"))
+        Registry.load_enemies(os.path.join(BASE_DIR, "config", "enemies.json"))
 
     def _init_level(self):
-        self.game.world = load_level(1)
-
-    def _calculate_layout(self):
-        self.game.tile_size = min(self.game.screen_width // self.game.world.width, self.game.screen_height // self.game.world.height)
-        self.game.start_x = (self.game.screen_width - (self.game.world.width * self.game.tile_size)) // 2
-        self.game.start_y = (self.game.screen_height - (self.game.world.height * self.game.tile_size)) // 2
-        
-        self.game.map_bounds = (
-            self.game.start_x,
-            self.game.start_y,
-            self.game.start_x + self.game.world.width * self.game.tile_size,
-            self.game.start_y + self.game.world.height * self.game.tile_size
-        )
+        self.world_loader = WorldLoader()
+        self.game.world = self.world_loader.generate()
 
     def _init_entities(self):
         self.game.gridObjects = []
+        rooms = self.world_loader.rooms
+        spawn_room = rooms[randint(0, len(rooms) - 1)]
+        # INDEX FOR CLARITY
+        MINX, MINY, HEIGHT, WIDTH = (0, 1, 2, 3)
+        room_mid = [
+            spawn_room[MINX] + spawn_room[HEIGHT] // 2,
+            spawn_room[MINY] + spawn_room[WIDTH] // 2,
+        ]
         self.game.player = Player(
             self.game,
-            self.game.start_x + (self.game.world.width * self.game.tile_size) // 2,
-            self.game.start_y + (self.game.world.height * self.game.tile_size) // 2,
-            PLAYER_SIZE, # Player size matches tile size
-            PLAYER_SPEED
+            room_mid[0] * CELL_SIZE,
+            room_mid[1] * CELL_SIZE,
+            PLAYER_SIZE,  # Player size matches tile size
+            PLAYER_SPEED,
         )

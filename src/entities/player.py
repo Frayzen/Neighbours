@@ -1,11 +1,22 @@
-#0 at the top left corner of the screen
-#moving a cube smothly using arrow
+# 0 at the top left corner of the screen
+# moving a cube smothly using arrow
 from typing import Tuple
 import pygame
+
 # Initialize Pygame
 pygame.init()
 
 # Set up the display
+from config.settings import (
+    CELL_SIZE,
+    GRID_HEIGHT,
+    GRID_HEIGHT_PIX,
+    GRID_WIDTH,
+    GRID_WIDTH_PIX,
+    SCREEN_WIDTH_PIX,
+    SCREEN_HEIGHT_PIX,
+)
+
 from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_PLAYER, PLAYER_MAX_HEALTH, PLAYER_INVULNERABILITY_DURATION
 from combat.combat_manager import CombatManager
 from combat.factory import WeaponFactory
@@ -103,7 +114,7 @@ class Player(GridObject):
             val = data["value"]
             self._modify_stat(effect, op, val, revert=False)
 
-    def update(self, enemies):
+    def update(self, target_pos=None):
         current_time = pygame.time.get_ticks()
         
         # Manage active effects
@@ -125,7 +136,7 @@ class Player(GridObject):
             if current_time - self.last_hit_time > self.invulnerability_duration:
                 self.invulnerable = False
 
-        self.combat.update(enemies, current_time)
+        self.combat.update(target_pos, current_time)
 
     def take_damage(self, amount):
         if self.invulnerable:
@@ -158,8 +169,8 @@ class Player(GridObject):
         debug.log(f"Level Up! New Level: {self.level}")
         # TODO: Trigger level up UI or choices
 
-    def move(self, keys, bounds: Tuple[int, int, int, int], world, tile_size: int): #movement using arrow keys or WASD
-#pygame.K_ DIRECTION is used to detect key presses on this precise touch
+    def move(self, keys, world):  # movement using arrow keys or WASD
+        # pygame.K_ DIRECTION is used to detect key presses on this precise touch
         dx = 0
         dy = 0
         
@@ -174,9 +185,11 @@ class Player(GridObject):
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy += current_speed
 
+        bounds = (0, 0, GRID_WIDTH_PIX, GRID_HEIGHT_PIX)
+
         # Try moving X
         new_x = self.x + dx
-        collision_x = check_collision(new_x, self.y, self.w, self.h, bounds, world, tile_size)
+        collision_x = check_collision(new_x, self.y, self.w, self.h, bounds, world)
         
         final_collision = None
         
@@ -187,7 +200,7 @@ class Player(GridObject):
 
         # Try moving Y
         new_y = self.y + dy
-        collision_y = check_collision(self.x, new_y, self.w, self.h, bounds, world, tile_size)
+        collision_y = check_collision(self.x, new_y, self.w, self.h, bounds, world)
         
         if not collision_y:
             self.y = new_y
@@ -198,9 +211,9 @@ class Player(GridObject):
         # Return trigger if any collision was a trigger
         return final_collision
 
-    def draw(self, surface, tile_size):
+    def draw(self, screen):
         # Draw player
-        pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.w * tile_size, self.h * tile_size))
+        pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
         
         # Draw weapon
         weapon = self.combat.current_weapon
@@ -214,15 +227,15 @@ class Player(GridObject):
                 weapon_color = (100, 255, 100)
             
             # Draw slightly offset
-            wx = self.x + (self.w * tile_size) * 0.8
-            wy = self.y + (self.h * tile_size) * 0.2
+            wx = self.x + (self.w * CELL_SIZE) * 0.8
+            wy = self.y + (self.h * CELL_SIZE) * 0.2
             
             if weapon.image:
                  # Scale weapon image if needed (arbitrary size choice or based on tiles)
                  scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
-                 surface.blit(scaled_weapon, (wx, wy))
+                 screen.blit(scaled_weapon, (wx, wy))
             else:
-                 pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))
+                 pygame.draw.rect(screen, weapon_color, (wx, wy, 4, 10))
 
     # Serialization
     def __getstate__(self):

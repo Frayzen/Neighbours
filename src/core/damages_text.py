@@ -1,5 +1,6 @@
 import pygame
 
+
 class DamageText:
     def __init__(self, x, y, amount):
         self.x = x

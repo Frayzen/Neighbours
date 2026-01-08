@@ -5,11 +5,12 @@ from entities.enemy import Enemy
 from items.item import Item
 from items.factory import ItemFactory
 from entities.xp_orb import XPOrb
-from config.settings import GLOBAL_DROP_CHANCE
+from config.settings import CELL_SIZE, GLOBAL_DROP_CHANCE, SCREEN_HEIGHT_PIX, SCREEN_WIDTH_PIX
 from core.debug import debug
 from core.triggers import execute_trigger
 from core.vfx import vfx_manager
 from core.registry import Registry
+
 
 class GameLogic:
     def __init__(self, game):
@@ -36,7 +37,7 @@ class GameLogic:
 
         for obj in self.game.gridObjects:
             obj.update((self.game.player.x, self.game.player.y))
-        
+
         self._handle_input()
         self._handle_debug_input()
 
@@ -77,7 +78,7 @@ class GameLogic:
                 self.game.restart_game()
 
     def _handle_player_movement(self):
-        result = self.game.player.move(pygame.key.get_pressed(), self.game.map_bounds, self.game.world, self.game.tile_size)
+        result = self.game.player.move(pygame.key.get_pressed(), self.game.world)
         if result:
             cell, x, y = result
             if cell.trigger:
@@ -90,9 +91,9 @@ class GameLogic:
         self.game.player.update(enemies)
 
         # Check for collisions between player and enemies
-        player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * self.game.tile_size, self.game.player.h * self.game.tile_size)
+        player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * CELL_SIZE, self.game.player.h * CELL_SIZE)
         for enemy in enemies:
-            enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.w * self.game.tile_size, enemy.h * self.game.tile_size)
+            enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.w * CELL_SIZE, enemy.h * CELL_SIZE)
             if player_rect.colliderect(enemy_rect):
                 self.game.player.take_damage(enemy.damage)
 
@@ -101,16 +102,16 @@ class GameLogic:
         pickupables = [obj for obj in self.game.gridObjects if isinstance(obj, (Item, XPOrb))]
         
         # Pre-calculate player center and range squared
-        px = self.game.player.x + (self.game.player.w * self.game.tile_size) / 2
-        py = self.game.player.y + (self.game.player.h * self.game.tile_size) / 2
+        px = self.game.player.x + (self.game.player.w * CELL_SIZE) / 2
+        py = self.game.player.y + (self.game.player.h * CELL_SIZE) / 2
         pickup_range_sq = self.game.player.pickup_range ** 2
         
-        player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * self.game.tile_size, self.game.player.h * self.game.tile_size)
+        player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * CELL_SIZE, self.game.player.h * CELL_SIZE)
         
         for obj in pickupables:
             # Magnet Logic (Optimized)
-            ox = obj.x + (obj.w * self.game.tile_size)/2
-            oy = obj.y + (obj.h * self.game.tile_size)/2
+            ox = obj.x + (obj.w * CELL_SIZE)/2
+            oy = obj.y + (obj.h * CELL_SIZE)/2
             
             dx = ox - px
             dy = oy - py
@@ -122,8 +123,8 @@ class GameLogic:
             
             # Collision/Collection Logic
             # Optimization: Only check collision if close enough (e.g. < 2 tiles)
-            if dist_sq < (self.game.tile_size * 2) ** 2:
-                obj_rect = pygame.Rect(obj.x, obj.y, obj.w * self.game.tile_size, obj.h * self.game.tile_size)
+            if dist_sq < (CELL_SIZE * 2) ** 2:
+                obj_rect = pygame.Rect(obj.x, obj.y, obj.w * CELL_SIZE, obj.h * CELL_SIZE)
                 if player_rect.colliderect(obj_rect):
                     if isinstance(obj, Item):
                         self.game.player.collect_item(obj)
@@ -158,15 +159,15 @@ class GameLogic:
     def _handle_debug_input(self):
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_SPACE]:
-            min_x, min_y, max_x, max_y = self.game.map_bounds
+            min_x, min_y, max_x, max_y = 0, 0, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX
             enemy_types = Registry.get_enemy_types()
             if enemy_types:
                 enemy_type = choice(enemy_types)
                 self.game.gridObjects.append(
                     Enemy(
                         self.game,
-                        randint(min_x, max_x - self.game.tile_size),
-                        randint(min_y, max_y - self.game.tile_size),
+                        randint(min_x, max_x - CELL_SIZE),
+                        randint(min_y, max_y - CELL_SIZE),
                         enemy_type=enemy_type
                     )
                 )
