@@ -35,6 +35,10 @@ class GameRenderer:
         self.background_world.fill(COLOR_BACKGROUND)
         self._draw_world()
 
+    def reload_world(self):
+        self.background_world.fill(COLOR_BACKGROUND)
+        self._draw_world()
+
     def draw(self, camera : Camera):
         self.game.screen.fill(COLOR_BACKGROUND)
         self.rendering_surface.blit(self.background_world, (0,0))

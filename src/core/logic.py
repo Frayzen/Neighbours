@@ -19,6 +19,8 @@ class GameLogic:
     def __init__(self, game):
         self.game = game
         self.flow_field = FlowField()
+        self.last_pathfinding_update = 0
+        self.pathfinding_interval = 150 # ms
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -28,8 +30,11 @@ class GameLogic:
     def update(self):
         vfx_manager.update()
         
-        # Update Flow Field
-        self.flow_field.update(self.game.player.x, self.game.player.y, self.game.world)
+        # Update Flow Field (Throttled)
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_pathfinding_update > self.pathfinding_interval:
+            self.flow_field.update(self.game.player.x, self.game.player.y, self.game.world, max_dist=30)
+            self.last_pathfinding_update = current_time
         
         self._handle_player_movement()
         self._handle_combat()
@@ -44,6 +49,8 @@ class GameLogic:
         self._handle_proximity_spawning()
 
         for obj in self.game.gridObjects:
+            if obj == self.game.player:
+                continue
             if isinstance(obj, Enemy):
                 obj.update(self.flow_field, entities=self.game.gridObjects)
             else:
@@ -90,6 +97,20 @@ class GameLogic:
 
     def _handle_player_movement(self):
         result = self.game.player.move(pygame.key.get_pressed(), self.game.world)
+        
+        # Check for triggers on the tile the player is currently standing on
+        # Calculate center of player
+        px = self.game.player.x + (self.game.player.w * CELL_SIZE) / 2
+        py = self.game.player.y + (self.game.player.h * CELL_SIZE) / 2
+        
+        grid_x = int(px / CELL_SIZE)
+        grid_y = int(py / CELL_SIZE)
+        
+        cell = self.game.world.get_cell(grid_x, grid_y)
+        if cell and cell.trigger:
+            execute_trigger(cell.trigger, self.game, grid_x, grid_y)
+
+        # Handle collision triggers (if any that block movement)
         if result:
             cell, x, y = result
             if cell.trigger:
@@ -170,9 +191,23 @@ class GameLogic:
         act_dist_sq = (SPAWN_ACTIVATION_DISTANCE * CELL_SIZE) ** 2
         
         for point in self.game.world.spawn_points:
-            if point['spawned']:
+            # Check spawn mode logic
+            can_spawn = False
+            spawn_mode = point.get('spawn_mode', 'once') # Default to once
+            current_time = pygame.time.get_ticks()
+
+            if spawn_mode == 'once':
+                if not point['spawned']:
+                     can_spawn = True
+            elif spawn_mode == 'infinite':
+                last_spawn = point.get('last_spawn_time', 0)
+                cooldown = point.get('cooldown', 5000) # Default 5s
+                if current_time - last_spawn > cooldown:
+                    can_spawn = True
+
+            if not can_spawn:
                 continue
-                
+
             cx = point['x'] * CELL_SIZE
             cy = point['y'] * CELL_SIZE
             
@@ -183,11 +218,24 @@ class GameLogic:
             if dist_sq < act_dist_sq:
                 # Activate Spawner
                 point['spawned'] = True
-                
+                if spawn_mode == 'infinite':
+                    point['last_spawn_time'] = current_time
+                    
                 count = point['enemy_count']
-                e_type = point['type']
+                base_type = point['type']
                 
                 for _ in range(count):
+                    # Determine type
+                    if base_type == "random":
+                        available = Registry.get_enemy_types()
+                        # Start with a default
+                        e_type = "basic_enemy"
+                        if available:
+                            e_type = choice(available)
+                            # Avoiding boss for spam? Maybe keep it for fun.
+                    else:
+                        e_type = base_type
+
                     # Spawn logic
                     valid = False
                     spawn_x, spawn_y = 0, 0

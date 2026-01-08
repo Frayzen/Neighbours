@@ -9,7 +9,7 @@ class FlowField:
         self.cols = 0
         self.rows = 0
 
-    def update(self, target_x, target_y, world):
+    def update(self, target_x, target_y, world, max_dist=None):
         self.cols = world.width
         self.rows = world.height
         
@@ -28,8 +28,12 @@ class FlowField:
         self.distance_field[start_node] = 0
         heapq.heappush(queue, (0, start_node))
         
-        # Directions: Up, Down, Left, Right
-        neighbors = [(0, -1), (0, 1), (-1, 0), (1, 0)]
+        # Directions: Up, Down, Left, Right + Diagonals
+        # (dx, dy, cost)
+        neighbors = [
+            (0, -1, 1), (0, 1, 1), (-1, 0, 1), (1, 0, 1),
+            (1, 1, 1.414), (1, -1, 1.414), (-1, 1, 1.414), (-1, -1, 1.414)
+        ]
         
         while queue:
             dist, current = heapq.heappop(queue)
@@ -38,52 +42,61 @@ class FlowField:
             if dist > self.distance_field.get(current, float('inf')):
                 continue
             
-            for dx, dy in neighbors:
+            if max_dist is not None and dist > max_dist:
+                continue
+
+            for dx, dy, cost in neighbors:
                 nx, ny = cx + dx, cy + dy
                 
                 # Check bounds
                 if 0 <= nx < self.cols and 0 <= ny < self.rows:
-                    # Check walkability
-                    # world.get_cell_full returns (cell, offset), we just need the cell properties
-                    # Assuming we can get simple cell info or use get_cell_full
-                    # If world has get_cell(x, y) that returns just the cell, that's better.
-                    # I'll rely on reading world.py before finalizing this, but assuming get_cell_full logic:
                     cell_data = world.get_cell_full(nx, ny)
                     if cell_data:
                         cell, _ = cell_data
                         if not cell.walkable:
                             continue
                             
-                    new_dist = dist + 1
+                    new_dist = dist + cost
+                    
+                    if max_dist is not None and new_dist > max_dist:
+                        continue
+
                     if new_dist < self.distance_field.get((nx, ny), float('inf')):
                         self.distance_field[(nx, ny)] = new_dist
                         heapq.heappush(queue, (new_dist, (nx, ny)))
                         
         # 2. Vector Field
+        # Optimization: Only iterate over cells explicitly found in distance_field
         self.vector_field = {}
-        for x in range(self.cols):
-            for y in range(self.rows):
-                if (x, y) in self.distance_field:
-                    min_dist = self.distance_field[(x, y)]
-                    best_dir = (0, 0)
-                    
-                    # If we are at the target, vector is (0,0) (or maybe towards precise center?)
-                    if min_dist == 0:
-                        self.vector_field[(x, y)] = (0, 0)
-                        continue
-                        
-                    for dx, dy in neighbors:
-                        nx, ny = x + dx, y + dy
-                        if (nx, ny) in self.distance_field:
-                            dist = self.distance_field[(nx, ny)]
-                            if dist < min_dist:
-                                min_dist = dist
-                                best_dir = (dx, dy)
-                    
-                    self.vector_field[(x, y)] = best_dir
+        
+        for (x, y), min_dist in self.distance_field.items():
+            if min_dist == 0:
+                self.vector_field[(x, y)] = (0, 0)
+                continue
+                
+            # Check all 8 neighbors for steep descent
+            best_dir = (0, 0)
+            target_neighbor_dist = min_dist
+            found_better = False
+            
+            for dx, dy, cost in neighbors:
+                nx, ny = x + dx, y + dy
+                if (nx, ny) in self.distance_field:
+                    dist = self.distance_field[(nx, ny)]
+                    if dist < target_neighbor_dist:
+                        target_neighbor_dist = dist
+                        best_dir = (dx, dy)
+                        found_better = True
+            
+            if found_better:
+                # Normalize vector for smooth movement
+                mag = math.sqrt(best_dir[0]**2 + best_dir[1]**2)
+                if mag > 0:
+                    self.vector_field[(x, y)] = (best_dir[0]/mag, best_dir[1]/mag)
                 else:
-                    # Unreachable
-                    self.vector_field[(x, y)] = (0, 0)
+                    self.vector_field[(x, y)] = (0,0)
+            else:
+                 self.vector_field[(x, y)] = (0,0)
 
     def get_vector(self, x, y):
         # x, y are world coordinates

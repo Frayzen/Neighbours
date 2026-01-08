@@ -48,8 +48,96 @@ class WorldLoader:
     # -------------------------------------------------------------------------
     # MAIN GENERATOR
     # -------------------------------------------------------------------------
-    def generate(self):
+    def generate(self, layer_index=0):
+        self.world = World() # Reset world for new layer
+        # Reset regions
+        self.regions = [[None for _ in range(self.world.width)]
+                        for _ in range(self.world.height)]
+        self.current_region = -1
+        self.rooms = [] # Reset rooms
 
+        if layer_index == 0:
+            self._generate_overworld()
+        else:
+            self._generate_dungeon()
+            
+        return self.world
+
+    def _generate_overworld(self):
+        # 1. Fill background with wall (or empty, but wall is safer for boundary)
+        for y in range(self.world.height):
+            for x in range(self.world.width):
+                self.world.set_cell(x, y, self.wall)
+                
+        # 2. Create 25x25 Grass Box
+        # Center it
+        start_x = (GRID_WIDTH - 25) // 2
+        start_y = (GRID_HEIGHT - 25) // 2
+        
+        self._start_region()
+        for y in range(start_y, start_y + 25):
+            for x in range(start_x, start_x + 25):
+                self._carve(x, y, self.grass)
+                
+        # 3. Small Lake (let's say 5x5 approx, in top left of grass)
+        lake_x = start_x + 3
+        lake_y = start_y + 3
+        for y in range(lake_y, lake_y + 5):
+            for x in range(lake_x, lake_x + 5):
+                self.world.set_cell(x, y, self.water)
+                
+        # 4. Small House (Walls + Door)
+        house_x = start_x + 15
+        house_y = start_y + 5
+        house_w = 6
+        house_h = 6
+        
+        # House Walls
+        for y in range(house_y, house_y + house_h):
+            for x in range(house_x, house_x + house_w):
+                if x == house_x or x == house_x + house_w - 1 or y == house_y or y == house_y + house_h - 1:
+                     self.world.set_cell(x, y, self.wall)
+                else:
+                    self.world.set_cell(x, y, self.grass) # Floor
+                    
+        # House Door
+        self.world.set_cell(house_x + house_w // 2, house_y + house_h - 1, self.grass) # Opening
+        
+        # 5. Trapdoor (inside house)
+        trapdoor_cell = Registry.get_cell("Trapdoor")
+        if trapdoor_cell:
+            self.world.set_cell(house_x + house_w // 2, house_y + house_h // 2, trapdoor_cell)
+        else:
+            print("ERROR: Trapdoor cell not found in Registry!")
+
+        # Set spawn point for first layer (center of grass box) generally, 
+        # but let's put it near the unexpected lake? Or just center. 
+        # Using the rooms list format to be compatible with _init_entities in setup.py
+        # Setup.py expects: spawn_room[MINX] + spawn_room[HEIGHT] // 2...
+        # It treats rooms as (x, y, width, height)
+        # We can fake a room for the spawn point.
+        fake_spawn_room = (start_x + 10, start_y + 10, 5, 5) # Somewhere in the grass
+        self.rooms.append(fake_spawn_room)
+
+        # Add Continuous Spawner
+        # Move to open field (far right of grass box)
+        spawner_x = start_x + 20
+        spawner_y = start_y + 10
+        self.world.set_cell(spawner_x, spawner_y, self.spawner)
+        
+        self.world.spawn_points.append({
+            'x': spawner_x,
+            'y': spawner_y,
+            'enemy_count': 3, # Spawn 3 at a time
+            'type': "random", # Random enemy type
+            'spawned': False,
+            'spawn_mode': 'infinite',
+            'cooldown': 2000, # Every 2 seconds
+            'last_spawn_time': 0
+        })
+
+
+    def _generate_dungeon(self):
         # Fill background with wall
         for y in range(self.world.height):
             for x in range(self.world.width):
@@ -67,8 +155,6 @@ class WorldLoader:
         # Connect regions & remove dead ends
         self.__connect_regions()
         self.__remove_dead_ends()
-
-        return self.world
 
     # -------------------------------------------------------------------------
     # GROWING TREE / MAZE

@@ -16,6 +16,7 @@ class Game:
         self.player = None
 
         # Perform initial setup
+        self.current_layer_index = 0
         self.setup = GameSetup(self)
         self.setup.perform_setup()
 
@@ -46,9 +47,29 @@ class Game:
 
     def restart_game(self):
         # Reset game state
+        self.current_layer_index = 0
         self.setup.perform_setup()
         self.logic = GameLogic(self)
         self.paused = False
+
+    def next_layer(self):
+        self.current_layer_index += 1
+        print(f"DEBUG: Generating layer {self.current_layer_index}...")
+        
+        # Determine player health and other persistent state if needed
+        # For now, we just regenerate the world
+        self.world = self.setup.world_loader.generate(self.current_layer_index)
+        
+        # Re-initialize entities for the new layer (Preserve Player)
+        self.setup.respawn_player() 
+        
+        # Important: Update logic with new references if needed
+        self.logic = GameLogic(self)
+        
+        # Reload renderer cache
+        self.renderer.reload_world()
+        
+        print(f"DEBUG: Layer {self.current_layer_index} generated.")
 
     def run(self):
         running = True
