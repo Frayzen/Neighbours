@@ -8,7 +8,7 @@ class Item(GridObject):
     def __init__(self, x, y, item_data):
         self.rarity_color = COLOR_RARITY.get(item_data["rarity"], (255, 255, 255))
         self.item_color = item_data.get("color", self.rarity_color) # Default to rarity color if not specified
-        super().__init__(x, y, 0.5, 0.5, color=self.item_color)
+        super().__init__(x, y, 1.0, 1.0, color=self.item_color)
         
         self.name = item_data["name"]
         self.type = item_data["type"]
