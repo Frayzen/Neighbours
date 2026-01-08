@@ -12,7 +12,7 @@
             255,
             0
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/SpeedBoots.png",
         "effects": {
             "speed": {
                 "op": "add",
@@ -33,7 +33,7 @@
             0,
             0
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/PowerRing.png",
         "effects": {
             "damage": {
                 "op": "add",
@@ -73,7 +73,7 @@
             255,
             255
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/SwordEnchants.png",
         "effects": {
             "damage": {
                 "op": "add",
@@ -98,7 +98,7 @@
             165,
             0
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/FireEssence.png",
         "target_weapon": "fireball_staff",
         "effects": {
             "aoe_radius": {
@@ -124,7 +124,7 @@
             0,
             128
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/MagicEssence.png",
         "target_tag": "magic",
         "effects": {
             "damage": {
@@ -150,7 +150,7 @@
             255,
             0
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/SpeedPotion.png",
         "duration": 10000,
         "effects": {
             "speed": {
@@ -173,7 +173,7 @@
             192,
             192
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/ScopeLens.png",
         "target_tag": "ranged",
         "effects": {
             "range": {
@@ -196,7 +196,7 @@
             100,
             255
         ],
-        "texture_path": "",
+        "texture_path": "assets/images/MagnetRing.png",
         "effects": {
             "pickup_range": {
                 "op": "add",
