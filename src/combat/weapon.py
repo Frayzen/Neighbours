@@ -4,7 +4,7 @@ import pygame
 from config.settings import BASE_DIR
 
 class Weapon:
-    def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0, tags: list = None, texture_path: str = None, behavior_name: str = None):
+    def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0, tags: list = None, texture_path: str = None, behavior_name: str = None, line_of_sight: bool = False):
         """
         Initialize a new Weapon.
         
@@ -18,6 +18,7 @@ class Weapon:
         :param tags: List of tags associated with the weapon
         :param texture_path: Path to the weapon's texture file
         :param behavior_name: Name of the behavior function to use
+        :param line_of_sight: Whether the weapon requires line of sight to fire
         """
         self.id = id
         self.name = name
@@ -31,6 +32,7 @@ class Weapon:
         self.behavior_name = behavior_name
         self.behavior_func = None # Assigned by factory or reload
         self.texture_path = texture_path
+        self.line_of_sight = line_of_sight
         
         # Texture handling
         self.image = None
@@ -44,6 +46,24 @@ class Weapon:
                      print(f"Failed to load weapon texture {texture_path}: {e}")
             else:
                 print(f"Weapon texture not found: {full_path}")
+
+    def has_clear_shot(self, owner, target):
+        if not self.line_of_sight:
+            return True
+            
+        if not target or not hasattr(owner, 'game') or not owner.game.world:
+            return True # Fail open if we can't check
+            
+        from core.physics import has_line_of_sight
+        # Check from center to center
+        start_x = owner.x + (owner.w * 50) / 2 # Assuming 50 is CELL_SIZE, ideally import it or use owner.w*CELL_SIZE if available.
+        # But wait, owner.w is in cells. owner.x is in pixels.
+        # Let's import CELL_SIZE or rely on owner having rect.
+        # Safest is to just use x, y + half size.
+        # Assuming entities are 1 tile roughly? 
+        # Using pure pixels:
+        
+        return has_line_of_sight(owner.x, owner.y, target.x, target.y, owner.game.world)
 
     def can_attack(self, current_time: int) -> bool:
         """Check if the weapon is ready to attack."""

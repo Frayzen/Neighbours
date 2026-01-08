@@ -16,9 +16,9 @@ class VFXManager:
         current_time = pygame.time.get_ticks()
         self.effects = [e for e in self.effects if e.is_active(current_time)]
 
-    def draw(self, surface):
+    def draw(self, surface, camera):
         for effect in self.effects:
-            effect.draw(surface)
+            effect.draw(surface, camera)
 
 class VisualEffect:
     def __init__(self, duration):
@@ -28,7 +28,7 @@ class VisualEffect:
     def is_active(self, current_time):
         return current_time - self.start_time < self.duration
 
-    def draw(self, surface):
+    def draw(self, surface, camera):
         pass
 
 class ExplosionEffect(VisualEffect):
@@ -39,7 +39,7 @@ class ExplosionEffect(VisualEffect):
         self.radius = radius
         self.color = color
 
-    def draw(self, surface):
+    def draw(self, surface, camera):
         # Calculate progress (0.0 to 1.0)
         elapsed = pygame.time.get_ticks() - self.start_time
         progress = min(1.0, max(0.0, elapsed / self.duration))
@@ -56,7 +56,10 @@ class ExplosionEffect(VisualEffect):
 
         s = pygame.Surface((size, size), pygame.SRCALPHA)
         pygame.draw.circle(s, (*self.color, alpha), (size // 2, size // 2), current_radius)
-        surface.blit(s, (self.x - size // 2, self.y - size // 2))
+        # Apply camera offset
+        draw_x = self.x - camera.x
+        draw_y = self.y - camera.y
+        surface.blit(s, (draw_x - size // 2, draw_y - size // 2))
 
 class SlashEffect(VisualEffect):
     def __init__(self, x, y, target_x, target_y, width=5, color=(255, 255, 255), duration=200):
@@ -68,8 +71,11 @@ class SlashEffect(VisualEffect):
         self.width = width
         self.color = color
 
-    def draw(self, surface):
-        pygame.draw.line(surface, self.color, (self.x, self.y), (self.target_x, self.target_y), self.width)
+    def draw(self, surface, camera):
+        # Apply camera offset
+        start_pos = (self.x - camera.x, self.y - camera.y)
+        end_pos = (self.target_x - camera.x, self.target_y - camera.y)
+        pygame.draw.line(surface, self.color, start_pos, end_pos, self.width)
 
 # Global accessor
 vfx_manager = VFXManager()

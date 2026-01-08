@@ -94,9 +94,14 @@ class CombatManager:
                 return
 
             distance = self.get_distance_to(self.target)
+            distance = self.get_distance_to(self.target)
             if distance <= self.current_weapon.range:
                 if self.current_weapon.can_attack(current_time):
-                    self.attack(self.target, enemies, current_time)
+                    # Check Line of Sight
+                    if self.current_weapon.has_clear_shot(self.owner, self.target):
+                        self.attack(self.target, enemies, current_time)
+                    else:
+                        pass # Line of sight blocked
             else:
                 # If target is out of range clear target
                 pass

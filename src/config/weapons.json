@@ -22,6 +22,7 @@
         "aoe_radius": 100,
         "behavior": "fireball_cast",
         "texture_path": "",
+        "line_of_sight": true,
         "tags": [
             "magic",
             "fire",

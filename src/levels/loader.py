@@ -132,7 +132,7 @@ class WorldLoader:
 
         for _ in range(ROOM_AMOUNT):
 
-            size = randint(1, 3 + ROOM_EXTRA_SIZE) * 2 + 1
+            size = randint(1, 1 + ROOM_EXTRA_SIZE) * 2 + 1
             width = size
             height = size
 

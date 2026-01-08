@@ -45,7 +45,7 @@ class GameRenderer:
         self.game.screen.blit(self.rendering_surface, (0,0), area=self.cam_rect)
 
         self.game.damage_texts.draw(self.game.screen, self.game.camera)
-        vfx_manager.draw(self.game.screen)
+        vfx_manager.draw(self.game.screen, self.game.camera)
         self._draw_ui()
         
         if self.game.paused:
