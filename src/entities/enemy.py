@@ -40,6 +40,8 @@ class Enemy(GridObject):
             texture = config.get("texture")
             behavior_name = config.get("behavior", "melee")
             self.attack_range = config.get("attack_range", 5)
+            self.heal_amount = config.get("heal_amount", 0)
+            self.heal_cooldown = config.get("heal_cooldown", 2000)
             
         self.behavior_name = behavior_name
 
@@ -54,6 +56,9 @@ class Enemy(GridObject):
         self.enemy_type = enemy_type
         
         self.behavior = EnemyBehaviors.get_behavior(behavior_name)
+        self.heal_cooldown_timer = 0
+        self.wander_target = None
+        self.wander_timer = 0
 
     def draw(self, screen):
         if self.texture:
@@ -94,6 +99,8 @@ class Enemy(GridObject):
     def die(self):
         debug.log("Enemy died!")
 
+
+
     def update(self, target_pos_or_flow_field, entities=None):
         # Determine target direction
         dx, dy = 0, 0
@@ -105,6 +112,9 @@ class Enemy(GridObject):
             direction_tuple = self.behavior(self, target_pos_or_flow_field, entities)
             dx = direction_tuple[0] * self.speed
             dy = direction_tuple[1] * self.speed
+            
+            # Run heal logic if applicable
+            self._try_heal(entities)
         else:
             # Fallback to direct seeking (target_pos)
             target_pos = target_pos_or_flow_field
@@ -128,6 +138,48 @@ class Enemy(GridObject):
         new_y = self.y + dy
         if not check_collision(self.x, new_y, self.w, self.h, bounds, self.game.world):
             self.y = new_y
+
+    def _try_heal(self, entities):
+        current_time = pygame.time.get_ticks()
+        if self.heal_amount > 0:
+             if current_time - self.heal_cooldown_timer > self.heal_cooldown:
+                if entities:
+                    # Find closest injured ally in range
+                    closest_ally = None
+                    min_dist_sq = (3 * CELL_SIZE) ** 2 # Max heal range 3 tiles (slightly larger than movement range logic to ensure connection)
+                    
+                    found_target_dist = float('inf')
+
+                    for ally in entities:
+                        if ally == self or not isinstance(ally, Enemy):
+                             continue
+                        
+                        if ally.health < ally.max_health:
+                            dx = ally.x - self.x
+                            dy = ally.y - self.y
+                            d_sq = dx*dx + dy*dy
+                            
+                            # Prioritize closest
+                            if d_sq <= min_dist_sq and d_sq < found_target_dist:
+                                found_target_dist = d_sq
+                                closest_ally = ally
+                    
+                    if closest_ally:
+                        # Heal them
+                        old_health = closest_ally.health
+                        closest_ally.health = min(closest_ally.max_health, closest_ally.health + self.heal_amount)
+                        healed_amt = closest_ally.health - old_health
+                        
+                        if healed_amt > 0:
+                            self.game.damage_texts.spawn(
+                                closest_ally.x, 
+                                closest_ally.y - 20, 
+                                healed_amt, 
+                                color=(255, 105, 180), # Pink
+                                prefix="+"
+                            )
+                            # debug.log(f"Healer healed for {healed_amt}. Ally HP: {closest_ally.health}")
+                            self.heal_cooldown_timer = current_time
 
     # Serialization
     def __getstate__(self):

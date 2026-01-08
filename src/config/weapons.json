@@ -7,7 +7,7 @@
         "is_aoe": false,
         "aoe_radius": 0,
         "behavior": "melee_swing",
-        "texture_path": "assets/images/DiamondSword.png",
+        "texture_path": "assets/images/Items/DiamondSword.png",
         "tags": [
             "melee",
             "physical"

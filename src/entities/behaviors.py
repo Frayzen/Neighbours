@@ -36,45 +36,78 @@ class EnemyBehaviors:
     def healer(enemy, flow_field, entities=None):
         """
         Healer Logic:
-        1. Find injured allies (enemies with health < max_health).
-        2. Move towards the closest one.
-        3. If no injured allies, maybe follow player (flow field) or idle?
+        - Wander randomly in the room.
+        - The actual healing action is handled in Enemy.update's proximity check.
         """
-        if entities is None: 
-            return (0, 0)
-            
-        injured_allies = [
-            e for e in entities 
-            if e != enemy and hasattr(e, 'health') and e.health < e.max_health
-        ]
+        import random
+        from config.settings import CELL_SIZE, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX
         
-        if not injured_allies:
-            # Fallback: keep distance from player/flow field or idle
-            # Let's just follow flow field but slowly? or idle.
-            # "Move towards injured allies instead of the player."
-            # If no injured allies, maybe we wander or stay put.
-            return (0, 0)
-            
-        # Find closest injured ally
-        closest_ally = None
-        min_dist_sq = float('inf')
+        current_time = pygame.time.get_ticks()
         
-        for ally in injured_allies:
-            dx = ally.x - enemy.x
-            dy = ally.y - enemy.y
-            d_sq = dx*dx + dy*dy
-            if d_sq < min_dist_sq:
-                min_dist_sq = d_sq
-                closest_ally = ally
+        # Check if we need a new target
+        # - No target
+        # - Reached target (rough check)
+        # - Stuck/Time elapsed (optional)
+        
+        needs_target = False
+        if not enemy.wander_target:
+            needs_target = True
+        else:
+            tx, ty = enemy.wander_target
+            dist_sq = (tx - enemy.x)**2 + (ty - enemy.y)**2
+            if dist_sq < (CELL_SIZE/2)**2: # Reached within half a tile
+                 needs_target = True
+        
+        # Periodic retargeting to avoid getting stuck or boring paths
+        if current_time - enemy.wander_timer > 3000: # New target every 3s
+            needs_target = True
+            
+        if needs_target:
+            # Pick random point in valid room bounds
+            # For simplicity, pick a point around current pos or totally random
+            # Let's try totally random in world bounds? Or nearby?
+            # Nearby is safer for not walking into walls continuously if walls are complex.
+            # But "randomly in the room" implies exploring.
+            
+            # Simple approach: Random point within some radius (e.g., 5-10 tiles)
+            radius = 200 # pixels
+            
+            valid = False
+            for _ in range(5):
+                angle = random.uniform(0, 6.28)
+                dist = random.uniform(50, radius)
                 
-        if closest_ally:
-            # Move towards ally
-            # Simple vector subtraction
-            target_vec = pygame.math.Vector2(closest_ally.x - enemy.x, closest_ally.y - enemy.y)
+                off_x = dist * 1 # simplistic cos/sin replacement or just random xy
+                off_x = random.randint(-radius, radius)
+                off_y = random.randint(-radius, radius)
+                
+                tx = enemy.x + off_x
+                ty = enemy.y + off_y
+                
+                # Bounds check
+                if 0 <= tx < enemy.game.world.width * CELL_SIZE and 0 <= ty < enemy.game.world.height * CELL_SIZE:
+                    # Walkability check
+                    grid_x = int(tx / CELL_SIZE)
+                    grid_y = int(ty / CELL_SIZE)
+                    
+                    cell = enemy.game.world.get_cell(grid_x, grid_y)
+                    if cell and cell.walkable:
+                            enemy.wander_target = (tx, ty)
+                            enemy.wander_timer = current_time
+                            valid = True
+                            break
+            
+            if not valid:
+                 # Just stand still or try again next frame
+                 return (0, 0)
+                 
+        if enemy.wander_target:
+            tx, ty = enemy.wander_target
+            target_vec = pygame.math.Vector2(tx - enemy.x, ty - enemy.y)
             if target_vec.length() > 0:
                 target_vec = target_vec.normalize()
                 return (target_vec.x, target_vec.y)
-        
+                
         return (0, 0)
 
     @staticmethod

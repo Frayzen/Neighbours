@@ -9,7 +9,7 @@
             0,
             0
         ],
-        "texture_path": null,
+        "texture_path": "../assets/images/Enemys/basic_enemy.png",
         "width": 1,
         "height": 1,
         "behavior": "melee"
@@ -24,7 +24,7 @@
             100,
             0
         ],
-        "texture_path": null,
+        "texture_path": "../assets/images/Enemys/fast_enemy.png",
         "width": 1,
         "height": 1,
         "behavior": "melee"
@@ -39,7 +39,7 @@
             0,
             0
         ],
-        "texture_path": null,
+        "texture_path": "../assets/images/Enemys/tank_enemy.png",
         "width": 1.5,
         "height": 1.5,
         "behavior": "melee"
@@ -54,7 +54,7 @@
             255,
             255
         ],
-        "texture_path": null,
+        "texture_path": "../assets/images/Enemys/ranger.png",
         "width": 1,
         "height": 1,
         "behavior": "ranged",
@@ -64,13 +64,15 @@
         "health": 60,
         "speed": 1.5,
         "damage": 0,
+        "heal_amount": 20,
+        "heal_cooldown": 2000,
         "xp_value": 20,
         "color": [
             255,
             0,
             255
         ],
-        "texture_path": null,
+        "texture_path": "../assets/images/Enemys/healer.png",
         "width": 1,
         "height": 1,
         "behavior": "healer"
