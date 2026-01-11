@@ -6,6 +6,8 @@ from core.logic import GameLogic
 from config.settings import FPS
 from core.damages_text import DamageTexts
 
+"""Florian LAINE"""
+
 class Game:
 
     def __init__(self):

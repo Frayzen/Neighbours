@@ -1,3 +1,5 @@
+
+"""Lara"""
 class Cell:
     def __init__(self, name, walkable=True, texture_path="", color=(255, 255, 255), width=1, height=1, trigger=None):
         self.name = name
@@ -11,6 +13,8 @@ class Cell:
 
     def __str__(self):
         return self.name
+
+"""Florian LAINE"""
 
 class World:
     def __init__(self, width=32, height=32):

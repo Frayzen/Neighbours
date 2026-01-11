@@ -21,6 +21,7 @@ from config.settings import (
     SCREEN_WIDTH,
     SCREEN_HEIGHT
     )
+"""Maude BOUDINEAU and Florian LAINE"""
 
 class GameRenderer:
     def __init__(self, game):

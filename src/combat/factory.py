@@ -5,6 +5,8 @@ from combat.behaviors import WeaponBehaviors
 from config.settings import BASE_DIR
 from config.constants import BEHAVIOR_MELEE_SWING
 
+
+"""Maude Boudineau"""
 class WeaponFactory:
     _weapons_data = None
 

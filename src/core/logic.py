@@ -11,6 +11,7 @@ from core.triggers import execute_trigger
 from core.vfx import vfx_manager
 from core.registry import Registry
 
+"""Florian LAINE and Janis REISENAUER"""
 class GameLogic:
     def __init__(self, game):
         self.game = game

@@ -3,6 +3,8 @@ import math
 from entities.base import GridObject
 from core.debug import debug
 
+"""Janis REISENAUER"""
+
 class XPOrb(GridObject):
     def __init__(self, x, y, value):
         # Initialize with a small size (e.g., 4x4 pixels or half tile)

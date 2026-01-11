@@ -2,6 +2,8 @@ import pygame
 import time
 from config.settings import DEBUG_MODE
 
+"""Janis Reisenauer"""
+
 class DebugOverlay:
     _instance = None
 

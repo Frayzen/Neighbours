@@ -1,5 +1,5 @@
 import pygame
-
+"""Maude BOUDINEAU"""
 
 class GridObject:
 

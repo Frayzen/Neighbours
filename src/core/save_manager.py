@@ -2,6 +2,7 @@ import pickle
 import os
 from config.settings import BASE_DIR
 from core.debug import debug
+"""Janis REISENAUER"""
 
 SAVE_FILE_NAME = "savegame.pkl"
 SAVE_FILE_PATH = os.path.join(BASE_DIR, SAVE_FILE_NAME)

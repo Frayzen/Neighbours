@@ -1,6 +1,8 @@
 from core.world import World
 from levels import level1
 
+"""Janis REISENAUER"""
+
 def load_level(level_id):
     """
     Loads a specific level based on the ID provided.

@@ -1,5 +1,7 @@
 from core.registry import Registry
 
+"""Janis REISENAUER"""
+
 def setup(world):
     # Get cells from Registry
     grass = Registry.get_cell("Grass")

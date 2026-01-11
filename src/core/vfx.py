@@ -1,5 +1,5 @@
 import pygame
-
+"""Janis REISENAUER"""
 class VFXManager:
     _instance = None
 
@@ -57,6 +57,8 @@ class ExplosionEffect(VisualEffect):
         s = pygame.Surface((size, size), pygame.SRCALPHA)
         pygame.draw.circle(s, (*self.color, alpha), (size // 2, size // 2), current_radius)
         surface.blit(s, (self.x - size // 2, self.y - size // 2))
+
+"""Maude BOUDINEAU"""        
 
 class SlashEffect(VisualEffect):
     def __init__(self, x, y, target_x, target_y, width=5, color=(255, 255, 255), duration=200):

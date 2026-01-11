@@ -15,6 +15,8 @@ from core.physics import check_collision
 from core.debug import debug
 from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL, ITEM_TYPE_WEAPON, TAG_FIRE, TAG_RANGED
 
+"""Florian LAINE"""
+
 class Player(GridObject):
     def __init__(self, game, x, y, size, speed):
         super().__init__(x, y, size, size, color=COLOR_PLAYER)
@@ -224,6 +226,7 @@ class Player(GridObject):
             else:
                  pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))
 
+    """Janis REISENAUER"""
     # Serialization
     def __getstate__(self):
         state = self.__dict__.copy()

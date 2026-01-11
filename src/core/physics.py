@@ -1,4 +1,6 @@
 
+"""Lara """
+
 def check_collision(x, y, width, height, bounds, world, tile_size):
     min_x, min_y, max_x, max_y = bounds
     

@@ -7,6 +7,7 @@ from core.registry import Registry
 from levels.loader import load_level
 from entities.base import GridObject
 from entities.player import Player
+"""Florian LAINE"""
 
 class GameSetup:
     def __init__(self, game):
