@@ -1,7 +1,6 @@
 import pygame
 
-"""Module for managing floating damage texts in the game.
-created by Maude Boudineau"""
+"""Maude BOUDINEAU"""
 class DamageText:
     def __init__(self, x, y, amount):
         self.x = x

@@ -3,7 +3,7 @@ from entities.base import GridObject
 from core.debug import debug
 from config.settings import ENEMY_SPEED, ENEMY_HEALTH, COLOR_ENEMY, ENEMY_DAMAGE
 
-"""Janis REISENAUER and Maude Boudineau"""
+"""Janis REISENAUER and Maude BOUDINEAU"""
 
 class Enemy(GridObject):
     def __init__(
