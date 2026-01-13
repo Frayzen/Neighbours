@@ -19,11 +19,7 @@ class FireHazard(GridObject):
         self.flicker_timer = 0
         
         # Load Texture via Registry
-        try:
-            import os
-            from core.registry import Registry
-            
-        # Load Texture via Registry
+
         try:
             import os
             from core.registry import Registry
