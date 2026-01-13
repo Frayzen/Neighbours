@@ -27,7 +27,7 @@ def perform_gravity_smash(boss, player):
         ndx = dx / dist
         ndy = dy / dist
         
-        player.external_force[0] = ndx * 50 # Pull 50 pixels?
+        player.external_force[0] = ndx * 50
         player.external_force[1] = ndy * 50
         
         debug.log("JörnBoss used Gravity Smash!")
@@ -165,11 +165,8 @@ def perform_powerful_fireball(boss, game, player):
         behavior="TARGET_EXPLOSION",
         visual_type="METEOR", 
         target_pos=target_pos,
-        color=(139, 0, 0), 
-        target_pos=target_pos,
-        color=(139, 0, 0), 
+        color=(139, 0, 0),
         explode_radius=3 * CELL_SIZE 
-    )
     )
     game.projectiles.append(proj)
     debug.log("JörnBoss casts METEOR at coordinates!")

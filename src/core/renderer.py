@@ -156,6 +156,37 @@ class GameRenderer:
         pygame.draw.rect(self.game.screen, (0, 200, 255), (health_x, health_y + bar_height + 30, int(bar_width * xp_pct), 10))
         pygame.draw.rect(self.game.screen, (255, 255, 255), (health_x, health_y + bar_height + 30, bar_width, 10), 1)
 
+        # Draw Dash Charges
+        from config.settings import UI_DASH_X, UI_DASH_Y, COLOR_DASH_ACTIVE, COLOR_DASH_INACTIVE
+        
+        dash_size = 15
+        dash_spacing = 20
+        
+        player = self.game.player
+        # Check if hasattr in case old player object
+        charges = getattr(player, 'dash_charges', 0)
+        max_charges = getattr(player, 'max_dash_charges', 3)
+        
+        for i in range(max_charges):
+            color = COLOR_DASH_ACTIVE if i < charges else COLOR_DASH_INACTIVE
+            
+            # Draw diamond or rect
+            dx = UI_DASH_X + i * (dash_size + dash_spacing)
+            dy = UI_DASH_Y
+            
+            # Diamond shape
+            # Top, Right, Bottom, Left
+            cx, cy = dx + dash_size//2, dy + dash_size//2
+            points = [
+                (cx, dy), 
+                (dx + dash_size, cy),
+                (cx, dy + dash_size),
+                (dx, cy)
+            ]
+            
+            pygame.draw.polygon(self.game.screen, color, points)
+            pygame.draw.polygon(self.game.screen, (200, 200, 200), points, 1) # Border
+
     def _draw_world(self):
         skip = 0
         for y in range(self.game.world.height):

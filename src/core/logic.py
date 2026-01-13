@@ -24,6 +24,8 @@ class GameLogic:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
                 self.game.player.combat.switch_weapon()
+            elif event.key == pygame.K_SPACE:
+                self.game.player.dash()
 
     def update(self):
         vfx_manager.update()
@@ -350,7 +352,7 @@ class GameLogic:
 
     def _handle_debug_input(self):
         keystate = pygame.key.get_pressed()
-        if keystate[pygame.K_SPACE]:
+        if keystate[pygame.K_p]:
             min_x, min_y, max_x, max_y = 0, 0, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX
             enemy_types = [e for e in Registry.get_enemy_types() if e != "JörnBoss"]
             if enemy_types:

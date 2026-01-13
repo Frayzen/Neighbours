@@ -78,3 +78,9 @@ COLOR_RARITY = {
     RARITY_RARE: (0, 0, 255),  # Blue
     RARITY_LEGENDARY: (255, 165, 0),  # Orange
 }
+
+# Dash UI
+COLOR_DASH_ACTIVE = (0, 255, 255) # Cyan
+COLOR_DASH_INACTIVE = (50, 50, 50) # Grey
+UI_DASH_X = 20
+UI_DASH_Y = 130 # Below XP bar roughly
