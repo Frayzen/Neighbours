@@ -186,13 +186,49 @@ class Enemy(GridObject):
                      self.last_attack_time = current_time
                      debug.log(f"AI Enemy Attacked!")
 
-            # Ability 1 (6)
+            # Action 6: Ability 1
             elif self.current_ai_action == 6:
-                pass
+                phase = getattr(self, 'phase', 1)
+                if not hasattr(self, 'ability_cooldowns'): self.ability_cooldowns = {}
+                
+                if phase == 1:
+                     # Summon Minions
+                     if self.ability_cooldowns.get('summon', 0) <= 0:
+                        from entities.boss.mechanics import perform_summon
+                        perform_summon(self, self.game)
+                        self.ability_cooldowns['summon'] = 5000 
+                        
+                elif phase == 2:
+                    # Dash
+                     if current_time - self.ability_cooldowns.get('dash', 0) > 5000:
+                         self.is_dashing = True
+                         self.dash_timer = current_time
+                         self.dash_target = (self.game.player.x, self.game.player.y)
+                         self.ability_cooldowns['dash'] = current_time
+                         
+                elif phase == 3:
+                     # Shield
+                     if current_time - self.ability_cooldowns.get('shield', 0) > 10000:
+                         self.is_shielded = True
+                         self.shield_timer = current_time
+                         self.ability_cooldowns['shield'] = current_time
 
-            # Ability 2 (7)
+            # Action 7: Ability 2
             elif self.current_ai_action == 7:
-                 pass
+                 phase = getattr(self, 'phase', 1)
+                 if not hasattr(self, 'ability_cooldowns'): self.ability_cooldowns = {}
+
+                 if phase == 1:
+                    # Gravity Smash
+                    if self.ability_cooldowns.get('gravity', 0) <= 0:
+                        from entities.boss.mechanics import perform_gravity_smash
+                        perform_gravity_smash(self, self.game.player)
+                        self.ability_cooldowns['gravity'] = 6000
+                 
+                 elif phase == 3:
+                    # Bullet Hell (Final Phase Ultimate)
+                    from entities.boss.mechanics import perform_bullet_hell
+                    perform_bullet_hell(self, self.game)
 
         elif hasattr(target_pos_or_flow_field, 'get_vector'):
             # Behavior Logic
