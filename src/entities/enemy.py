@@ -158,29 +158,28 @@ class Enemy(GridObject):
                 # Simple distance check is sufficient
                 dist_sq = (player.x - self.x)**2 + (player.y - self.y)**2
                 if dist_sq < (self.attack_range * CELL_SIZE)**2:
-                    from entities.projectile import Projectile # Local import to avoid circular dependency if any
+                    # Attack!
+                    from entities.projectile import Projectile
                     
-                    # Direction
-                    center_x = self.x + (self.w * CELL_SIZE)/2
-                    center_y = self.y + (self.h * CELL_SIZE)/2
-                    p_center_x = player.x + (player.w * CELL_SIZE)/2
-                    p_center_y = player.y + (player.h * CELL_SIZE)/2
+                    dx = self.game.player.x - self.x
+                    dy = self.game.player.y - self.y
+                    # Center to center
+                    # ... simple enough for now
                     
-                    direction = pygame.math.Vector2(p_center_x - center_x, p_center_y - center_y)
-                    if direction.length() > 0:
-                        direction = direction.normalize()
-                        
-                        proj = Projectile(
-                            x=center_x, 
-                            y=center_y, 
-                            direction=direction, 
-                            speed=8, # Fast enemy projectile
-                            damage=self.damage, 
-                            owner_type="enemy"
+                    self.game.projectiles.append(
+                        Projectile(
+                            self.x, self.y,
+                            direction=(dx, dy),
+                            speed=6,
+                            damage=self.damage,
+                            owner_type="enemy",
+                            texture=None,
+                            visual_type="ARROW",
+                            color=(150, 50, 255) # Purple enemy arrow
                         )
-                        self.game.projectiles.append(proj)
-                        self.last_attack_time = current_time
-                        debug.log(f"{self.enemy_type} fired projectile!")
+                    )
+                    self.last_attack_time = current_time
+                    debug.log(f"{self.enemy_type} fired projectile!")
 
     def _try_heal(self, entities):
         current_time = pygame.time.get_ticks()

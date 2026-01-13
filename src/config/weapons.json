@@ -42,8 +42,7 @@
             "ranged",
             "physical"
         ],
-        "projectile_speed": 12,
-        "projectile_texture_path": "assets/images/Items/Arrow.png"
+        "projectile_speed": 12
     },
     "mega_hammer": {
         "name": "Mega Hammer",

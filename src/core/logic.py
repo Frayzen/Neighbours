@@ -8,9 +8,7 @@ from entities.xp_orb import XPOrb
 from config.settings import CELL_SIZE, GLOBAL_DROP_CHANCE, SCREEN_HEIGHT_PIX, SCREEN_WIDTH_PIX, SPAWN_ACTIVATION_DISTANCE
 from core.debug import debug
 from core.triggers import execute_trigger
-from core.vfx import vfx_manager
-from core.triggers import execute_trigger
-from core.vfx import vfx_manager
+from core.vfx import vfx_manager, ExplosionEffect
 from core.registry import Registry
 from core.pathfinding import FlowField
 
@@ -57,7 +55,6 @@ class GameLogic:
                 obj.update((self.game.player.x, self.game.player.y))
 
         self._handle_input()
-        self._handle_input()
         self._handle_debug_input()
         self._handle_projectiles()
 
@@ -67,6 +64,12 @@ class GameLogic:
         for proj in self.game.projectiles:
             proj.update()
             
+            # Check for explicit explosion signal (e.g. reached target)
+            if proj.should_explode:
+                self._trigger_projectile_explosion(proj)
+                to_remove.append(proj)
+                continue
+            
             # 1. Wall Collision
             # Check center point or just current position
             grid_x = int(proj.x / CELL_SIZE)
@@ -74,6 +77,8 @@ class GameLogic:
             
             cell = self.game.world.get_cell(grid_x, grid_y)
             if not cell or not cell.walkable:
+                if proj.behavior == "TARGET_EXPLOSION":
+                     self._trigger_projectile_explosion(proj)
                 to_remove.append(proj)
                 continue
             
@@ -86,17 +91,25 @@ class GameLogic:
                 for enemy in enemies:
                     enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.w * CELL_SIZE, enemy.h * CELL_SIZE)
                     if proj_rect.colliderect(enemy_rect):
-                        enemy.take_damage(proj.damage)
+                        if proj.behavior == "TARGET_EXPLOSION":
+                             self._trigger_projectile_explosion(proj)
+                        else:
+                             enemy.take_damage(proj.damage)
+                        
                         if proj not in to_remove:
                             to_remove.append(proj)
-                        break # One projectile hits one enemy
+                        break # One projectile hits one enemy (unless passing through?)
             
             elif proj.owner_type == "enemy":
                  # Check vs Player
                  player = self.game.player
                  player_rect = pygame.Rect(player.x, player.y, player.w * CELL_SIZE, player.h * CELL_SIZE)
                  if proj_rect.colliderect(player_rect):
-                     player.take_damage(proj.damage)
+                     if proj.behavior == "TARGET_EXPLOSION":
+                         self._trigger_projectile_explosion(proj)
+                     else:
+                         player.take_damage(proj.damage)
+                     
                      if proj not in to_remove:
                         to_remove.append(proj)
         
@@ -104,6 +117,32 @@ class GameLogic:
         for r in to_remove:
             if r in self.game.projectiles:
                 self.game.projectiles.remove(r)
+
+    def _trigger_projectile_explosion(self, proj):
+        # Visual Effect
+        vfx_manager.add_effect(ExplosionEffect(proj.x, proj.y, radius=proj.explode_radius, color=proj.color))
+        
+        # Damage Logic (AOE)
+        center_x = proj.x
+        center_y = proj.y
+        # radius is already in pixels
+        radius_sq = proj.explode_radius ** 2
+        
+        # Apply Damage
+        targets = []
+        if proj.owner_type == "player":
+             targets = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy)]
+        else:
+             targets = [self.game.player]
+             
+        for target in targets:
+             # Center to center
+             tx = target.x + (target.w * CELL_SIZE)/2
+             ty = target.y + (target.h * CELL_SIZE)/2
+             
+             dist_sq = (tx - center_x)**2 + (ty - center_y)**2
+             if dist_sq <= proj.explode_radius ** 2:
+                 target.take_damage(proj.damage)
 
     def handle_pause_input(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:

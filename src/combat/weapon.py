@@ -38,6 +38,16 @@ class Weapon:
         self.projectile_speed = projectile_speed
         self.projectile_texture_path = projectile_texture_path
         
+        # New Projectile Config
+        # Defaults can be overridden by kwargs if we expanded __init__ args, 
+        # but for now we'll just set them or expect them to be passed in a data dict if we were loading from JSON completely.
+        # Since the signature is getting long, let's just initialize them as defaults here 
+        # and rely on the Factory or JSON loader to set them if they exist in the data.
+        self.projectile_behavior = "LINEAR" # "LINEAR", "TARGET_EXPLOSION"
+        self.projectile_visual = "ARROW"    # "ARROW", "FIREBALL", "SIMPLE"
+        self.projectile_color = (255, 255, 0)
+        self.projectile_explode_radius = aoe_radius if is_aoe else 0
+        
         # Texture handling
         self.image = None
         if texture_path:

@@ -36,19 +36,45 @@ class WeaponBehaviors:
         """
         debug.log(f"{owner.__class__.__name__} casts a fireball from {weapon.name}!")
         
+        ox, oy = WeaponBehaviors._get_center(owner)
         tx, ty = WeaponBehaviors._get_center(target)
         
-        # Simulate explosion at target
-        vfx_manager.add_effect(ExplosionEffect(tx, ty, radius=weapon.aoe_radius, color=(255, 100, 0)))
+        # Calculate direction
+        import pygame
+        direction = pygame.math.Vector2(tx - ox, ty - oy)
+        if direction.length() > 0:
+            direction = direction.normalize()
+
+        from entities.projectile import Projectile
+        
+        # Fireball specific overrides if not set on weapon
+        # But ideally we use weapon config. 
+        # For now, forcing it to ensure it works as requested even if weapon data isn't fully updated yet.
+        
+        proj = Projectile(
+            x=ox,
+            y=oy,
+            direction=direction,
+            speed=weapon.projectile_speed if weapon.projectile_speed > 0 else 8,
+            damage=weapon.damage,
+            owner_type="player" if owner.__class__.__name__ == "Player" else "enemy",
+            texture=None, # Procedural fireball
+            behavior="TARGET_EXPLOSION",
+            visual_type="FIREBALL",
+            target_pos=(tx, ty),
+            explode_radius=weapon.aoe_radius if weapon.aoe_radius > 0 else 60,
+            color=(255, 100, 0)
+        )
+        owner.game.projectiles.append(proj)
         
         return True
 
     @staticmethod
     def ranged_shot(weapon, owner, target, enemies):
         """
-        Fires a projectile.
+        Fires a projectile based on weapon config.
         """
-        debug.log(f"{owner.__class__.__name__} shoots an arrow from {weapon.name}!")
+        debug.log(f"{owner.__class__.__name__} shoots from {weapon.name}!")
         
         ox, oy = WeaponBehaviors._get_center(owner)
         tx, ty = WeaponBehaviors._get_center(target)
@@ -63,7 +89,7 @@ class WeaponBehaviors:
         from entities.projectile import Projectile
         
         speed = weapon.projectile_speed if weapon.projectile_speed > 0 else 10
-        texture = weapon.projectile_image
+
         
         proj = Projectile(
             x=ox,
@@ -72,7 +98,12 @@ class WeaponBehaviors:
             speed=speed,
             damage=weapon.damage,
             owner_type="player" if owner.__class__.__name__ == "Player" else "enemy",
-            texture=texture
+            texture=None,
+            behavior=getattr(weapon, 'projectile_behavior', "LINEAR"),
+            visual_type=getattr(weapon, 'projectile_visual', "ARROW"),
+            target_pos=(tx, ty), # Passed even for Linear, though unused
+            color=getattr(weapon, 'projectile_color', (255, 255, 0)),
+            explode_radius=getattr(weapon, 'projectile_explode_radius', 0)
         )
         owner.game.projectiles.append(proj)
         
