@@ -74,8 +74,35 @@ class Player(GridObject):
         self.dash_duration = 200 # ms
         self.dash_start_time = 0
         self.dash_speed_mult = 3.0 # 3x speed
+        self.dash_speed_mult = 3.0 # 3x speed
         self.dash_direction = (0, 0)
+        
+        # AI Control Flags
+        self.ai_controlled = False
+        self.ai_move_dir = (0, 0)
+        self.ai_attack = False
+        self.ai_dash = False
 
+    def set_ai_action(self, action):
+        """
+        Maps discrete action (0-7) to player controls.
+        0: Idle
+        1: Up, 2: Down, 3: Left, 4: Right
+        5: Attack
+        6: Dash
+        7: Switch Weapon? (Unused/Placeholder)
+        """
+        self.ai_move_dir = (0, 0)
+        self.ai_attack = False
+        self.ai_dash = False
+        
+        if action == 1: self.ai_move_dir = (0, -1)
+        elif action == 2: self.ai_move_dir = (0, 1)
+        elif action == 3: self.ai_move_dir = (-1, 0)
+        elif action == 4: self.ai_move_dir = (1, 0)
+        elif action == 5: self.ai_attack = True
+        elif action == 6: self.ai_dash = True
+        
     def _modify_stat(self, effect, op, value, revert=False):
         if effect == STAT_HEAL:
              if revert: return # Heal is instant, doesn't revert
@@ -175,7 +202,7 @@ class Player(GridObject):
 
             debug.log(f"Dash! Charges remaining: {self.dash_charges}")
 
-    def update(self, target_pos=None):
+    def update(self, enemies=None):
         current_time = pygame.time.get_ticks()
         
         # Dash Logic
@@ -213,12 +240,30 @@ class Player(GridObject):
                 
                 self.active_effects.remove(effect_data)
         
-        # Handle invulnerability (Hit based)
         if self.invulnerable and not self.is_dashing: # Only check hit timer if not dashing
             if current_time - self.last_hit_time > self.invulnerability_duration:
                 self.invulnerable = False
 
-        self.combat.update(target_pos, current_time)
+        # AI Actions
+        if self.ai_controlled:
+            if self.ai_dash:
+                 self.dash()
+            if self.ai_attack and enemies:
+                 # Find nearest enemy
+                 nearest = None
+                 min_d = float('inf')
+                 for e in enemies:
+                     d = (e.x - self.x)**2 + (e.y - self.y)**2
+                     if d < min_d:
+                         min_d = d
+                         nearest = e
+                         
+                 if nearest:
+                     # Check cooldown and attack
+                     if self.combat.current_weapon and self.combat.current_weapon.can_attack(current_time):
+                         self.combat.attack(nearest, enemies, current_time)
+
+        self.combat.update(enemies, current_time)
 
     def take_damage(self, amount):
         if self.invulnerable:
@@ -262,7 +307,14 @@ class Player(GridObject):
         if self.is_dashing:
              dx = self.dash_direction[0] * current_speed * self.dash_speed_mult
              dy = self.dash_direction[1] * current_speed * self.dash_speed_mult
+        
+        elif self.ai_controlled:
+            # AI Movement
+            dx = self.ai_move_dir[0] * current_speed
+            dy = self.ai_move_dir[1] * current_speed
+            
         else:
+            # Keyboard Movement
             if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
                 dx -= current_speed
             if keys[pygame.K_RIGHT] or keys[pygame.K_d]:

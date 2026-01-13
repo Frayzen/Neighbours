@@ -15,7 +15,7 @@
     },
     "fireball_staff": {
         "name": "Fireball Staff",
-        "damage": 800,
+        "damage": 200,
         "range": 400,
         "cooldown": 4000,
         "is_aoe": true,

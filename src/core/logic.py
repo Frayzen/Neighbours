@@ -342,9 +342,15 @@ class GameLogic:
                             break
                     
                     if valid:
-                         self.game.gridObjects.append(
-                            Enemy(self.game, spawn_x, spawn_y, enemy_type=e_type)
-                         )
+                         if e_type == "JörnBoss":
+                             from entities.boss.joern import JoernBoss
+                             self.game.gridObjects.append(
+                                JoernBoss(self.game, spawn_x, spawn_y)
+                             )
+                         else:
+                             self.game.gridObjects.append(
+                                Enemy(self.game, spawn_x, spawn_y, enemy_type=e_type)
+                             )
                          debug.log(f"Spawned {e_type} from spawner.")
 
     def _handle_input(self):

@@ -67,10 +67,12 @@ class Enemy(GridObject):
         self.last_attack_time = 0
         self.attack_cooldown = 2000 # Default, or could be in config
 
-        # Boss specific
-        self.phase = 1
-        self.ability_cooldowns = { "summon": 0, "dash": 0, "shield": 0, "gravity": 0 }
-        self.is_shielded = False
+
+
+        # AI Control
+        self.ai_controlled = False
+        self.current_ai_action = 0
+        self.ai_move_vector = (0, 0)
 
 
     def draw(self, screen):
@@ -116,121 +118,81 @@ class Enemy(GridObject):
     def die(self):
         debug.log("Enemy died!")
 
+    def _load_phase_texture(self, config_key):
+        from core.registry import Registry
+        import os
+        config = Registry.get_enemy_config(self.enemy_type)
+        path = config.get(config_key)
+        if path:
+             try:
+                 full_path = os.path.normpath(os.path.join("src/config", path))
+                 self.texture = pygame.image.load(full_path).convert_alpha()
+                 debug.log(f"Loaded {config_key} from {full_path}")
+             except Exception as e:
+                 print(f"Failed to load {config_key}: {e}")
 
+
+
+
+    def set_ai_action(self, action):
+        self.current_ai_action = action
+        self.ai_move_vector = (0, 0)
+        
+        # 0: Idle
+        if action == 1: # Up
+            self.ai_move_vector = (0, -1)
+        elif action == 2: # Down
+            self.ai_move_vector = (0, 1)
+        elif action == 3: # Left
+            self.ai_move_vector = (-1, 0)
+        elif action == 4: # Right
+            self.ai_move_vector = (1, 0)
+        # 5: Attack, 6: Ability 1, 7: Ability 2 are handled in update()
 
     def update(self, target_pos_or_flow_field, entities=None):
         current_time = pygame.time.get_ticks()
 
-        # Boss Phase Logic
-        if self.enemy_type == "JörnBoss":
-            hp_percent = self.health / self.max_health
-            
-            # Phase 2 check
-            if hp_percent < 0.66 and self.phase < 2:
-                self.phase = 2
-                self.color = (255, 100, 0) # Orange-ish for Phase 2
-                debug.log(f"{self.enemy_type} entered Phase 2!")
-                
-                # Texture Swap Phase 2
-                from core.registry import Registry
-                import os
-                config = Registry.get_enemy_config(self.enemy_type)
-                p2_path = config.get("texture_phase_2")
-                if p2_path:
-                     try:
-                         # For relative paths in config starting with ../, we need to respect that from the src dir
-                         # src/config/../assets -> src/assets
-                         # We can just join with src/config if we want, or handle the ../ manually
-                         # Given earlier edits used os.path.join("config", p2_path), let's stick to that or improve.
-                         # Since p2_path starts with "../", os.path.join("config", "../assets") resolves to "assets" which is wrong if we are in "src".
-                         # We require "src/assets". 
-                         # Ideally, we just use the path relative to CWD (src) if it was designed that way.
-                         # BUT the Registry loader logic used `os.path.normpath(os.path.join(base_path, texture_path))` where base_path was config dir
-                         # So we should mimic that.
-                         
-                         full_path = os.path.normpath(os.path.join("src/config", p2_path)) # Assuming running from root
-                         if not os.path.exists(full_path):
-                             # Try assuming p2_path is from 'src' root if above fails?
-                             # But config says "../assets", so src/config/../assets = src/assets. Correct.
-                             pass
-                             
-                         self.texture = pygame.image.load(full_path).convert_alpha()
-                         debug.log(f"Loaded Phase 2 texture from {full_path}")
-                     except Exception as e:
-                         print(f"Failed to load Phase 2 texture: {e}")
-
-                
-            # Phase 3 check
-            if hp_percent < 0.33 and self.phase < 3:
-                self.phase = 3
-                self.color = (255, 0, 0) # Red for Phase 3
-                debug.log(f"{self.enemy_type} entered Phase 3!")
-
-                # Trigger Final Ember Ability
-                from entities.boss_mechanics import perform_The_Final_Ember
-                perform_The_Final_Ember(self, self.game)
-
-                # Texture Swap Phase 3
-
-                # Texture Swap Phase 3
-                from core.registry import Registry
-                import os
-                config = Registry.get_enemy_config(self.enemy_type)
-                p3_path = config.get("texture_phase_3")
-                if p3_path:
-                     try:
-                         full_path = os.path.normpath(os.path.join("src/config", p3_path))
-                         self.texture = pygame.image.load(full_path).convert_alpha()
-                         debug.log(f"Loaded Phase 3 texture from {full_path}")
-                     except Exception as e:
-                         print(f"Failed to load Phase 3 texture: {e}")
-
-            # Ability Logic: Now handled in self.behavior() call
-
-            # Need to import constants for timeouts
-            from entities.boss_mechanics import SHIELD_DURATION, DASH_DURATION, DASH_SPEED_MULTIPLIER
-
-            # Handle One-time durations (Shield, Dash Reset)
-            if self.is_shielded:
-                if current_time - self.shield_timer > SHIELD_DURATION:
-                    self.is_shielded = False
-                    from core.registry import Registry
-                    self.color = Registry.get_enemy_config(self.enemy_type).get("color", (255,0,0))
-                    # Restore phase color
-                    if self.phase == 2: self.color = (255, 100, 0)
-                    if self.phase == 3: self.color = (255, 0, 0)
-
-            if getattr(self, 'is_dashing', False):
-                 if current_time - self.dash_timer > DASH_DURATION:
-                     self.is_dashing = False
-
-
-            # Dash Movement Override
-            if getattr(self, 'is_dashing', False):
-                 # Move towards dash target
-                 tx, ty = self.dash_target
-                 dx = tx - self.x
-                 dy = ty - self.y
-                 dist = (dx**2 + dy**2)**0.5
-                 
-                 # Speed multiplier
-                 move_speed = self.speed * DASH_SPEED_MULTIPLIER
-                 
-                 if dist < move_speed:
-                     self.x = tx
-                     self.y = ty
-                     self.is_dashing = False
-                 else:
-                     self.x += (dx/dist) * move_speed
-                     self.y += (dy/dist) * move_speed
-                 
-                 # Skip normal movement
-                 return
-
         dx, dy = 0, 0
         
-        # Check if input is a FlowField (has get_vector method)
-        if hasattr(target_pos_or_flow_field, 'get_vector'):
+        if self.ai_controlled:
+            dx = self.ai_move_vector[0] * self.speed
+            dy = self.ai_move_vector[1] * self.speed
+            
+            # Attack (5)
+            if self.current_ai_action == 5:
+                # Basic projectile attack (Reuse Ranged Logic basically)
+                if current_time - self.last_attack_time > self.attack_cooldown:
+                     from entities.projectile import Projectile
+                     
+                     # Standard Shot
+                     player = self.game.player
+                     p_dx = player.x - self.x
+                     p_dy = player.y - self.y
+                     
+                     self.game.projectiles.append(
+                        Projectile(
+                            self.x, self.y,
+                            direction=(p_dx, p_dy),
+                            speed=6,
+                            damage=self.damage,
+                            owner_type="enemy",
+                            texture=None,
+                            visual_type="ARROW",
+                            color=(150, 50, 255)
+                        )
+                     )
+                     self.last_attack_time = current_time
+                     debug.log(f"AI Enemy Attacked!")
+
+            # Ability 1 (6)
+            elif self.current_ai_action == 6:
+                pass
+
+            # Ability 2 (7)
+            elif self.current_ai_action == 7:
+                 pass
+
+        elif hasattr(target_pos_or_flow_field, 'get_vector'):
             # Behavior Logic
             # behavior func signature: (enemy, flow_field, entities)
             if not hasattr(self, 'behavior') or self.behavior is None:
@@ -254,6 +216,8 @@ class Enemy(GridObject):
                 direction = (target - cur).normalize()
                 dx = direction.x * self.speed
                 dy = direction.y * self.speed
+        
+        # End of Movement Logic (AI or Standard)
             
         # Apply movement with collision
         bounds = (0, 0, self.game.world.width * CELL_SIZE, self.game.world.height * CELL_SIZE)
