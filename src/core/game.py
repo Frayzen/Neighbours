@@ -105,4 +105,4 @@ class Game:
         pygame.quit()
 
 
-gameInstance = Game()
+

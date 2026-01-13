@@ -1,13 +1,21 @@
-import sys
 import os
+import sys
 
-# Add src to path so imports within src work
-sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+# imports
+# We are inside src/, so we can import directly from sibling modules if we run this as a module
+# But standard python imports needing root to be in path might still apply if we run "python src/train_boss.py" from root?
+# No, if we run from root as "python src/train_boss.py", sys.path[0] is src/.
+# So "from ai.boss_env" works.
 
-from src.ai.boss_env import BossFightEnv
-from stable_baselines3 import PPO
+from ai.boss_env import BossFightEnv
 
 def train():
+    try:
+        from stable_baselines3 import PPO
+    except ImportError:
+        print("Error: stable_baselines3 not installed.")
+        return
+
     print("Initializing Environment...")
     env = BossFightEnv()
     

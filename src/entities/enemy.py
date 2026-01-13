@@ -74,6 +74,8 @@ class Enemy(GridObject):
         self.current_ai_action = 0
         self.ai_move_vector = (0, 0)
 
+        self.is_shielded = False
+
 
     def draw(self, screen):
         if self.texture:

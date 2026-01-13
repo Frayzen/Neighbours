@@ -308,7 +308,7 @@ class DuelEnv(gym.Env):
         return 0 # Idle
 
     def render(self):
-        if not self.game.renderer.screen:
+        if not getattr(self.game, 'screen', None):
              pygame.display.set_mode((self.game.world.width*32, self.game.world.height*32))
              from core.renderer import GameRenderer
              self.game.renderer = GameRenderer(self.game)

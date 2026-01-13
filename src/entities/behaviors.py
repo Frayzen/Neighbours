@@ -119,7 +119,7 @@ class EnemyBehaviors:
         - Phase 3: Ranged Flee + Shield + Bullet Hell
         """
         import pygame
-        from entities.boss_mechanics import (
+        from entities.boss.mechanics import (
             perform_gravity_smash, perform_summon, perform_dash, 
             activate_shield, perform_bullet_hell, perform_firebreath,
             perform_powerful_fireball,
