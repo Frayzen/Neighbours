@@ -255,7 +255,7 @@ class WorldLoader:
             # Add spawn metadata
             # For now picking a random enemy type - ideally we'd have a weighted list or valid set
             from core.registry import Registry # Import here to avoid circular if any
-            enemy_types = Registry.get_enemy_types()
+            enemy_types = [e for e in Registry.get_enemy_types() if "Boss" not in e and e != "JörnBoss"]
             
             spawn_type = "basic_enemy"
             if enemy_types:

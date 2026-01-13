@@ -57,7 +57,53 @@ class GameLogic:
                 obj.update((self.game.player.x, self.game.player.y))
 
         self._handle_input()
+        self._handle_input()
         self._handle_debug_input()
+        self._handle_projectiles()
+
+    def _handle_projectiles(self):
+        to_remove = []
+        # Update and Move
+        for proj in self.game.projectiles:
+            proj.update()
+            
+            # 1. Wall Collision
+            # Check center point or just current position
+            grid_x = int(proj.x / CELL_SIZE)
+            grid_y = int(proj.y / CELL_SIZE)
+            
+            cell = self.game.world.get_cell(grid_x, grid_y)
+            if not cell or not cell.walkable:
+                to_remove.append(proj)
+                continue
+            
+            # 2. Entity Collision
+            proj_rect = pygame.Rect(proj.x, proj.y, proj.w * CELL_SIZE, proj.h * CELL_SIZE)
+            
+            if proj.owner_type == "player":
+                # Check vs Enemies
+                enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy)]
+                for enemy in enemies:
+                    enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.w * CELL_SIZE, enemy.h * CELL_SIZE)
+                    if proj_rect.colliderect(enemy_rect):
+                        enemy.take_damage(proj.damage)
+                        if proj not in to_remove:
+                            to_remove.append(proj)
+                        break # One projectile hits one enemy
+            
+            elif proj.owner_type == "enemy":
+                 # Check vs Player
+                 player = self.game.player
+                 player_rect = pygame.Rect(player.x, player.y, player.w * CELL_SIZE, player.h * CELL_SIZE)
+                 if proj_rect.colliderect(player_rect):
+                     player.take_damage(proj.damage)
+                     if proj not in to_remove:
+                        to_remove.append(proj)
+        
+        # Cleanup
+        for r in to_remove:
+            if r in self.game.projectiles:
+                self.game.projectiles.remove(r)
 
     def handle_pause_input(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -227,12 +273,13 @@ class GameLogic:
                 for _ in range(count):
                     # Determine type
                     if base_type == "random":
-                        available = Registry.get_enemy_types()
+                        # Exclude Boss from random spawns
+                        available = [e for e in Registry.get_enemy_types() if "Boss" not in e and e != "JörnBoss"]
+                        print(f"DEBUG: Spawning random enemy. Excluded JörnBoss. Available: {available}")
                         # Start with a default
                         e_type = "basic_enemy"
                         if available:
                             e_type = choice(available)
-                            # Avoiding boss for spam? Maybe keep it for fun.
                     else:
                         e_type = base_type
 
@@ -266,7 +313,7 @@ class GameLogic:
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_SPACE]:
             min_x, min_y, max_x, max_y = 0, 0, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX
-            enemy_types = Registry.get_enemy_types()
+            enemy_types = [e for e in Registry.get_enemy_types() if e != "JörnBoss"]
             if enemy_types:
                 # Try to find a valid spawn position
                 for _ in range(50):

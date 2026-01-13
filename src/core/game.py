@@ -27,6 +27,7 @@ class Game:
         self.camera = Camera()
         self.damage_texts = DamageTexts()
         self.enemies = []
+        self.projectiles = []
 
         self.paused = False
 
@@ -41,6 +42,7 @@ class Game:
             else:
                 print("DEBUG: Load failed. Starting fresh.")
                 self.paused = False
+                self.restart_game()
         else:
             print("DEBUG: No save file. Starting fresh.")
             self.paused = False

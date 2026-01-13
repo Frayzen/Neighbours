@@ -58,7 +58,11 @@ class Enemy(GridObject):
         self.behavior = EnemyBehaviors.get_behavior(behavior_name)
         self.heal_cooldown_timer = 0
         self.wander_target = None
+        self.wander_target = None
         self.wander_timer = 0
+        
+        self.last_attack_time = 0
+        self.attack_cooldown = 2000 # Default, or could be in config
 
     def draw(self, screen):
         if self.texture:
@@ -107,8 +111,13 @@ class Enemy(GridObject):
         
         # Check if input is a FlowField (has get_vector method)
         if hasattr(target_pos_or_flow_field, 'get_vector'):
-            # Use Behavior Logic
+            # Behavior Logic
             # behavior func signature: (enemy, flow_field, entities)
+            if not hasattr(self, 'behavior') or self.behavior is None:
+                print(f"WARNING: Enemy {self} missing behavior. Restoring default.")
+                from entities.behaviors import EnemyBehaviors
+                self.behavior = EnemyBehaviors.get_behavior(getattr(self, 'behavior_name', 'melee'))
+                
             direction_tuple = self.behavior(self, target_pos_or_flow_field, entities)
             dx = direction_tuple[0] * self.speed
             dy = direction_tuple[1] * self.speed
@@ -138,6 +147,40 @@ class Enemy(GridObject):
         new_y = self.y + dy
         if not check_collision(self.x, new_y, self.w, self.h, bounds, self.game.world):
             self.y = new_y
+            
+        # Ranged Attack Logic
+        if dx == 0 and dy == 0 and self.behavior_name == "ranged":
+            current_time = pygame.time.get_ticks()
+            if current_time - self.last_attack_time > self.attack_cooldown:
+                # Shoot at player
+                player = self.game.player
+                
+                # Simple distance check is sufficient
+                dist_sq = (player.x - self.x)**2 + (player.y - self.y)**2
+                if dist_sq < (self.attack_range * CELL_SIZE)**2:
+                    from entities.projectile import Projectile # Local import to avoid circular dependency if any
+                    
+                    # Direction
+                    center_x = self.x + (self.w * CELL_SIZE)/2
+                    center_y = self.y + (self.h * CELL_SIZE)/2
+                    p_center_x = player.x + (player.w * CELL_SIZE)/2
+                    p_center_y = player.y + (player.h * CELL_SIZE)/2
+                    
+                    direction = pygame.math.Vector2(p_center_x - center_x, p_center_y - center_y)
+                    if direction.length() > 0:
+                        direction = direction.normalize()
+                        
+                        proj = Projectile(
+                            x=center_x, 
+                            y=center_y, 
+                            direction=direction, 
+                            speed=8, # Fast enemy projectile
+                            damage=self.damage, 
+                            owner_type="enemy"
+                        )
+                        self.game.projectiles.append(proj)
+                        self.last_attack_time = current_time
+                        debug.log(f"{self.enemy_type} fired projectile!")
 
     def _try_heal(self, entities):
         current_time = pygame.time.get_ticks()

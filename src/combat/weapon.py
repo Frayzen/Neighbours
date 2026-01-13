@@ -4,7 +4,7 @@ import pygame
 from config.settings import BASE_DIR
 
 class Weapon:
-    def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0, tags: list = None, texture_path: str = None, behavior_name: str = None, line_of_sight: bool = False):
+    def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0, tags: list = None, texture_path: str = None, behavior_name: str = None, line_of_sight: bool = False, projectile_speed: float = 0, projectile_texture_path: str = None):
         """
         Initialize a new Weapon.
         
@@ -19,6 +19,8 @@ class Weapon:
         :param texture_path: Path to the weapon's texture file
         :param behavior_name: Name of the behavior function to use
         :param line_of_sight: Whether the weapon requires line of sight to fire
+        :param projectile_speed: Speed of the projectile (if applicable)
+        :param projectile_texture_path: Texture path for the projectile
         """
         self.id = id
         self.name = name
@@ -33,6 +35,8 @@ class Weapon:
         self.behavior_func = None # Assigned by factory or reload
         self.texture_path = texture_path
         self.line_of_sight = line_of_sight
+        self.projectile_speed = projectile_speed
+        self.projectile_texture_path = projectile_texture_path
         
         # Texture handling
         self.image = None
@@ -46,6 +50,19 @@ class Weapon:
                      print(f"Failed to load weapon texture {texture_path}: {e}")
             else:
                 print(f"Weapon texture not found: {full_path}")
+        
+        # Projectile Texture loading
+        self.projectile_image = None
+        if projectile_texture_path:
+            full_path = os.path.join(BASE_DIR, projectile_texture_path)
+            if os.path.exists(full_path):
+                try:
+                    loaded_image = pygame.image.load(full_path).convert_alpha()
+                    self.projectile_image = loaded_image
+                except Exception as e:
+                     print(f"Failed to load projectile texture {projectile_texture_path}: {e}")
+            else:
+                print(f"Projectile texture not found: {full_path}")
 
     def has_clear_shot(self, owner, target):
         if not self.line_of_sight:
@@ -108,6 +125,14 @@ class Weapon:
         self.__dict__.update(state)
         self.image = None
         self.behavior_func = None
+        
+        # Backward compatibility
+        if not hasattr(self, 'projectile_speed'):
+            self.projectile_speed = 0
+        if not hasattr(self, 'projectile_texture_path'):
+            self.projectile_texture_path = None
+        if not hasattr(self, 'projectile_image'):
+            self.projectile_image = None
 
     def reload_texture(self):
         if self.texture_path:
@@ -117,6 +142,14 @@ class Weapon:
                      self.image = pygame.image.load(full_path).convert_alpha()
                  except Exception as e:
                      print(f"Failed to reload weapon texture {self.texture_path}: {e}")
+
+        if hasattr(self, 'projectile_texture_path') and self.projectile_texture_path:
+             full_path = os.path.join(BASE_DIR, self.projectile_texture_path)
+             if os.path.exists(full_path):
+                 try:
+                     self.projectile_image = pygame.image.load(full_path).convert_alpha()
+                 except Exception as e:
+                     print(f"Failed to reload projectile texture {self.projectile_texture_path}: {e}")
 
     def reload_behavior(self):
         from combat.behaviors import WeaponBehaviors

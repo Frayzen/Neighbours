@@ -185,6 +185,8 @@ class GameRenderer:
         self.game.player.draw(self.rendering_surface)
         for obj in self.game.gridObjects:
             obj.draw(self.rendering_surface)
+        for proj in self.game.projectiles:
+            proj.draw(self.rendering_surface)
 
     def draw_pause_menu(self):
         # Semi-transparent overlay

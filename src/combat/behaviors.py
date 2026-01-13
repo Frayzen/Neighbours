@@ -53,8 +53,29 @@ class WeaponBehaviors:
         ox, oy = WeaponBehaviors._get_center(owner)
         tx, ty = WeaponBehaviors._get_center(target)
         
-        # Just a line for now, could be a projectile
-        vfx_manager.add_effect(SlashEffect(ox, oy, tx, ty, width=2, color=(255, 255, 0), duration=100))
+        # Calculate direction
+        import pygame
+        direction = pygame.math.Vector2(tx - ox, ty - oy)
+        if direction.length() > 0:
+            direction = direction.normalize()
+            
+        # Spawn Projectile
+        from entities.projectile import Projectile
+        
+        speed = weapon.projectile_speed if weapon.projectile_speed > 0 else 10
+        texture = weapon.projectile_image
+        
+        proj = Projectile(
+            x=ox,
+            y=oy,
+            direction=direction,
+            speed=speed,
+            damage=weapon.damage,
+            owner_type="player" if owner.__class__.__name__ == "Player" else "enemy",
+            texture=texture
+        )
+        owner.game.projectiles.append(proj)
+        
         return True
 
     @staticmethod

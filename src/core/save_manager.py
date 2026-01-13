@@ -72,6 +72,7 @@ class SaveManager:
             return True
         except Exception as e:
             debug.log(f"Failed to load game: {e}")
+            SaveManager.delete_save_file() # Ensure corrupt file is removed
             return False
 
     @staticmethod
