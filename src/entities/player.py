@@ -61,6 +61,10 @@ class Player(GridObject):
         except Exception as e:
             print(f"Failed to equip default weapons: {e}")
 
+        # Physics / Forces
+        self.external_force = [0, 0]
+        self.force_decay = 0.9 # Retain 90% per frame (slippery) or 0.5 for fast stop
+
     def _modify_stat(self, effect, op, value, revert=False):
         if effect == STAT_HEAL:
              if revert: return # Heal is instant, doesn't revert
@@ -184,6 +188,18 @@ class Player(GridObject):
             dy -= current_speed
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy += current_speed
+
+        # Apply external forces (e.g. Gravity Smash)
+        dx += self.external_force[0]
+        dy += self.external_force[1]
+        
+        # Decay force
+        self.external_force[0] *= self.force_decay
+        self.external_force[1] *= self.force_decay
+        
+        # Snap to 0 if small
+        if abs(self.external_force[0]) < 0.1: self.external_force[0] = 0
+        if abs(self.external_force[1]) < 0.1: self.external_force[1] = 0
 
         bounds = (0, 0, GRID_WIDTH_PIX, GRID_HEIGHT_PIX)
 

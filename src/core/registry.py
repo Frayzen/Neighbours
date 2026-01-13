@@ -13,7 +13,7 @@ class Registry:
             print(f"Error: Environment file not found at {filepath}")
             return
 
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         base_path = os.path.dirname(filepath)
@@ -51,7 +51,7 @@ class Registry:
             print(f"Error: Enemy file not found at {filepath}")
             return
 
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         base_path = os.path.dirname(filepath)

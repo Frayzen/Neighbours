@@ -101,7 +101,7 @@ class Game:
             self.renderer.draw(self.camera)
 
             self.clock.tick(FPS)
-            print(self.clock.get_fps())
+            # print(self.clock.get_fps())
         pygame.quit()
 
 

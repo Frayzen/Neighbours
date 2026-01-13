@@ -27,8 +27,11 @@ class Enemy(GridObject):
             speed = ENEMY_SPEED
             health = ENEMY_HEALTH
             damage = ENEMY_DAMAGE
+            xp_value = 10
             texture = None
             behavior_name = "melee"
+            self.heal_amount = 0
+            self.heal_cooldown = 2000
         else:
             w = config.get("width", 1)
             h = config.get("height", 1)
@@ -64,6 +67,12 @@ class Enemy(GridObject):
         self.last_attack_time = 0
         self.attack_cooldown = 2000 # Default, or could be in config
 
+        # Boss specific
+        self.phase = 1
+        self.ability_cooldowns = { "summon": 0, "dash": 0, "shield": 0, "gravity": 0 }
+        self.is_shielded = False
+
+
     def draw(self, screen):
         if self.texture:
             # Scale texture if needed (or assume it's pre-scaled/correct size)
@@ -92,6 +101,10 @@ class Enemy(GridObject):
             )
 
     def take_damage(self, amount):
+        if self.is_shielded:
+            self.game.damage_texts.spawn(self.x, self.y - 20, "BLOCKED", color=(200, 200, 255))
+            return
+
         self.health -= amount
 
         # Spawn floating damage text
@@ -106,7 +119,95 @@ class Enemy(GridObject):
 
 
     def update(self, target_pos_or_flow_field, entities=None):
-        # Determine target direction
+        current_time = pygame.time.get_ticks()
+
+        # Boss Phase Logic
+        if self.enemy_type == "JörnBoss":
+            hp_percent = self.health / self.max_health
+            
+            # Phase 2 check
+            if hp_percent < 0.66 and self.phase < 2:
+                self.phase = 2
+                self.color = (255, 100, 0) # Orange-ish for Phase 2
+                debug.log(f"{self.enemy_type} entered Phase 2!")
+                
+                # Texture Swap Phase 2
+                from core.registry import Registry
+                import os
+                config = Registry.get_enemy_config(self.enemy_type)
+                p2_path = config.get("texture_phase_2")
+                if p2_path:
+                     try:
+                         # Resolve path relative to config directory
+                         # Assuming CWD is 'src', config is at 'config/'
+                         full_path = os.path.normpath(os.path.join("config", p2_path))
+                         self.texture = pygame.image.load(full_path).convert_alpha()
+                         debug.log(f"Loaded Phase 2 texture from {full_path}")
+                     except Exception as e:
+                         print(f"Failed to load Phase 2 texture: {e}")
+
+                
+            # Phase 3 check
+            if hp_percent < 0.33 and self.phase < 3:
+                self.phase = 3
+                self.color = (255, 0, 0) # Red for Phase 3
+                debug.log(f"{self.enemy_type} entered Phase 3!")
+
+                # Texture Swap Phase 3
+                from core.registry import Registry
+                import os
+                config = Registry.get_enemy_config(self.enemy_type)
+                p3_path = config.get("texture_phase_3")
+                if p3_path:
+                     try:
+                         full_path = os.path.normpath(os.path.join("config", p3_path))
+                         self.texture = pygame.image.load(full_path).convert_alpha()
+                         debug.log(f"Loaded Phase 3 texture from {full_path}")
+                     except Exception as e:
+                         print(f"Failed to load Phase 3 texture: {e}")
+
+            # Ability Logic: Now handled in self.behavior() call
+
+            # Need to import constants for timeouts
+            from entities.boss_mechanics import SHIELD_DURATION, DASH_DURATION, DASH_SPEED_MULTIPLIER
+
+            # Handle One-time durations (Shield, Dash Reset)
+            if self.is_shielded:
+                if current_time - self.shield_timer > SHIELD_DURATION:
+                    self.is_shielded = False
+                    from core.registry import Registry
+                    self.color = Registry.get_enemy_config(self.enemy_type).get("color", (255,0,0))
+                    # Restore phase color
+                    if self.phase == 2: self.color = (255, 100, 0)
+                    if self.phase == 3: self.color = (255, 0, 0)
+
+            if getattr(self, 'is_dashing', False):
+                 if current_time - self.dash_timer > DASH_DURATION:
+                     self.is_dashing = False
+
+
+            # Dash Movement Override
+            if getattr(self, 'is_dashing', False):
+                 # Move towards dash target
+                 tx, ty = self.dash_target
+                 dx = tx - self.x
+                 dy = ty - self.y
+                 dist = (dx**2 + dy**2)**0.5
+                 
+                 # Speed multiplier
+                 move_speed = self.speed * DASH_SPEED_MULTIPLIER
+                 
+                 if dist < move_speed:
+                     self.x = tx
+                     self.y = ty
+                     self.is_dashing = False
+                 else:
+                     self.x += (dx/dist) * move_speed
+                     self.y += (dy/dist) * move_speed
+                 
+                 # Skip normal movement
+                 return
+
         dx, dy = 0, 0
         
         # Check if input is a FlowField (has get_vector method)

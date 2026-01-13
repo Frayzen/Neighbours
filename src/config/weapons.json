@@ -58,5 +58,50 @@
             "physical",
             "blunt"
         ]
+    },
+    "boss_hammer": {
+        "name": "Boss Hammer",
+        "damage": 60,
+        "range": 60,
+        "cooldown": 4000,
+        "is_aoe": true,
+        "aoe_radius": 180,
+        "behavior": "ground_smash",
+        "texture_path": "",
+        "tags": [
+            "melee",
+            "boss"
+        ]
+    },
+    "boss_daggers": {
+        "name": "Boss Daggers",
+        "damage": 15,
+        "range": 30,
+        "cooldown": 500,
+        "is_aoe": false,
+        "aoe_radius": 0,
+        "behavior": "melee_swing",
+        "texture_path": "",
+        "tags": [
+            "melee",
+            "boss",
+            "fast"
+        ]
+    },
+    "boss_staff": {
+        "name": "Boss Staff",
+        "damage": 90,
+        "range": 450,
+        "cooldown": 3500,
+        "is_aoe": true,
+        "aoe_radius": 120,
+        "behavior": "fireball_cast",
+        "texture_path": "",
+        "line_of_sight": true,
+        "tags": [
+            "magic",
+            "boss",
+            "fire"
+        ]
     }
 }

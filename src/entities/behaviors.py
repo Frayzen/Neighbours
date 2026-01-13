@@ -111,6 +111,136 @@ class EnemyBehaviors:
         return (0, 0)
 
     @staticmethod
+    def boss_joern(enemy, flow_field, entities=None):
+        """
+        Full Boss Logic:
+        - Phase 1: Melee chase + Gravity Smash
+        - Phase 2: Daggers + Dash
+        - Phase 3: Ranged Flee + Shield + Bullet Hell
+        """
+        import pygame
+        from entities.boss_mechanics import (
+            perform_gravity_smash, perform_summon, perform_dash, 
+            activate_shield, perform_bullet_hell,
+            COOLDOWN_GRAVITY, COOLDOWN_SUMMON, COOLDOWN_DASH, 
+            COOLDOWN_SHIELD, COOLDOWN_BULLET_HELL
+        )
+        
+        current_time = pygame.time.get_ticks()
+        player = enemy.game.player
+        dist_to_player = ((player.x - enemy.x)**2 + (player.y - enemy.y)**2)**0.5
+        
+        # --- PHASE 1 (Hammer / Melee) ---
+        if enemy.phase == 1:
+            # Stats (Ensure Hammer stats)
+            # Default is 5000 HP, slow speed.
+            # "Lauf langsam auf Spieler zu" -> Default speed in config is 2.5, which is moderate.
+            
+            # Ability: Gravity Smash
+            # "Wenn Cooldown bereit -> perform_gravity_smash"
+            if "gravity" not in enemy.ability_cooldowns: enemy.ability_cooldowns["gravity"] = 0
+            
+            if current_time - enemy.ability_cooldowns["gravity"] > COOLDOWN_GRAVITY:
+                perform_gravity_smash(enemy, player)
+                enemy.ability_cooldowns["gravity"] = current_time
+                # Also "Schlag" (Attack)? 
+                # Enemy.update handles attacks if in range. Gravity smash pulls into range.
+                
+            # Ability: Summon (Bonus, not explicitly requested in Phase 4 prompt but was in Phase 3)
+            if "summon" not in enemy.ability_cooldowns: enemy.ability_cooldowns["summon"] = 0
+            if current_time - enemy.ability_cooldowns["summon"] > COOLDOWN_SUMMON:
+                perform_summon(enemy, enemy.game)
+                enemy.ability_cooldowns["summon"] = current_time
+
+            # Movement: Chase
+            return EnemyBehaviors.melee_chase(enemy, flow_field, entities)
+
+        # --- PHASE 2 (Daggers / Dash) ---
+        elif enemy.phase == 2:
+            # Weapon Switch: Daggers
+            # "Extrem schnell, geringer Schaden, sehr kurze Reichweite"
+            # We enforce this by modifying enemy properties if not already set
+            if getattr(enemy, 'current_weapon', '') != 'boss_daggers':
+                enemy.current_weapon = 'boss_daggers'
+                # Update stats manually to simulate weapon equip
+                enemy.damage = 15
+                enemy.attack_range = 1.5 # ~30 pixels approx
+                # enemy.speed = 4 # Increase speed? Prompt says "Extrem schnell" for *weapon*. 
+                # Usually weapon doesn't change move speed unless we say so. 
+                # Dash ability handles bursts.
+            
+            # Ability: Dash
+            # "Wenn Distanz > X -> perform_dash"
+            if dist_to_player > 150: # X = 150
+                if "dash" not in enemy.ability_cooldowns: enemy.ability_cooldowns["dash"] = 0
+                if current_time - enemy.ability_cooldowns["dash"] > COOLDOWN_DASH:
+                    perform_dash(enemy, player)
+                    enemy.ability_cooldowns["dash"] = current_time
+            
+            # Movement: Chase (but faster? or just dash?)
+            # Prompt says "Wechsle Waffe zu Dolchen"
+            return EnemyBehaviors.melee_chase(enemy, flow_field, entities)
+
+        # --- PHASE 3 (Staff / Ranged) ---
+        elif enemy.phase == 3:
+            # Weapon Switch: Staff
+            if getattr(enemy, 'current_weapon', '') != 'boss_staff':
+                 enemy.current_weapon = 'boss_staff'
+                 enemy.damage = 90
+                 enemy.attack_range = 10 
+                 # Switch behavior to ranged? The update loop calls this behavior function.
+                 # So we return ranged movement vector here.
+            
+            # Ability: Shield
+            # "Wenn Spieler schießt -> activate_shield"
+            # Check for incoming player projectiles
+            incoming_threat = False
+            for proj in enemy.game.projectiles:
+                if proj.owner_type == "player":
+                    # Check distance
+                    p_dist = ((proj.x - enemy.x)**2 + (proj.y - enemy.y)**2)**0.5
+                    if p_dist < 150: # React distance
+                        incoming_threat = True
+                        break
+            
+            if incoming_threat:
+                if "shield" not in enemy.ability_cooldowns: enemy.ability_cooldowns["shield"] = 0
+                if current_time - enemy.ability_cooldowns["shield"] > COOLDOWN_SHIELD:
+                    activate_shield(enemy)
+                    enemy.ability_cooldowns["shield"] = current_time
+
+            # Ability: Bullet Hell
+            # "Alle 5 Sekunden -> perform_bullet_hell"
+            if "bullet_hell" not in enemy.ability_cooldowns: enemy.ability_cooldowns["bullet_hell"] = 0
+            if current_time - enemy.ability_cooldowns["bullet_hell"] > 5000: # 5 seconds
+                perform_bullet_hell(enemy, enemy.game)
+                enemy.ability_cooldowns["bullet_hell"] = current_time
+            
+            # Movement: Keep Distance / Flee
+            # Use ranged behavior? Or custom flee logic
+            # "Bleib auf Distanz (fliehe, wenn Spieler zu nah)"
+            
+            ideal_dist = 200
+            if dist_to_player < ideal_dist:
+                # Flee: Vector FROM player
+                dx = enemy.x - player.x
+                dy = enemy.y - player.y
+                # Normalize
+                if dist_to_player > 0:
+                    return (dx/dist_to_player, dy/dist_to_player)
+                else:
+                    return (1, 0) # Panic move
+            elif dist_to_player > ideal_dist + 50:
+                 # Chase a bit to get in range
+                 return EnemyBehaviors.melee_chase(enemy, flow_field, entities)
+            else:
+                 # Maintain
+                 return (0, 0)
+        
+        # Fallback
+        return EnemyBehaviors.melee_chase(enemy, flow_field, entities)
+
+    @staticmethod
     def basic(enemy, flow_field, entities=None):
         return EnemyBehaviors.melee_chase(enemy, flow_field, entities)
 
@@ -119,6 +249,7 @@ class EnemyBehaviors:
         "melee": melee_chase,
         "ranged": ranged_attack,
         "healer": healer,
+        "boss_joern": boss_joern,
         "basic": basic
     }
 

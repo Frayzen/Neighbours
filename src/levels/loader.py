@@ -128,11 +128,11 @@ class WorldLoader:
         self.world.spawn_points.append({
             'x': spawner_x,
             'y': spawner_y,
-            'enemy_count': 3, # Spawn 3 at a time
-            'type': "random", # Random enemy type
+            'enemy_count': 1, # Spawn 1 Boss
+            'type': "JörnBoss", # Explicit Boss type
             'spawned': False,
-            'spawn_mode': 'infinite',
-            'cooldown': 2000, # Every 2 seconds
+            'spawn_mode': 'once', # Only once
+            'cooldown': 5000, 
             'last_spawn_time': 0
         })
 
