@@ -11,9 +11,13 @@ from core.damages_text import DamageTexts
 class Game:
 
     def __init__(self, headless=False):
+        self.headless = headless
+        if headless:
+            import os
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
+
         # Initialize Pygame (Required for core systems like Rect)
         pygame.init()
-        self.headless = headless
         self.player = None
 
         # Perform initial setup
@@ -32,21 +36,22 @@ class Game:
 
         self.paused = False
 
-        # Auto-load logic
-        from core.save_manager import SaveManager
+        # Auto-load logic (Skip if headless/training to prevent I/O race conditions)
+        if not self.headless:
+            from core.save_manager import SaveManager
 
-        print(f"DEBUG: Checking for save file at {SaveManager.SAVE_FILE_PATH}")
-        if SaveManager.has_save_file():
-            print("DEBUG: Save file found. Auto-loading...")
-            if SaveManager.load_game(self):
-                self.paused = True  # Start in pause menu as requested
+            print(f"DEBUG: Checking for save file at {SaveManager.SAVE_FILE_PATH}")
+            if SaveManager.has_save_file():
+                print("DEBUG: Save file found. Auto-loading...")
+                if SaveManager.load_game(self):
+                    self.paused = True  # Start in pause menu as requested
+                else:
+                    print("DEBUG: Load failed. Starting fresh.")
+                    self.paused = False
+                    self.restart_game()
             else:
-                print("DEBUG: Load failed. Starting fresh.")
+                print("DEBUG: No save file. Starting fresh.")
                 self.paused = False
-                self.restart_game()
-        else:
-            print("DEBUG: No save file. Starting fresh.")
-            self.paused = False
 
     def restart_game(self):
         # Reset game state

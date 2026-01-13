@@ -31,11 +31,11 @@ class FireHazard(GridObject):
                  self.texture = pygame.transform.scale(raw_tex, (self.w * CELL_SIZE, self.h * CELL_SIZE))
             else:
                  # Fallback if not found (e.g. CWD mismatch)
-                 print(f"FireHazard: Texture not found in registry: {path}")
+                 # print(f"FireHazard: Texture not found in registry: {path}")
                  self.texture = None
 
         except Exception as e:
-            print(f"Failed to load Lava texture: {e}")
+            # print(f"Failed to load Lava texture: {e}")
             self.texture = None
 
     def update(self, *args, **kwargs):

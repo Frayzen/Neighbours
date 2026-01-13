@@ -57,9 +57,11 @@ class Weapon:
                     loaded_image = pygame.image.load(full_path).convert_alpha()
                     self.image = loaded_image
                 except Exception as e:
-                     print(f"Failed to load weapon texture {texture_path}: {e}")
+                     # print(f"Failed to load weapon texture {texture_path}: {e}")
+                     pass
             else:
-                print(f"Weapon texture not found: {full_path}")
+                # print(f"Weapon texture not found: {full_path}")
+                pass
         
         # Projectile Texture loading
         self.projectile_image = None
@@ -70,9 +72,11 @@ class Weapon:
                     loaded_image = pygame.image.load(full_path).convert_alpha()
                     self.projectile_image = loaded_image
                 except Exception as e:
-                     print(f"Failed to load projectile texture {projectile_texture_path}: {e}")
+                     # print(f"Failed to load projectile texture {projectile_texture_path}: {e}")
+                     pass
             else:
-                print(f"Projectile texture not found: {full_path}")
+                # print(f"Projectile texture not found: {full_path}")
+                pass
 
     def has_clear_shot(self, owner, target):
         if not self.line_of_sight:

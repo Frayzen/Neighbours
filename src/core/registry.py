@@ -35,15 +35,17 @@ class Registry:
                 if os.path.exists(full_path):
                     try:
                         cell.texture = pygame.image.load(full_path).convert_alpha()
-                        print(f"Loaded texture for {name} from {full_path}")
+                        # print(f"Loaded texture for {name} from {full_path}")
                     except pygame.error as e:
-                        print(f"Failed to load texture for {name} from {full_path}: {e}")
+                        # print(f"Failed to load texture for {name} from {full_path}: {e}")
+                        pass
                 else:
-                    print(f"Texture not found for {name}: {full_path}")
+                    # print(f"Texture not found for {name}: {full_path}")
+                    pass
 
             Registry._cells[name] = cell
             
-        print(f"Loaded {len(Registry._cells)} cells.")
+        # print(f"Loaded {len(Registry._cells)} cells.")
 
     @staticmethod
     def load_enemies(filepath):
@@ -66,16 +68,18 @@ class Registry:
                 if os.path.exists(full_path):
                     try:
                         texture = pygame.image.load(full_path).convert_alpha()
-                        print(f"Loaded texture for enemy {name} from {full_path}")
+                        # print(f"Loaded texture for enemy {name} from {full_path}")
                     except pygame.error as e:
-                        print(f"Failed to load texture for enemy {name} from {full_path}: {e}")
+                        # print(f"Failed to load texture for enemy {name} from {full_path}: {e}")
+                        pass
                 else:
-                    print(f"Texture not found for enemy {name}: {full_path}")
+                    # print(f"Texture not found for enemy {name}: {full_path}")
+                    pass
             
             props['texture'] = texture
             Registry._enemies[name] = props
             
-        print(f"Loaded {len(Registry._enemies)} enemy types.")
+        # print(f"Loaded {len(Registry._enemies)} enemy types.")
 
     @staticmethod
     def get_cell(name):
@@ -118,9 +122,10 @@ class Registry:
                         Registry._textures[norm_path] = tex
                         count += 1
                     except pygame.error as e:
-                        print(f"Failed to preload {full_path}: {e}")
+                        # print(f"Failed to preload {full_path}: {e}")
+                        pass
         
-        print(f"Preloaded {count} textures.")
+        # print(f"Preloaded {count} textures.")
 
     @staticmethod
     def get_texture(path):
@@ -141,7 +146,7 @@ class Registry:
                 Registry._textures[norm_path] = tex
                 return tex
              except pygame.error as e:
-                print(f"Failed to load texture {norm_path}: {e}")
+                # print(f"Failed to load texture {norm_path}: {e}")
                 return None
         else:
             # Try checking relative to assets if direct path fails? 

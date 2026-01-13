@@ -2,42 +2,52 @@ import os
 import sys
 from ai.duel_env import DuelEnv
 
-def train():
+def train(iterations=15, n_envs=8):
     """
     Iterative Self-Play (Ping-Pong) Training Loop.
     
-    1. Train Boss AI against current Player AI (or script/random if none).
-    2. Save Boss AI.
-    3. Train Player AI against new Boss AI.
-    4. Save Player AI.
-    5. Repeat.
+    Args:
+        iterations (int): How many ping-pong rounds.
+        n_envs (int): Number of parallel environments.
     """
     
     # Configuration
-    ITERATIONS = 15        # How many ping-pong rounds
-    STEPS_PER_ROUND = 20000 # Short rounds to iterate frequently
+    ITERATIONS = iterations        
+    STEPS_PER_ROUND = 20000 
     
     boss_model_name = "joern_boss_ai_v1"
     player_model_name = "player_ai_v1"
     
     try:
         from stable_baselines3 import PPO
+        from stable_baselines3.common.env_util import make_vec_env
+        from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
     except ImportError:
         print("Error: stable_baselines3 not installed.")
         return
 
     print(f"\n=== Starting Iterative Self-Play (Ping-Pong) ===")
-    print(f"Iterations: {ITERATIONS}")
+    print(f"Iterations: {'Infinite' if ITERATIONS == float('inf') else ITERATIONS}")
     print(f"Steps per round: {STEPS_PER_ROUND}")
 
-    for i in range(1, ITERATIONS + 1):
-        print(f"\n--- ROUND {i}/{ITERATIONS} ---")
+    N_ENVS = n_envs
+    
+    i = 1
+    while i <= ITERATIONS:
+        print(f"\n--- ROUND {i}/{'∞' if ITERATIONS == float('inf') else ITERATIONS} ---")
         
         # ---------------------------
         # PHASE 1: TRAIN BOSS
         # ---------------------------
-        print(f"[{i}/{ITERATIONS}] Training BOSS (vs Player)...")
-        env_boss = DuelEnv(mode="TRAIN_BOSS", human_opponent=False, headless=True)
+        print(f"[{i}/{'∞' if ITERATIONS == float('inf') else ITERATIONS}] Training BOSS (vs Player) | Parallel Games: {N_ENVS}")
+        # env_boss = DuelEnv(mode="TRAIN_BOSS", human_opponent=False, headless=True)
+        env_boss = make_vec_env(
+            DuelEnv, 
+            n_envs=N_ENVS, 
+            vec_env_cls=SubprocVecEnv, 
+            env_kwargs={"mode": "TRAIN_BOSS", "human_opponent": False, "headless": True}
+        )
+        env_boss = VecNormalize(env_boss, norm_obs=True, norm_reward=True, gamma=0.99)
         
         # Load existing boss model or create new
         if os.path.exists(boss_model_name + ".zip"):
@@ -45,7 +55,14 @@ def train():
             boss_model = PPO.load(boss_model_name, env=env_boss)
         else:
             print("Creating NEW Boss model")
-            boss_model = PPO("MlpPolicy", env_boss, verbose=1)
+            boss_model = PPO(
+                "MlpPolicy", 
+                env_boss, 
+                verbose=1,
+                batch_size=512,
+                n_steps=2048,
+                learning_rate=3e-4
+            )
             
         try:
             boss_model.learn(total_timesteps=STEPS_PER_ROUND)
@@ -62,8 +79,15 @@ def train():
         # ---------------------------
         # PHASE 2: TRAIN PLAYER
         # ---------------------------
-        print(f"[{i}/{ITERATIONS}] Training PLAYER (vs Boss)...")
-        env_player = DuelEnv(mode="TRAIN_PLAYER", human_opponent=False, headless=True)
+        print(f"[{i}/{'∞' if ITERATIONS == float('inf') else ITERATIONS}] Training PLAYER (vs Boss) | Parallel Games: {N_ENVS}")
+        # env_player = DuelEnv(mode="TRAIN_PLAYER", human_opponent=False, headless=True)
+        env_player = make_vec_env(
+            DuelEnv, 
+            n_envs=N_ENVS, 
+            vec_env_cls=SubprocVecEnv, 
+            env_kwargs={"mode": "TRAIN_PLAYER", "human_opponent": False, "headless": True}
+        )
+        env_player = VecNormalize(env_player, norm_obs=True, norm_reward=True, gamma=0.99)
         
         # Load existing player model or create new
         if os.path.exists(player_model_name + ".zip"):
@@ -71,7 +95,14 @@ def train():
              player_model = PPO.load(player_model_name, env=env_player)
         else:
              print("Creating NEW Player model")
-             player_model = PPO("MlpPolicy", env_player, verbose=1)
+             player_model = PPO(
+                "MlpPolicy", 
+                env_player, 
+                verbose=1,
+                batch_size=512,
+                n_steps=2048,
+                learning_rate=3e-4
+             )
              
         try:
              player_model.learn(total_timesteps=STEPS_PER_ROUND)
@@ -84,6 +115,7 @@ def train():
              return
              
         env_player.close()
+        i += 1
         
     print("\n=== Self-Play Training Complete! ===")
 

@@ -6,7 +6,13 @@ from config.settings import CELL_SIZE
 class Projectile(GridObject):
     def __init__(self, x, y, direction, speed, damage, owner_type, texture=None, behavior="LINEAR", visual_type="ARROW", target_pos=None, color=(255, 255, 0), explode_radius=0, start_delay=0):
         super().__init__(x, y, 0.5, 0.5, color=color) 
-        self.direction = pygame.math.Vector2(direction).normalize() if direction else pygame.math.Vector2(0,0)
+        
+        # Robust direction handling
+        vec = pygame.math.Vector2(direction) if direction else pygame.math.Vector2(0,0)
+        if vec.length_squared() > 0:
+            self.direction = vec.normalize()
+        else:
+            self.direction = pygame.math.Vector2(0,0)
         self.speed = speed
         self.damage = damage
         self.owner_type = owner_type # "player" or "enemy"

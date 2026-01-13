@@ -12,15 +12,33 @@ from ai.boss_env import BossFightEnv
 def train():
     try:
         from stable_baselines3 import PPO
+        from stable_baselines3.common.env_util import make_vec_env
+        from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
     except ImportError:
         print("Error: stable_baselines3 not installed.")
         return
 
-    print("Initializing Environment...")
-    env = BossFightEnv(headless=True)
+    print("Initializing Vector Environment...")
+    N_ENVS = 8
+    print(f"Starting {N_ENVS} Parallel Game Environments...")
+    
+    env = make_vec_env(
+        BossFightEnv, 
+        n_envs=N_ENVS, 
+        vec_env_cls=SubprocVecEnv, 
+        env_kwargs={"headless": True, "difficulty": 2}
+    )
+    env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.)
     
     print("Setting up PPO Model...")
-    model = PPO("MlpPolicy", env, verbose=1)
+    model = PPO(
+        "MlpPolicy", 
+        env, 
+        verbose=1,
+        batch_size=512,
+        n_steps=2048,
+        learning_rate=3e-4
+    )
     
     print("Starting Training (100,000 timesteps)...")
     try:

@@ -31,11 +31,13 @@ class Item(GridObject):
                 try:
                     loaded_image = pygame.image.load(full_path).convert_alpha()
                     self.image = loaded_image
-                    debug.log(f"Loaded texture for {self.name}: {texture_path}")
+                    # debug.log(f"Loaded texture for {self.name}: {texture_path}")
                 except Exception as e:
-                    debug.log(f"Failed to load texture {texture_path}: {e}")
+                    # debug.log(f"Failed to load texture {texture_path}: {e}")
+                    pass
             else:
-                debug.log(f"Texture not found: {full_path}")
+                # debug.log(f"Texture not found: {full_path}")
+                pass
 
     def move_towards(self, target_x, target_y):
         # Direct movement behavior (no inertia)

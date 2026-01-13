@@ -58,7 +58,7 @@ class ItemFactory:
                     else:
                         pass # Should not happen if buckets are init correctly
             
-            print(f"Loaded {len(ItemFactory._items)} items.")
+            # print(f"Loaded {len(ItemFactory._items)} items.")
         except FileNotFoundError:
             print(f"Error: items.json not found at {items_path}")
             ItemFactory._items = []

@@ -93,7 +93,31 @@ def main():
     elif mode == 'train_self':
         try:
             from train_self_play import train
-            train()
+            
+            # Default values
+            default_iters = float('inf')
+            default_envs = 8
+            
+            # Prompt for Iterations
+            try:
+                iters_input = input("Enter number of iterations [default: Infinite]: ").strip()
+                if not iters_input:
+                    iterations = float('inf')
+                else:
+                    iterations = int(iters_input)
+            except ValueError:
+                print("Invalid input. Using default: Infinite")
+                iterations = float('inf')
+                
+            # Prompt for Parallel Envs
+            try:
+                envs_input = input(f"Enter number of parallel games [default: {default_envs}]: ").strip()
+                n_envs = int(envs_input) if envs_input else default_envs
+            except ValueError:
+                print(f"Invalid input. Using default: {default_envs}")
+                n_envs = default_envs
+            
+            train(iterations=iterations, n_envs=n_envs)
         except ImportError as e:
              print(f"Error importing train_self_play: {e}")
         except Exception as e:

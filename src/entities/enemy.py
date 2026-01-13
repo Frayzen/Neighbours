@@ -131,7 +131,8 @@ class Enemy(GridObject):
                  self.texture = pygame.image.load(full_path).convert_alpha()
                  debug.log(f"Loaded {config_key} from {full_path}")
              except Exception as e:
-                 print(f"Failed to load {config_key}: {e}")
+                 # print(f"Failed to load {config_key}: {e}")
+                 pass
 
 
 

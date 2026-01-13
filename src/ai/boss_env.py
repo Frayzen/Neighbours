@@ -2,14 +2,18 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pygame
+from collections import defaultdict
 from core.game import Game
 from entities.enemy import Enemy
 from core.registry import Registry
 from config.settings import CELL_SIZE
 
 class BossFightEnv(gym.Env):
-    def __init__(self, headless=False):
+    def __init__(self, headless=False, difficulty=1):
         super(BossFightEnv, self).__init__()
+        
+        self.difficulty = difficulty # 1: Stand, 2: Run, 3: Kite/Attack
+        print(f"BossFightEnv Initialized (Difficulty: {difficulty})")
         
         # Initialize Game (Headless-ish? Pygame needs a video system usually)
         # We assume SDL_VIDEODRIVER is handled externally if needed, or we just let it open a window.
@@ -133,28 +137,72 @@ class BossFightEnv(gym.Env):
             screen.blit(text, (x, y))
             y += 20
 
+    def _get_bot_action(self):
+        # Difficulty 1: Stand Still
+        if self.difficulty == 1:
+             return 0
+             
+        player = self.game.player
+        boss = self.boss
+        if not boss: return 0
+        
+        dx = boss.x - player.x
+        dy = boss.y - player.y
+        dist_sq = dx*dx + dy*dy
+        
+        action = 0 
+        min_dist = 250
+        
+        if dist_sq < min_dist**2:
+             # Run away
+             vx, vy = -dx, -dy # Vector from boss to player (inverted) -> Player runs away from boss
+             # Wait, dx = boss - player.
+             # Player to Boss vector = (boss.x - player.x, boss.y - player.y) = (dx, dy)
+             # To run AWAY, Player should move -dx, -dy? 
+             # No, if Boss is at (10,10) and Player at (0,0). Boss-Player = (10,10).
+             # Player moving (-10,-10) goes to (-10,-10), away from (10,10). Correct.
+             
+             vx, vy = -dx, -dy
+             if abs(vx) > abs(vy):
+                 action = 4 if vx > 0 else 3
+             else:
+                 action = 2 if vy > 0 else 1
+                 
+        # Difficulty 3: Kite
+        if self.difficulty >= 3:
+             if dist_sq < min_dist**2:
+                 pass
+             elif dist_sq > 450**2:
+                 # Move closer
+                 vx, vy = dx, dy
+                 if abs(vx) > abs(vy):
+                     action = 4 if vx > 0 else 3
+                 else:
+                     action = 2 if vy > 0 else 1
+             else:
+                 action = 5 # Attack
+                 
+        return action
+
     def step(self, action):
-        # Apply Action
+        # Apply Boss Action
         if self.boss:
             self.boss.set_ai_action(action)
             
-        # Determine player movement keys based on bot logic
-        keys = self._get_bot_keys()
+        # Apply Player Bot Action
+        bot_action = self._get_bot_action()
+        self.game.player.set_ai_action(bot_action)
         
-        # Monkey patch pygame.key.get_pressed to simulate player input
-        # We need a proper sequence or object that allows indexing
-        # pygame.key.get_pressed returns a ScancodeWrapper which is tuple-like.
-        # We can use a simple list of 0s and 1s, sized 512 (or ScancodeWrapper length).
-        
+        # Ensure AI Control is ON for Player (Safety)
+        self.game.player.ai_controlled = True
+
         original_get_pressed = pygame.key.get_pressed
-        
-        def mock_get_pressed():
-            return keys
-            
-        pygame.key.get_pressed = mock_get_pressed
+        pygame.key.get_pressed = lambda: defaultdict(int) # Safe for any key index
         
         try:
-            self.game.logic.update()
+            # Frame Skipping: Run 4 frames per action
+            for _ in range(4):
+                self.game.logic.update()
         except Exception as e:
             print(f"Error during logic update: {e}")
         finally:
@@ -182,6 +230,20 @@ class BossFightEnv(gym.Env):
         # Existential Penalty: -0.05 per step to force quick kills
         reward = (dmg_dealt * 2.0) - (dmg_taken * 1.0)
         reward -= 0.05
+        
+        # Whiff Punishment (If attacked but dealt no damage)
+        # Action 5 is Attack
+        if action == 5 and dmg_dealt <= 0:
+            reward -= 0.2
+            
+        # Distance Reward (Sweet Spot: 150-400px)
+        # Encourage staying within effective range but not hugging
+        if self.boss:
+             dx = self.game.player.x - self.boss.x
+             dy = self.game.player.y - self.boss.y
+             dist = (dx**2 + dy**2)**0.5
+             if 150 < dist < 450:
+                 reward += 0.01
         
         if current_boss_hp <= 0:
             reward += 100 # Bonus for killing boss

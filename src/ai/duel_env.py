@@ -2,8 +2,10 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pygame
+import traceback # Added for debuggingsys
 import os
 import sys
+from collections import defaultdict
 
 # Add src directory to python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,13 +20,14 @@ except ImportError:
     PPO = None
 
 class DuelEnv(gym.Env):
-    def __init__(self, mode="TRAIN_BOSS", human_opponent=False, headless=False):
+    def __init__(self, mode="TRAIN_BOSS", human_opponent=False, headless=False, difficulty=1):
         super(DuelEnv, self).__init__()
         
         self.mode = mode # "TRAIN_BOSS" or "TRAIN_PLAYER"
         self.human_opponent = human_opponent
         self.headless = headless
-        print(f"DuelEnv Initialized in mode: {self.mode} (Headless: {headless})")
+        self.difficulty = difficulty # 1: Stand Still, 2: Run Away, 3: Kite/Attack
+        print(f"DuelEnv Initialized in mode: {self.mode} (Headless: {headless}, Difficulty: {difficulty})")
         
         # Initialize Game
         self.game = Game(headless=self.headless)
@@ -75,6 +78,7 @@ class DuelEnv(gym.Env):
         self.episode_count += 1
         self.total_reward = 0
         self.step_count = 0
+        self.last_damage_step = 0 # For Stalemate logic
         
         # 1. Reset Game
         self.game.restart_game()
@@ -142,44 +146,53 @@ class DuelEnv(gym.Env):
     def step(self, action):
         obs = self._get_obs()
         
-        # 1. Apply AGENT Action
+        # Apply Actions
         if self.mode == "TRAIN_BOSS":
-            self.boss.set_ai_action(action)
-        elif self.mode == "TRAIN_PLAYER":
-            self.game.player.set_ai_action(action)
-            
-        # 2. Apply OPPONENT Action
-        if self.mode == "TRAIN_BOSS" and not self.human_opponent:
-            # Opponent is Player
-            if self.opponent_model:
+             # Agent controls Boss
+             if self.boss: self.boss.set_ai_action(action)
+             
+             # Opponent (Player)
+             if not self.human_opponent and not self.opponent_model:
+                 # Curriculum Bot
+                 bot_action = self._get_bot_action()
+                 self.game.player.set_ai_action(bot_action)
+             elif self.opponent_model:
+                 # Trained Model Opponent
                  p_act, _ = self.opponent_model.predict(obs)
                  self.game.player.set_ai_action(int(p_act))
-            else:
-                 # Scripted Player
-                 p_act = self._scripted_player_action()
-                 self.game.player.set_ai_action(p_act)
                  
         elif self.mode == "TRAIN_PLAYER":
-            # Opponent is Boss
-            if self.opponent_model:
-                b_act, _ = self.opponent_model.predict(obs)
-                self.boss.set_ai_action(int(b_act))
-            else:
-                # If ai_controlled is False, Boss updates itself via standard logic in game.logic.update()
-                # No explicit action needed here.
-                pass
-
-        # 3. Update Game Logic
-        # We invoke keys mock only if using keyboard-based fallback, but we switched to full AI control for player here.
-        # But wait, logic.update() -> player.update() -> player.move()
-        # if ai_controlled is True, it uses ai_move_dir.
-        # So we don't need to mock keys! Phew.
+             # Agent controls Player
+             self.game.player.set_ai_action(action)
+             
+             # Opponent (Boss)
+             if not self.opponent_model:
+                 # Standard AI uses behavior trees (better).
+                 pass
+             else:
+                 # Trained Model Opponent
+                 b_act, _ = self.opponent_model.predict(obs)
+                 if self.boss: self.boss.set_ai_action(int(b_act))
+                 
+        # Determine player movement keys based on bot logic
+        # REMOVED: Legacy _get_bot_keys logic replaced by set_ai_action
+        
+        # Monkey patch pygame.key.get_pressed to simulate player input
+        # No longer needed if ai_controlled works, but keeping empty for safety
+        original_get_pressed = pygame.key.get_pressed
+        pygame.key.get_pressed = lambda: defaultdict(int) # Safe for any key index
         
         try:
-            self.game.logic.update()
+            # Frame Skipping: Run 4 frames per action
+            for _ in range(4):
+                self.game.logic.update()
         except Exception as e:
             print(f"Error during logic update: {e}")
+            traceback.print_exc()
             
+        finally:
+            pygame.key.get_pressed = original_get_pressed
+        
         # Handle Pygame Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -204,19 +217,48 @@ class DuelEnv(gym.Env):
             # + Damage Dealt to Player, - Damage Taken
             reward = (dmg_dealt_to_player * 2.0) - (dmg_dealt_to_boss * 1.0)
             reward -= 0.05
-            
-            if current_player_hp <= 0: reward += 100
-            if current_boss_hp <= 0: reward -= 50
-            
+            dmg_dealt = dmg_dealt_to_player
+            dmg_taken = dmg_dealt_to_boss
         elif self.mode == "TRAIN_PLAYER":
-            # Reward Player
-            # + Damage Dealt to Boss, - Damage Taken
-            reward = (dmg_dealt_to_boss * 2.0) - (dmg_dealt_to_player * 1.0)
-            reward -= 0.05
+            dmg_dealt = dmg_dealt_to_boss
+            dmg_taken = dmg_dealt_to_player
             
-            if current_boss_hp <= 0: reward += 100
-            if current_player_hp <= 0: reward -= 50
-            
+        # Reward Function
+        # We want to maximize damage dealt and minimize damage taken.
+        # Encouraging Aggression: 2.0x for damage dealt
+        # Existential Penalty: -0.05 per step to force quick kills
+        reward = (dmg_dealt * 2.0) - (dmg_taken * 1.0)
+        reward -= 0.05
+        
+        # Whiff Punishment & Distance Reward
+        if self.mode == "TRAIN_BOSS" and self.boss:
+            # Controlling Boss
+             if action == 5 and dmg_dealt <= 0:
+                 reward -= 0.2
+             
+             dist = ((self.game.player.x - self.boss.x)**2 + (self.game.player.y - self.boss.y)**2)**0.5
+             if 150 < dist < 450:
+                 reward += 0.01
+                 
+        elif self.mode == "TRAIN_PLAYER":
+            # Controlling Player
+            # Action 5 might be attack for player too?
+             if action == 5 and dmg_dealt <= 0: # Assuming player dmg_dealt is to boss (dmg_dealt var is boss loss?)
+                 # In TRAIN_PLAYER, we want to MAXIMIZE Boss Damage Taken.
+                 # dmg_dealt = prev_boss_hp - cur_boss_hp. So positive dmg_dealt is good.
+                 reward -= 0.2
+             
+             dist = ((self.game.player.x - self.boss.x)**2 + (self.game.player.y - self.boss.y)**2)**0.5
+             if 150 < dist < 450:
+                 reward += 0.01
+
+        if current_boss_hp <= 0:
+            if self.mode == "TRAIN_BOSS": reward -= 50 # Boss Died (Bad)
+            else: reward += 100 # Boss Died (Good for Player)
+        
+        if current_player_hp <= 0:
+            if self.mode == "TRAIN_BOSS": reward += 100 # Player Died (Good for Boss)
+            else: reward -= 50 # Player Died (Bad)         
         self.total_reward += reward
         self.step_count += 1
         
@@ -225,6 +267,7 @@ class DuelEnv(gym.Env):
         
         # 5. Check Done
         terminated = False
+        truncated = False
         winner = None # 1 if Agent wins, 0 if Opponent wins (conceptually)
         # Actually win_history usually tracks 1=Win (for Agent), 0=Loss.
         
@@ -240,11 +283,23 @@ class DuelEnv(gym.Env):
             if self.mode == "TRAIN_BOSS": winner = 1 # Win (Boss Agent)
             else: winner = 0 # Loss
             
+        # STALEMATE BREAKER
+        # If no damage dealt for N steps, end game
+        if dmg_dealt != 0 or dmg_taken != 0:
+            self.last_damage_step = self.step_count
+            
+        if self.step_count - self.last_damage_step > 500:
+            terminated = True
+            # Stalemate Penalty
+            reward -= 0.1
+            truncated = True # Or just terminated? Truncated is better for time limit.
+            
         if terminated and winner is not None:
              self.win_history.append(winner)
              
-        truncated = False
-        
+        # Scale Reward for Stability (PPO likes -1 to 1)
+        reward = reward / 100.0
+             
         return self._get_obs(), reward, terminated, truncated, {}
 
     def _get_obs(self):
@@ -274,50 +329,6 @@ class DuelEnv(gym.Env):
         
         return np.array([bx, by, px, py, bhp, php, phase, cd1, cd2], dtype=np.float32)
 
-    def _scripted_player_action(self):
-        # Determine action to set_ai_action(0-7)
-        # Simple logic: Move towards/away + Attack
-        if not self.boss: return 0
-        
-        px, py = self.game.player.x, self.game.player.y
-        bx, by = self.boss.x, self.boss.y
-        
-        dist_sq = (px - bx)**2 + (py - by)**2
-        min_dist = 200**2
-        
-        # 5: Attack (randomly if close enough?)
-        # Just attack if aligned? 
-        # Simple random spam: 10% chance to attack
-        if np.random.rand() < 0.1:
-            return 5
-            
-        # Movement
-        dx = 0
-        dy = 0
-        if dist_sq < min_dist:
-             # Run away
-             if px < bx: dx = -1
-             else: dx = 1
-             if py < by: dy = -1
-             else: dy = 1
-        else:
-             # Move Closer
-             if px < bx: dx = 1
-             else: dx = -1
-             if py < by: dy = 1
-             else: dy = -1
-             
-        # Map dx/dy to 1-4
-        # Prioritize one axis randomly to avoid stuck diagonals?
-        if dx != 0 and dy != 0:
-             if np.random.rand() < 0.5: dy = 0
-             else: dx = 0
-             
-        if dy < 0: return 1 # Up
-        if dy > 0: return 2 # Down
-        if dx < 0: return 3 # Left
-        if dx > 0: return 4 # Right
-        
         return 0 # Idle
 
     def render(self):
@@ -403,3 +414,43 @@ class DuelEnv(gym.Env):
             
         if len(points) > 1:
             pygame.draw.lines(screen, (0, 255, 0), False, points, 2)
+
+    def _get_bot_action(self):
+        """
+        Simple fallback AI for the Player when no model is loaded.
+        """
+        if not self.boss: return 0
+        
+        px, py = self.game.player.x, self.game.player.y
+        bx, by = self.boss.x, self.boss.y
+        
+        dist_sq = (px - bx)**2 + (py - by)**2
+        
+        # 1. Attack Logic (Simple Spam)
+        if np.random.rand() < 0.2: # 20% chance to attack per decision
+            return 5
+            
+        # 2. Movement Logic
+        dx, dy = 0, 0
+        min_dist = 200 ** 2
+        
+        if dist_sq < min_dist:
+            # Run Away
+            if px < bx: dx = -1
+            else: dx = 1
+            if py < by: dy = -1
+            else: dy = 1
+        else:
+            # Move Closer
+            if px < bx: dx = 1
+            else: dx = -1
+            if py < by: dy = 1
+            else: dy = -1
+            
+        # Convert dx/dy to Action Index
+        if dy < 0: return 1 # Up
+        if dy > 0: return 2 # Down
+        if dx < 0: return 3 # Left
+        if dx > 0: return 4 # Right
+        
+        return 0 # Idle
