@@ -118,18 +118,24 @@ class CombatManager:
         
         return nearest_enemy
 
+    def _get_center(self, entity):
+        from config.settings import CELL_SIZE
+        # Assuming entities have w/h in grid coords, or size
+        w = getattr(entity, 'w', 1) * CELL_SIZE
+        h = getattr(entity, 'h', 1) * CELL_SIZE
+        return entity.x + w / 2, entity.y + h / 2
+
     def get_distance_to(self, target):
-        dx = self.owner.x - target.x
-        dy = self.owner.y - target.y
+        ox, oy = self._get_center(self.owner)
+        tx, ty = self._get_center(target)
+        dx = ox - tx
+        dy = oy - ty
         return math.sqrt(dx * dx + dy * dy)
 
     def attack(self, target, enemies, current_time):
         self.current_weapon.attack(current_time, owner=self.owner, target=target, enemies=enemies)
         
-        # PROJECTILE FIX: 
-        # If the weapon behaves as a projectile spawner (Fireball, Bow), 
-        # we MUST NOT deal immediate damage here. The projectile handles it on impact.
-        # Otherwise, we get double damage (Instant Hitscan + Projectile Hit).
+        # Prevent double damage for projectile weapons
         PROJECTILE_BEHAVIORS = ["fireball_cast", "ranged_shot"]
         if self.current_weapon.behavior_name in PROJECTILE_BEHAVIORS:
             return

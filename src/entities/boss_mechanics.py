@@ -67,13 +67,7 @@ def perform_dash(boss, player):
     """
     Phase 2: Dash behind player.
     """
-    # Teleport/Dash logic
-    # "Setze Bewegungsvektor direkt auf die Rückseite des Spielers"
-    
-    # Let's calculate a target point behind the player
-    # Assume "behind" is opposite to player's facing? Or just opposite to boss?
-    # Let's simple go to the opposite side of the player relative to current boss pos
-    
+    # Calculate target point behind player
     dx = player.x - boss.x
     dy = player.y - boss.y
     dist = math.sqrt(dx*dx + dy*dy)
@@ -157,8 +151,7 @@ def perform_powerful_fireball(boss, game, player):
     """
     from entities.projectile import Projectile
     
-    # Calculate direction (Still useful for initial direction if needed, but TARGET_EXPLOSION uses target_pos)
-    # We pass target_pos to Projectile
+    # Calculate direction
     
     target_pos = (player.x + player.w*CELL_SIZE/2, player.y + player.h*CELL_SIZE/2)
     
@@ -173,11 +166,10 @@ def perform_powerful_fireball(boss, game, player):
         visual_type="METEOR", 
         target_pos=target_pos,
         color=(139, 0, 0), 
-        explode_radius=3 * CELL_SIZE # Explodes in 3 tile radius (logic.py expects pixels for radius? No, wait.)
-        # Logic.py: vfx_manager.add_effect(..., radius=proj.explode_radius)
-        # Logic.py damage: if dist_sq <= proj.explode_radius ** 2
-        # So explode_radius should be in pixels!
-        # 3 tiles = 3 * CELL_SIZE
+        target_pos=target_pos,
+        color=(139, 0, 0), 
+        explode_radius=3 * CELL_SIZE 
+    )
     )
     game.projectiles.append(proj)
     debug.log("JörnBoss casts METEOR at coordinates!")
@@ -191,8 +183,11 @@ def perform_bullet_hell(boss, game):
     num_projectiles_per_ring = 18
     angle_step = 360 / num_projectiles_per_ring
     
-    # Delays in "frames" (assuming update is called ~60 times a sec, or at least regularly)
-    DELAY_PER_RING = 30 # 0.5 seconds approx
+    num_rings = 4
+    num_projectiles_per_ring = 18
+    angle_step = 360 / num_projectiles_per_ring
+    
+    DELAY_PER_RING = 30 # Approx 0.5 seconds
 
     for ring in range(num_rings):
         # Rotation offset for this ring
