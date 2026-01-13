@@ -126,6 +126,14 @@ class CombatManager:
     def attack(self, target, enemies, current_time):
         self.current_weapon.attack(current_time, owner=self.owner, target=target, enemies=enemies)
         
+        # PROJECTILE FIX: 
+        # If the weapon behaves as a projectile spawner (Fireball, Bow), 
+        # we MUST NOT deal immediate damage here. The projectile handles it on impact.
+        # Otherwise, we get double damage (Instant Hitscan + Projectile Hit).
+        PROJECTILE_BEHAVIORS = ["fireball_cast", "ranged_shot"]
+        if self.current_weapon.behavior_name in PROJECTILE_BEHAVIORS:
+            return
+
         targets_hit = self.current_weapon.get_targets(target, enemies)
         
         for hit_target in targets_hit:
