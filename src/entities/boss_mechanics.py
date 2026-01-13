@@ -41,7 +41,7 @@ def perform_summon(boss, game, enemy_type=None, count=None):
         count = random.randint(2, 3)
         
     # Pool of summonable minions
-    SUMMON_POOL = ["basic_enemy", "fast_enemy", "ranger"]
+    SUMMON_POOL = ["basic_enemy", "fast_enemy", "ranger", "tank_enemy", "healer"]
     
     from entities.enemy import Enemy
     
@@ -157,28 +157,30 @@ def perform_powerful_fireball(boss, game, player):
     """
     from entities.projectile import Projectile
     
-    # Calculate direction
-    dx = player.x - boss.x
-    dy = player.y - boss.y
-    dist = (dx**2 + dy**2)**0.5
+    # Calculate direction (Still useful for initial direction if needed, but TARGET_EXPLOSION uses target_pos)
+    # We pass target_pos to Projectile
     
-    if dist > 0:
-        dir_x = dx / dist
-        dir_y = dy / dist
-        
-        proj = Projectile(
-            boss.x + boss.w*CELL_SIZE/2, 
-            boss.y + boss.h*CELL_SIZE/2,
-            direction=(dir_x, dir_y),
-            speed=4, # Slower, easier to dodge but deadly
-            damage=50, # High damage
-            owner_type="enemy",
-            visual_type="FIREBALL", # Maybe need BIG_FIREBALL later, for now standard visual
-            color=(139, 0, 0), # Dark Red
-            explode_radius=2 # Explodes in 2 tile radius (if supported)
-        )
-        game.projectiles.append(proj)
-        debug.log("JörnBoss casts METEOR!")
+    target_pos = (player.x + player.w*CELL_SIZE/2, player.y + player.h*CELL_SIZE/2)
+    
+    proj = Projectile(
+        boss.x + boss.w*CELL_SIZE/2, 
+        boss.y + boss.h*CELL_SIZE/2,
+        direction=None, # Will be calculated by update based on target
+        speed=4, 
+        damage=50, 
+        owner_type="enemy",
+        behavior="TARGET_EXPLOSION",
+        visual_type="METEOR", 
+        target_pos=target_pos,
+        color=(139, 0, 0), 
+        explode_radius=3 * CELL_SIZE # Explodes in 3 tile radius (logic.py expects pixels for radius? No, wait.)
+        # Logic.py: vfx_manager.add_effect(..., radius=proj.explode_radius)
+        # Logic.py damage: if dist_sq <= proj.explode_radius ** 2
+        # So explode_radius should be in pixels!
+        # 3 tiles = 3 * CELL_SIZE
+    )
+    game.projectiles.append(proj)
+    debug.log("JörnBoss casts METEOR at coordinates!")
 def perform_bullet_hell(boss, game):
     """
     Phase 3: 360 shots.
@@ -236,30 +238,39 @@ def perform_The_Final_Ember(boss, game):
     
     debug.log("JörnBoss unleashes THE FINAL EMBER!")
     
-    # 1. Find ALL walkable tiles
-    valid_tiles = []
-    for x in range(game.world.width):
-        for y in range(game.world.height):
-            cell = game.world.get_cell(x, y)
-            if cell and cell.walkable:
-                valid_tiles.append((x, y))
-                
-    # 2. Choose random from those
-    debug.log(f"Final Ember: Found {len(valid_tiles)} walkable tiles.")
+    debug.log("JörnBoss unleashes THE FINAL EMBER!")
     
-    count = min(NUM_FIRES, len(valid_tiles))
-    if count > 0:
-        chosen_tiles = random.sample(valid_tiles, count)
+    # Optimization: Spawn fires only near the boss
+    # Rejection sampling is faster than scanning the whole map
+    RADIUS = 15 # Tiles radius
+    boss_gx = int(boss.x / CELL_SIZE)
+    boss_gy = int(boss.y / CELL_SIZE)
+    
+    spawned_count = 0
+    max_attempts = NUM_FIRES * 5 # Allow some failures
+    
+    for _ in range(max_attempts):
+        if spawned_count >= NUM_FIRES:
+            break
+            
+        # Random offset within radius
+        off_x = random.randint(-RADIUS, RADIUS)
+        off_y = random.randint(-RADIUS, RADIUS)
         
-        for rx, ry in chosen_tiles:
-            # Convert grid to pixels
-            px = rx * CELL_SIZE
-            py = ry * CELL_SIZE
-            
-            # Create Hazard
-            fire = FireHazard(px, py, DURATION_MIN, DURATION_MAX, DAMAGE, game)
-            game.gridObjects.append(fire)
-            
-        debug.log(f"Ignited {count} tiles with Final Ember.")
-    else:
-        debug.log("Final Ember failed: No walkable tiles found!")
+        tx = boss_gx + off_x
+        ty = boss_gy + off_y
+        
+        # Check bounds
+        if 0 <= tx < game.world.width and 0 <= ty < game.world.height:
+            cell = game.world.get_cell(tx, ty)
+            if cell and cell.walkable:
+                # Convert grid to pixels
+                px = tx * CELL_SIZE
+                py = ty * CELL_SIZE
+                
+                # Create Hazard
+                fire = FireHazard(px, py, DURATION_MIN, DURATION_MAX, DAMAGE, game)
+                game.gridObjects.append(fire)
+                spawned_count += 1
+                
+    debug.log(f"Ignited {spawned_count} tiles near JörnBoss with Final Ember.")

@@ -73,6 +73,16 @@ class Projectile(GridObject):
             # Outer bloom
             pygame.draw.circle(screen, (255, 50, 0), (cx, cy), 10 + math.sin(self.anim_timer * 0.2) * 2, 2)
             
+        elif self.visual_type == "METEOR":
+            # HUGE Fireball
+            # Core
+            pygame.draw.circle(screen, (255, 69, 0), (cx, cy), 15) # Bigger Core
+            # Inner Core (Hot)
+            pygame.draw.circle(screen, (255, 255, 0), (cx, cy), 8) 
+            # Outer bloom (Pulsing)
+            pulse = math.sin(self.anim_timer * 0.3) * 4
+            pygame.draw.circle(screen, (139, 0, 0), (cx, cy), 20 + pulse, 3) # Dark red outer ring
+            
         elif self.visual_type == "ARROW":
              # Procedural Arrow
              # Calculate angle

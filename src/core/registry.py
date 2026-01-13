@@ -88,3 +88,63 @@ class Registry:
     @staticmethod
     def get_enemy_types():
         return list(Registry._enemies.keys())
+
+    _textures = {}
+
+    @staticmethod
+    def preload_textures(base_dir):
+        """
+        Recursively load all images from the assets directory.
+        """
+        assets_dir = os.path.join(base_dir, "assets")
+        if not os.path.exists(assets_dir):
+            print(f"Warning: Assets directory not found at {assets_dir}")
+            return
+
+        print(f"Preloading textures from {assets_dir}...")
+        count = 0
+        for root, _, files in os.walk(assets_dir):
+            for file in files:
+                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                    full_path = os.path.join(root, file)
+                    # Normalize path to match how other systems might request it
+                    # We store it keyed by the absolute path for simplicity and exact matching
+                    # OR we could store relative to base_dir
+                    
+                    try:
+                        norm_path = os.path.normpath(full_path)
+                        # Load and cache
+                        tex = pygame.image.load(norm_path).convert_alpha()
+                        Registry._textures[norm_path] = tex
+                        count += 1
+                    except pygame.error as e:
+                        print(f"Failed to preload {full_path}: {e}")
+        
+        print(f"Preloaded {count} textures.")
+
+    @staticmethod
+    def get_texture(path):
+        """
+        Get a texture from cache or load it if missing.
+        Path should be absolute or relative to CWD.
+        """
+        norm_path = os.path.normpath(path)
+        
+        if norm_path in Registry._textures:
+            return Registry._textures[norm_path]
+        
+        # Not in cache, try to load
+        if os.path.exists(norm_path):
+             try:
+                # print(f"Cache Miss: Loading {norm_path} on demand.")
+                tex = pygame.image.load(norm_path).convert_alpha()
+                Registry._textures[norm_path] = tex
+                return tex
+             except pygame.error as e:
+                print(f"Failed to load texture {norm_path}: {e}")
+                return None
+        else:
+            # Try checking relative to assets if direct path fails? 
+            # For now, assume path is correct.
+            # print(f"Texture path not found: {norm_path}")
+            return None

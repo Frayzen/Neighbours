@@ -41,6 +41,9 @@ class GameSetup:
     def _load_resources(self):
         Registry.load_cells(os.path.join(BASE_DIR, "config", "environments.json"))
         Registry.load_enemies(os.path.join(BASE_DIR, "config", "enemies.json"))
+        
+        # Preload all textures
+        Registry.preload_textures(BASE_DIR)
 
     def _init_level(self):
         self.world_loader = WorldLoader()

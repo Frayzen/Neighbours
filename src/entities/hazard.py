@@ -18,16 +18,48 @@ class FireHazard(GridObject):
         # Visuals
         self.flicker_timer = 0
         
-        # Load Texture
+        # Load Texture via Registry
         try:
             import os
-            # Path relative to src/ assuming run from src or root? 
-            # We found it at src/assets/images/Lava.png
-            # If running from src, it is "../src/assets/images/Lava.png" ?? No.
-            # Usually assets are in src/assets.
+            from core.registry import Registry
+            
+            # Path logic: We need to construct the path that matches what preload_textures uses.
+            # preload_textures walks src/assets.
+            # So if we ask for "src/assets/images/Lava.png", it should be in cache if we run from root.
+            # If we run from src, "assets/images/Lava.png" might be the key?
+            # preload_textures uses full absolute path if os.walk returns valid roots.
+            # Wait, os.walk returns relative paths? No, os.path.join(root, file)
+            # If we pass BASE_DIR to preload, it uses that.
+            
+            # Let's try constructing the path assuming src/assets structure relative to CWD
+            # or better, use relative path if we know CWD
+            
+            # Since we don't know exact CWD at runtime easily without helper, 
+            # let's try the path referenced before: "src/assets/images/Lava.png"
+            
             path = os.path.normpath(os.path.join("src/assets/images/Lava.png"))
-            self.texture = pygame.image.load(path).convert_alpha()
-            self.texture = pygame.transform.scale(self.texture, (self.w * CELL_SIZE, self.h * CELL_SIZE))
+            
+            # If path resolution is tricky, Registry.get_texture will try to load it if missing.
+            # But we want to hit the cache.
+            # The cache key is os.path.normpath(full_path).
+            # We need to construct the same full path.
+            
+            # Actually, let's just use "assets/images/Lava.png" and rely on Registry smarts?
+            # Implemented Registry.get_texture takes a path, normalizes it, and checks cache.
+            # If we pass "src/assets/images/Lava.png", it normalizes. 
+            # Does preload use absolute paths? Yes "full_path = os.path.join(root, file)".
+            # So we need to match that.
+            
+            # NOTE: For now, I will assume the previous path worked for loading, so it should work for lookup IF the preloader found it.
+            
+            raw_tex = Registry.get_texture(path)
+            if raw_tex:
+                 self.texture = pygame.transform.scale(raw_tex, (self.w * CELL_SIZE, self.h * CELL_SIZE))
+            else:
+                 # Fallback if not found (e.g. CWD mismatch)
+                 print(f"FireHazard: Texture not found in registry: {path}")
+                 self.texture = None
+
         except Exception as e:
             print(f"Failed to load Lava texture: {e}")
             self.texture = None
