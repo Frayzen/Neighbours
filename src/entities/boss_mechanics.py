@@ -106,32 +106,160 @@ def activate_shield(boss):
     boss.color = (0, 0, 255) # Blue shield visual
     debug.log("JörnBoss Shield Activated!")
 
+def perform_firebreath(boss, game, player):
+    """
+    Firebreath: Stream of fireballs towards player with random angle spread.
+    """
+    from entities.projectile import Projectile
+    
+    NUM_PROJECTILES = 30
+    CONE_ANGLE = 45 # Degrees spread (+/- 22.5)
+    
+    # Calculate base direction to player
+    dx = player.x - boss.x
+    dy = player.y - boss.y
+    base_angle = math.degrees(math.atan2(dy, dx))
+    
+    debug.log("JörnBoss uses FIREBREATH!")
+    
+    for _ in range(NUM_PROJECTILES):
+        # Random offset angle
+        offset = random.uniform(-CONE_ANGLE/2, CONE_ANGLE/2)
+        angle_deg = base_angle + offset
+        angle_rad = math.radians(angle_deg)
+        
+        p_dx = math.cos(angle_rad)
+        p_dy = math.sin(angle_rad)
+        
+        # Random speed variation
+        speed = random.uniform(4, 7)
+        
+        # Random delay for stream effect (0 to 1 second)
+        # 60 frames = 1 sec approx
+        delay = random.randint(0, 60)
+        
+        proj = Projectile(
+            boss.x + boss.w*CELL_SIZE/2, 
+            boss.y + boss.h*CELL_SIZE/2,
+            direction=(p_dx, p_dy),
+            speed=speed,
+            damage=12,
+            owner_type="enemy",
+            visual_type="FIREBALL",
+            color=(255, 100, 0),
+            start_delay=delay
+        )
+        game.projectiles.append(proj)
+
+def perform_powerful_fireball(boss, game, player):
+    """
+    Single massive fireball. Slow, high damage, explodes on impact.
+    """
+    from entities.projectile import Projectile
+    
+    # Calculate direction
+    dx = player.x - boss.x
+    dy = player.y - boss.y
+    dist = (dx**2 + dy**2)**0.5
+    
+    if dist > 0:
+        dir_x = dx / dist
+        dir_y = dy / dist
+        
+        proj = Projectile(
+            boss.x + boss.w*CELL_SIZE/2, 
+            boss.y + boss.h*CELL_SIZE/2,
+            direction=(dir_x, dir_y),
+            speed=4, # Slower, easier to dodge but deadly
+            damage=50, # High damage
+            owner_type="enemy",
+            visual_type="FIREBALL", # Maybe need BIG_FIREBALL later, for now standard visual
+            color=(139, 0, 0), # Dark Red
+            explode_radius=2 # Explodes in 2 tile radius (if supported)
+        )
+        game.projectiles.append(proj)
+        debug.log("JörnBoss casts METEOR!")
 def perform_bullet_hell(boss, game):
     """
     Phase 3: 360 shots.
     """
     from entities.projectile import Projectile
     
-    num_projectiles = 18
-    angle_step = 360 / num_projectiles
+    num_rings = 4
+    num_projectiles_per_ring = 18
+    angle_step = 360 / num_projectiles_per_ring
     
-    for i in range(num_projectiles):
-        angle_deg = i * angle_step
-        angle_rad = math.radians(angle_deg)
+    # Delays in "frames" (assuming update is called ~60 times a sec, or at least regularly)
+    DELAY_PER_RING = 30 # 0.5 seconds approx
+
+    for ring in range(num_rings):
+        # Rotation offset for this ring
+        angle_offset = ring * 15 # 15 degrees shift per ring
         
-        dx = math.cos(angle_rad)
-        dy = math.sin(angle_rad)
+        # Delay for this ring
+        ring_delay = ring * DELAY_PER_RING
         
-        proj = Projectile(
-            boss.x + boss.w*CELL_SIZE/2, 
-            boss.y + boss.h*CELL_SIZE/2,
-            direction=(dx, dy),
-            speed=5,
-            damage=15,
-            owner_type="enemy",
-            visual_type="FIREBALL", # Or any boss projectile
-            color=(255, 0, 0)
-        )
-        game.projectiles.append(proj)
+        for i in range(num_projectiles_per_ring):
+            angle_deg = i * angle_step + angle_offset
+            angle_rad = math.radians(angle_deg)
+            
+            dx = math.cos(angle_rad)
+            dy = math.sin(angle_rad)
+            
+            proj = Projectile(
+                boss.x + boss.w*CELL_SIZE/2, 
+                boss.y + boss.h*CELL_SIZE/2,
+                direction=(dx, dy),
+                speed=5,
+                damage=15,
+                owner_type="enemy",
+                visual_type="FIREBALL", # Or any boss projectile
+                color=(255, 0, 0),
+                start_delay=ring_delay
+            )
+            game.projectiles.append(proj)
+            
+    debug.log(f"JörnBoss BULLET HELL! ({num_rings} rings)")
+
+def perform_The_Final_Ember(boss, game):
+    """
+    Perform the final Ember attack on phase switch from 2 to 3.
+    Set random World tiles on fire.
+    """
+    from entities.hazard import FireHazard
+    
+    # Configuration
+    NUM_FIRES = 20 
+    DURATION_MIN = 5000
+    DURATION_MAX = 10000
+    DAMAGE = 10
+    
+    debug.log("JörnBoss unleashes THE FINAL EMBER!")
+    
+    # 1. Find ALL walkable tiles
+    valid_tiles = []
+    for x in range(game.world.width):
+        for y in range(game.world.height):
+            cell = game.world.get_cell(x, y)
+            if cell and cell.walkable:
+                valid_tiles.append((x, y))
+                
+    # 2. Choose random from those
+    debug.log(f"Final Ember: Found {len(valid_tiles)} walkable tiles.")
+    
+    count = min(NUM_FIRES, len(valid_tiles))
+    if count > 0:
+        chosen_tiles = random.sample(valid_tiles, count)
         
-    debug.log("JörnBoss BULLET HELL!")
+        for rx, ry in chosen_tiles:
+            # Convert grid to pixels
+            px = rx * CELL_SIZE
+            py = ry * CELL_SIZE
+            
+            # Create Hazard
+            fire = FireHazard(px, py, DURATION_MIN, DURATION_MAX, DAMAGE, game)
+            game.gridObjects.append(fire)
+            
+        debug.log(f"Ignited {count} tiles with Final Ember.")
+    else:
+        debug.log("Final Ember failed: No walkable tiles found!")

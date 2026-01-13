@@ -4,7 +4,7 @@ from entities.base import GridObject
 from config.settings import CELL_SIZE
 
 class Projectile(GridObject):
-    def __init__(self, x, y, direction, speed, damage, owner_type, texture=None, behavior="LINEAR", visual_type="ARROW", target_pos=None, color=(255, 255, 0), explode_radius=0):
+    def __init__(self, x, y, direction, speed, damage, owner_type, texture=None, behavior="LINEAR", visual_type="ARROW", target_pos=None, color=(255, 255, 0), explode_radius=0, start_delay=0):
         super().__init__(x, y, 0.5, 0.5, color=color) 
         self.direction = pygame.math.Vector2(direction).normalize() if direction else pygame.math.Vector2(0,0)
         self.speed = speed
@@ -16,6 +16,7 @@ class Projectile(GridObject):
         self.target_pos = pygame.math.Vector2(target_pos) if target_pos else None
         self.explode_radius = explode_radius
         self.should_explode = False
+        self.start_delay = start_delay
         
         # Visual state
         self.anim_timer = 0
@@ -23,6 +24,20 @@ class Projectile(GridObject):
 
 
     def update(self):
+        if self.start_delay > 0:
+            self.start_delay -= 16 # Approx ms per frame @ 60fps? Or just use frames if logic is fixed step.
+            # actually logic update interval is varying but let's assume ms if passed as ms, or frames if passed as frames.
+            # Existing code for timers uses pygame.time.get_ticks() which is ms.
+            # But update is called every frame. 
+            # If I want precise timing, I should decrease by delta time. 
+            # But delta time isn't passed to update() in this game engine logic (yet).
+            # Looking at logic.py loop, it runs as fast as possible or capped?
+            # main.py usually caps FPS.
+            # Let's assume start_delay is in "updates/frames" for simplicity or just decrement by 1 if usage is "delay N frames".
+            # User asked for "slight delay".
+            # Let's treat start_delay as integer frames for now.
+            self.start_delay -= 1
+            return
         if self.behavior == "TARGET_EXPLOSION" and self.target_pos:
             # Move towards target
             curr_pos = pygame.math.Vector2(self.x, self.y)
@@ -44,6 +59,8 @@ class Projectile(GridObject):
             self.y += self.direction.y * self.speed
 
     def draw(self, screen):
+        if self.start_delay > 0: return
+
         self.anim_timer += 1
         
         cx = int(self.x + (self.w * CELL_SIZE)/2)

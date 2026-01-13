@@ -121,7 +121,8 @@ class EnemyBehaviors:
         import pygame
         from entities.boss_mechanics import (
             perform_gravity_smash, perform_summon, perform_dash, 
-            activate_shield, perform_bullet_hell,
+            activate_shield, perform_bullet_hell, perform_firebreath,
+            perform_powerful_fireball,
             COOLDOWN_GRAVITY, COOLDOWN_SUMMON, COOLDOWN_DASH, 
             COOLDOWN_SHIELD, COOLDOWN_BULLET_HELL
         )
@@ -177,6 +178,9 @@ class EnemyBehaviors:
                     perform_dash(enemy, player)
                     enemy.ability_cooldowns["dash"] = current_time
             
+            # Ability: Firebreath (Mid-range / General aggression)
+            # REMOVED from Phase 2 as per request
+
             # Movement: Chase (but faster? or just dash?)
             # Prompt says "Wechsle Waffe zu Dolchen"
             return EnemyBehaviors.melee_chase(enemy, flow_field, entities)
@@ -208,6 +212,26 @@ class EnemyBehaviors:
                 if current_time - enemy.ability_cooldowns["shield"] > COOLDOWN_SHIELD:
                     activate_shield(enemy)
                     enemy.ability_cooldowns["shield"] = current_time
+
+            # Ability: Firebreath (New Phase 3 Ability)
+            # Use somewhat frequent cooldown
+            if "firebreath" not in enemy.ability_cooldowns: enemy.ability_cooldowns["firebreath"] = 0
+            if current_time - enemy.ability_cooldowns["firebreath"] > 7000: # 7 seconds
+                perform_firebreath(enemy, enemy.game, player)
+                enemy.ability_cooldowns["firebreath"] = current_time
+
+            # Ability: Powerful Fireball (New Request)
+            if "powerful_fireball" not in enemy.ability_cooldowns: enemy.ability_cooldowns["powerful_fireball"] = 0
+            if current_time - enemy.ability_cooldowns["powerful_fireball"] > 8000: # 8 seconds
+                perform_powerful_fireball(enemy, enemy.game, player)
+                enemy.ability_cooldowns["powerful_fireball"] = current_time
+
+            # Ability: Summon (Re-added to Phase 3)
+            # Reuse Phase 1 Logic
+            if "summon" not in enemy.ability_cooldowns: enemy.ability_cooldowns["summon"] = 0
+            if current_time - enemy.ability_cooldowns["summon"] > 12000: # 12 seconds (less frequent than P1)
+                perform_summon(enemy, enemy.game)
+                enemy.ability_cooldowns["summon"] = current_time
 
             # Ability: Bullet Hell
             # "Alle 5 Sekunden -> perform_bullet_hell"

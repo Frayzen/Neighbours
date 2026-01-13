@@ -138,9 +138,22 @@ class Enemy(GridObject):
                 p2_path = config.get("texture_phase_2")
                 if p2_path:
                      try:
-                         # Resolve path relative to config directory
-                         # Assuming CWD is 'src', config is at 'config/'
-                         full_path = os.path.normpath(os.path.join("config", p2_path))
+                         # For relative paths in config starting with ../, we need to respect that from the src dir
+                         # src/config/../assets -> src/assets
+                         # We can just join with src/config if we want, or handle the ../ manually
+                         # Given earlier edits used os.path.join("config", p2_path), let's stick to that or improve.
+                         # Since p2_path starts with "../", os.path.join("config", "../assets") resolves to "assets" which is wrong if we are in "src".
+                         # We require "src/assets". 
+                         # Ideally, we just use the path relative to CWD (src) if it was designed that way.
+                         # BUT the Registry loader logic used `os.path.normpath(os.path.join(base_path, texture_path))` where base_path was config dir
+                         # So we should mimic that.
+                         
+                         full_path = os.path.normpath(os.path.join("src/config", p2_path)) # Assuming running from root
+                         if not os.path.exists(full_path):
+                             # Try assuming p2_path is from 'src' root if above fails?
+                             # But config says "../assets", so src/config/../assets = src/assets. Correct.
+                             pass
+                             
                          self.texture = pygame.image.load(full_path).convert_alpha()
                          debug.log(f"Loaded Phase 2 texture from {full_path}")
                      except Exception as e:
@@ -153,6 +166,12 @@ class Enemy(GridObject):
                 self.color = (255, 0, 0) # Red for Phase 3
                 debug.log(f"{self.enemy_type} entered Phase 3!")
 
+                # Trigger Final Ember Ability
+                from entities.boss_mechanics import perform_The_Final_Ember
+                perform_The_Final_Ember(self, self.game)
+
+                # Texture Swap Phase 3
+
                 # Texture Swap Phase 3
                 from core.registry import Registry
                 import os
@@ -160,7 +179,7 @@ class Enemy(GridObject):
                 p3_path = config.get("texture_phase_3")
                 if p3_path:
                      try:
-                         full_path = os.path.normpath(os.path.join("config", p3_path))
+                         full_path = os.path.normpath(os.path.join("src/config", p3_path))
                          self.texture = pygame.image.load(full_path).convert_alpha()
                          debug.log(f"Loaded Phase 3 texture from {full_path}")
                      except Exception as e:
