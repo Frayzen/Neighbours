@@ -17,7 +17,7 @@ def train():
         return
 
     print("Initializing Environment...")
-    env = BossFightEnv()
+    env = BossFightEnv(headless=True)
     
     print("Setting up PPO Model...")
     model = PPO("MlpPolicy", env, verbose=1)

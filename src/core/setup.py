@@ -27,13 +27,16 @@ class GameSetup:
         self.game = game
 
     def perform_setup(self):
-        self._init_display()
+        if not self.game.headless:
+            self._init_display()
+        
         self.game.clock = pygame.time.Clock()
         self._load_resources()
         self._init_level()
         self._init_entities()
 
     def _init_display(self):
+        if self.game.headless: return
         self.game.screen = pygame.display.set_mode(
             (SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX)
         )
@@ -42,8 +45,9 @@ class GameSetup:
         Registry.load_cells(os.path.join(BASE_DIR, "config", "environments.json"))
         Registry.load_enemies(os.path.join(BASE_DIR, "config", "enemies.json"))
         
-        # Preload all textures
-        Registry.preload_textures(BASE_DIR)
+        # Preload all textures ONLY if not headless
+        if not self.game.headless:
+            Registry.preload_textures(BASE_DIR)
 
     def _init_level(self):
         self.world_loader = WorldLoader()

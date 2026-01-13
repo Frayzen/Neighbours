@@ -10,9 +10,10 @@ from core.damages_text import DamageTexts
 
 class Game:
 
-    def __init__(self):
-        # Initialize Pygame
+    def __init__(self, headless=False):
+        # Initialize Pygame (Required for core systems like Rect)
         pygame.init()
+        self.headless = headless
         self.player = None
 
         # Perform initial setup

@@ -5,14 +5,15 @@ import pygame
 from core.game import Game
 from entities.enemy import Enemy
 from core.registry import Registry
+from config.settings import CELL_SIZE
 
 class BossFightEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, headless=False):
         super(BossFightEnv, self).__init__()
         
         # Initialize Game (Headless-ish? Pygame needs a video system usually)
         # We assume SDL_VIDEODRIVER is handled externally if needed, or we just let it open a window.
-        self.game = Game()
+        self.game = Game(headless=headless)
         self.game.paused = False
         
         # Actions: 0: Idle, 1-4: Move, 5: Attack, 6: Ability 1, 7: Ability 2
@@ -47,26 +48,30 @@ class BossFightEnv(gym.Env):
         self.game.restart_game()
         
         # Clear existing enemies
-        # We access gridObjects directly.
-        # Filter out enemies
+        # 1. NUKE THE "STUPID BOSS" (Clear natural spawns)
+        self.game.world.spawn_points = []
+        
+        # 2. Filter existing entities
         self.game.gridObjects = [obj for obj in self.game.gridObjects if obj == self.game.player]
         self.game.enemies = [] 
         
-        # Force Spawn Boss ("JörnBoss")
-        # Center of Map
-        boss_x = self.game.world.width * 32 // 2
-        boss_y = self.game.world.height * 32 // 2
+        # 3. FIX SPAWN POSITIONS (Use CELL_SIZE, not 32)
+        center_x_pix = (self.game.world.width * CELL_SIZE) // 2
+        center_y_pix = (self.game.world.height * CELL_SIZE) // 2
         
-        # Ensure 'JörnBoss' config exists or fallback
-        # Ideally it is loaded from config, but we can trust the setup or handle missing logic.
+        # Spawn Boss in the middle
         from entities.boss.joern import JoernBoss
-        self.boss = JoernBoss(self.game, boss_x, boss_y)
+        self.boss = JoernBoss(self.game, center_x_pix, center_y_pix)
         self.boss.ai_controlled = True
         self.game.gridObjects.append(self.boss)
         
+        # Spawn Player slightly to the left (200px away)
+        self.game.player.x = center_x_pix - 200
+        self.game.player.y = center_y_pix
+        
         # Training Balance: Cap HP to 1000 to speed up episodes
-        self.boss.health = 1000
-        self.boss.max_health = 1000 # Optional: Adjust max so bar looks right or keep 5000? 
+        self.boss.health = 3000
+        self.boss.max_health = 3000 # Optional: Adjust max so bar looks right or keep 5000? 
         # Better to just set health to 1000, keep max 5000 if we want to simulate "portion of fight" 
         # OR set both to 1000 to simulate a full fight with less HP.
         # User said "set self.boss.health = 1000".

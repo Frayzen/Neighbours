@@ -14,7 +14,7 @@ def train():
     """
     
     # Configuration
-    ITERATIONS = 5        # How many ping-pong rounds
+    ITERATIONS = 15        # How many ping-pong rounds
     STEPS_PER_ROUND = 20000 # Short rounds to iterate frequently
     
     boss_model_name = "joern_boss_ai_v1"
@@ -37,7 +37,7 @@ def train():
         # PHASE 1: TRAIN BOSS
         # ---------------------------
         print(f"[{i}/{ITERATIONS}] Training BOSS (vs Player)...")
-        env_boss = DuelEnv(mode="TRAIN_BOSS", human_opponent=False)
+        env_boss = DuelEnv(mode="TRAIN_BOSS", human_opponent=False, headless=True)
         
         # Load existing boss model or create new
         if os.path.exists(boss_model_name + ".zip"):
@@ -63,7 +63,7 @@ def train():
         # PHASE 2: TRAIN PLAYER
         # ---------------------------
         print(f"[{i}/{ITERATIONS}] Training PLAYER (vs Boss)...")
-        env_player = DuelEnv(mode="TRAIN_PLAYER", human_opponent=False)
+        env_player = DuelEnv(mode="TRAIN_PLAYER", human_opponent=False, headless=True)
         
         # Load existing player model or create new
         if os.path.exists(player_model_name + ".zip"):

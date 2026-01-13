@@ -11,21 +11,23 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.game import Game
 from entities.enemy import Enemy
 from entities.player import Player
+from config.settings import CELL_SIZE
 try:
     from stable_baselines3 import PPO
 except ImportError:
     PPO = None
 
 class DuelEnv(gym.Env):
-    def __init__(self, mode="TRAIN_BOSS", human_opponent=False):
+    def __init__(self, mode="TRAIN_BOSS", human_opponent=False, headless=False):
         super(DuelEnv, self).__init__()
         
         self.mode = mode # "TRAIN_BOSS" or "TRAIN_PLAYER"
         self.human_opponent = human_opponent
-        print(f"DuelEnv Initialized in mode: {self.mode}")
+        self.headless = headless
+        print(f"DuelEnv Initialized in mode: {self.mode} (Headless: {headless})")
         
         # Initialize Game
-        self.game = Game()
+        self.game = Game(headless=self.headless)
         self.game.paused = False
         
         # Actions: 0: Idle, 1-4: Move, 5: Attack, 6: Ability 1, 7: Ability 2
@@ -74,21 +76,32 @@ class DuelEnv(gym.Env):
         self.total_reward = 0
         self.step_count = 0
         
-        # Reset Game
+        # 1. Reset Game
         self.game.restart_game()
         
-        # Filter enemies
+        # 2. NUKE THE "STUPID BOSS" (Clear natural spawns)
+        # This prevents the level loader's JörnBoss from spawning
+        self.game.world.spawn_points = []
+        
+        # 3. Filter existing entities (just in case)
         self.game.gridObjects = [obj for obj in self.game.gridObjects if obj == self.game.player]
         self.game.enemies = [] 
         
-        # Spawn Boss
-        boss_x = self.game.world.width * 32 // 2
-        boss_y = self.game.world.height * 32 // 2
+        # 4. FIX SPAWN POSITIONS (Use CELL_SIZE, not 32)
+        # Center of the 100x100 grid
+        center_x_pix = (self.game.world.width * CELL_SIZE) // 2
+        center_y_pix = (self.game.world.height * CELL_SIZE) // 2
+        
+        # Spawn Boss in the middle
         from entities.boss.joern import JoernBoss
-        self.boss = JoernBoss(self.game, boss_x, boss_y)
+        self.boss = JoernBoss(self.game, center_x_pix, center_y_pix)
         self.game.gridObjects.append(self.boss)
         
-        # Configure HP
+        # Spawn Player slightly to the left (200px away) so they don't overlap instantly
+        self.game.player.x = center_x_pix - 200
+        self.game.player.y = center_y_pix
+        
+        # 5. Configure Stats
         self.boss.health = 1000
         self.boss.max_health = 1000
         
