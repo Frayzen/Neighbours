@@ -55,10 +55,11 @@ def main():
         print("2. Fight Boss (Player vs AI)")
         print("3. Watch AI vs AI")
         print("4. Train Self Play (Ping-Pong)")
+        print("5. Visualize AI Log")
         print("================================")
         
         try:
-            choice = input("Enter choice (1-4) [default: 1]: ").strip()
+            choice = input("Enter choice (1-5) [default: 1]: ").strip()
         except EOFError:
             choice = ""
             
@@ -68,6 +69,8 @@ def main():
             mode = 'vs_ai_watch'
         elif choice == '4':
             mode = 'train_self'
+        elif choice == '5':
+            mode = 'vis_log'
         else:
             mode = 'play'
             
@@ -139,6 +142,16 @@ def main():
              print(f"Error importing train_self_play: {e}")
         except Exception as e:
              print(f"Error running train_self_play: {e}")
+
+    elif mode == 'vis_log':
+        try:
+            from vis_log import run as vis_run
+            vis_run()
+        except ImportError as e:
+             print(f"Error importing vis_log: {e}")
+        except Exception as e:
+             print(f"Error running vis_log: {e}")
+
 
 if __name__ == "__main__":
     main()

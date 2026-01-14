@@ -107,6 +107,7 @@ class DuelEnv(gym.Env):
         self.total_reward = 0
         self.step_count = 0
         self.last_damage_step = 0 # For Stalemate logic
+        self._user_exit = False # Reset exit flag
         
         # 1. Reset Game
         self.game.restart_game()
@@ -248,14 +249,35 @@ class DuelEnv(gym.Env):
                 pygame.key.get_pressed = original_get_pressed
         
         # Handle Pygame Events
+        # Handle Pygame Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
+                # signal exit via info, don't hard quit
+                terminated = True
+                truncated = True # Force end
+                
+                # We need to pass this info out.
+                # Since we return at the end, we'll set a local flag or inject into existing 'info' dict if we had one (we create it at return)
+                # Let's handle this by checking a flag at return.
+                self._user_exit = True
+            
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self._user_exit = True
+                    terminated = True
             
             # Forward events if human playing
             if self.human_opponent and self.game:
                 self.game.logic.handle_event(event)
+
+        # ... (rest of function) ...
+        # But wait, we need to return 'info'.
+        # The logic continues... we should insert the check before return.
+        
+        # Let's set a class attribute or just check checks here.
+        # But we need to make sure we don't return early and skip reward calc?
+        # Actually, if user quits, we just want to stop.
+
 
         # 4. Calculate Rewards
         current_boss_hp = self.boss.health if self.boss else 0
@@ -399,7 +421,11 @@ class DuelEnv(gym.Env):
         # Scale Reward for Stability (PPO likes -1 to 1)
         reward = reward / 100.0
              
-        return self._get_obs(), reward, terminated, truncated, {}
+        info = {}
+        if hasattr(self, '_user_exit') and self._user_exit:
+            info['user_exit'] = True
+             
+        return self._get_obs(), reward, terminated, truncated, info
 
     def _get_obs(self):
         if not self.boss or not self.game.player:
