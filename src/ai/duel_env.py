@@ -22,6 +22,11 @@ try:
 except ImportError:
     PPO = None
 
+try:
+    from sb3_contrib import RecurrentPPO
+except ImportError:
+    RecurrentPPO = None
+
 from config.ai_weights import (
     REWARD_DMG_DEALT_MULTIPLIER,
     REWARD_DMG_TAKEN_MULTIPLIER,
@@ -37,7 +42,7 @@ from config.ai_weights import (
 )
 
 class DuelEnv(gym.Env):
-    def __init__(self, mode="TRAIN_BOSS", human_opponent=False, headless=False, difficulty=1):
+    def __init__(self, mode="TRAIN_BOSS", human_opponent=False, headless=False, difficulty=1, opponent_pool=None):
         super(DuelEnv, self).__init__()
         
         self.mode = mode # "TRAIN_BOSS" or "TRAIN_PLAYER"
@@ -83,22 +88,44 @@ class DuelEnv(gym.Env):
         self.opponent_model = None
         self.opponent_model_path = ""
         
-        if self.mode == "TRAIN_BOSS":
-            # Opponent is Player
-            self.opponent_model_path = "alice_ai_v1" # Expected name
-        elif self.mode == "TRAIN_PLAYER":
-            # Opponent is Boss
-            self.opponent_model_path = "joern_boss_ai_v1" # Expected name
-            
-        if PPO and self.opponent_model_path:
-            if os.path.exists(self.opponent_model_path + ".zip"):
-                try:
-                    self.opponent_model = PPO.load(self.opponent_model_path)
-                    print(f"Loaded opponent model: {self.opponent_model_path}")
-                except Exception as e:
-                    print(f"Failed to load opponent model {self.opponent_model_path}: {e}")
-            else:
-                print(f"Opponent model not found: {self.opponent_model_path}. Using fallback/script.")
+        self.opponent_pool = opponent_pool if opponent_pool else []
+        
+        # Load Initial Opponent (if pool empty, use default names)
+        if not self.opponent_pool:
+            if self.mode == "TRAIN_BOSS":
+                self.opponent_model_path = "alice_ai_v1"
+            elif self.mode == "TRAIN_PLAYER":
+                self.opponent_model_path = "joern_boss_ai_v1"
+            self._load_opponent(self.opponent_model_path)
+        else:
+            # Will be loaded in reset()
+            pass
+
+    def _load_opponent(self, path):
+        """Helper to load PPO or RecurrentPPO model."""
+        if not path: return
+        
+        # Try RecurrentPPO first (if available)
+        loaded = False
+        if RecurrentPPO and os.path.exists(path + ".zip"):
+            try:
+                self.opponent_model = RecurrentPPO.load(path)
+                # print(f"Loaded RecurrentPPO opponent: {path}")
+                loaded = True
+            except:
+                pass # Not a recurrent model?
+
+        if not loaded and PPO and os.path.exists(path + ".zip"):
+            try:
+                self.opponent_model = PPO.load(path)
+                # print(f"Loaded PPO opponent: {path}")
+                loaded = True
+            except Exception as e:
+                print(f"Failed to load opponent {path}: {e}")
+                
+        if not loaded and not os.path.exists(path + ".zip"):
+             print(f"Opponent model file not found: {path} (using script fallback)")
+             self.opponent_model = None
                 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -153,6 +180,11 @@ class DuelEnv(gym.Env):
                     if cell and (cell.name == "Spawner" or cell.name == "Trapdoor"):
                         self.game.world.set_cell(x, y, floor_cell)
         
+        # 8. Load Random Opponent (League Training)
+        if self.opponent_pool:
+             selected_opp = np.random.choice(self.opponent_pool)
+             self._load_opponent(selected_opp)
+             
         return self._get_obs(), {}
 
     def _enforce_ai_control(self):
@@ -376,6 +408,28 @@ class DuelEnv(gym.Env):
              if DISTANCE_BONUS_MIN < dist < DISTANCE_BONUS_MAX:
                  reward += REWARD_DISTANCE_BONUS
 
+        # NEAR-MISS REWARD
+        # Range: 40px. No collision implies we are collecting this reward if close.
+        # But we must ensure it's an ENEMY projectile relative to US.
+        
+        me = self.boss if (self.mode == "TRAIN_BOSS") else self.game.player
+        if me:
+             mx, my = me.x + (me.w * CELL_SIZE)/2, me.y + (me.h * CELL_SIZE)/2
+             near_miss_range = 40
+             
+             for p in self.game.projectiles:
+                 # Check ownership
+                 is_enemy_proj = False
+                 if self.mode == "TRAIN_BOSS" and p.owner_type == "player": is_enemy_proj = True
+                 if self.mode == "TRAIN_PLAYER" and p.owner_type == "enemy": is_enemy_proj = True
+                 
+                 if is_enemy_proj:
+                     dx = p.x - mx
+                     dy = p.y - my
+                     dist_p = math.sqrt(dx*dx + dy*dy)
+                     if dist_p < near_miss_range:
+                         reward += 0.05
+
         if current_boss_hp <= 0:
             if self.mode == "TRAIN_BOSS": reward -= REWARD_LOSS # Boss Died (Bad)
             else: reward += REWARD_WIN # Boss Died (Good for Player)
@@ -498,7 +552,7 @@ class DuelEnv(gym.Env):
         # --- VISION SYSTEM ---
         # 8 Directions: N, NE, E, SE, S, SW, W, NW
         angles = [0, 45, 90, 135, 180, 225, 270, 315]
-        max_view_dist = 500 # pixels
+        max_view_dist = 300 # pixels
         
         wall_obs = []
         enemy_obs = []
