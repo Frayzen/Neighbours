@@ -4,6 +4,8 @@ import os
 import sys
 import numpy as np
 
+import glob
+
 # Adjust path to import modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from ai.brain_vis import BrainVisualizer
@@ -16,11 +18,21 @@ def run():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("AI Brain Replay")
     
-    # Load Log
-    log_path = "logs/ai_match_log.csv"
-    if not os.path.exists(log_path):
-        print(f"Log file not found: {log_path}")
+    pygame.display.set_caption("AI Brain Replay")
+    
+    # Load Latest Log
+    log_dir = "logs"
+    csv_files = glob.glob(os.path.join(log_dir, "*.csv"))
+    
+    if not csv_files:
+        print(f"No log files found in {log_dir}")
         return
+        
+    # Sort by modification time
+    latest_log = max(csv_files, key=os.path.getmtime)
+    print(f"Opening latest log: {latest_log}")
+    
+    log_path = latest_log
 
     rows = []
     try:
@@ -38,8 +50,22 @@ def run():
         
     print(f"Loaded {len(rows)} frames from {log_path}")
     
-    # Setup Visualizer
-    brain = BrainVisualizer(x=50, y=50, width=650, height=500)
+    # Setup Visualizers
+    # We want Split Screen: [ BOSS BRAIN ] | [ PLAYER BRAIN ]
+    # Each is 600 wide. So window need 1250 wide or so.
+    
+    VIS_W = 600
+    VIS_H = 500
+    MARGIN = 20
+    
+    WIDTH = VIS_W * 2 + MARGIN * 3
+    HEIGHT = VIS_H + 80
+    
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("AI Brain Replay - Duel View")
+    
+    brain_boss = BrainVisualizer(x=MARGIN, y=MARGIN, width=VIS_W, height=VIS_H)
+    brain_player = BrainVisualizer(x=MARGIN*2 + VIS_W, y=MARGIN, width=VIS_W, height=VIS_H)
     
     clock = pygame.time.Clock()
     running = True
@@ -49,6 +75,7 @@ def run():
     idx_float = 0.0 # For smooth speed control
     
     font_ui = pygame.font.SysFont("Consolas", 14)
+    font_large = pygame.font.SysFont("Consolas", 20, bold=True)
     
     while running:
         screen.fill((30, 30, 30))
@@ -91,19 +118,48 @@ def run():
         # Parse Row
         row = rows[idx]
         
-        # Extract Obs
-        obs = []
-        for i in range(33):
-            col = f"obs_{i}"
-            if col in row:
-                obs.append(float(row[col]))
+        # WE NEED TO DETECT IF IT IS NEW FORMAT (DUAL) OR OLD FORMAT (SINGLE)
+        is_dual = "b_obs_0" in row
         
-        obs_arr = np.array(obs, dtype=np.float32)
-        action = int(row.get("action", 0))
-        
-        # Draw Brain
-        brain.draw(screen, None, obs_arr, last_action=action)
-        
+        if is_dual:
+            # BOSS DATA
+            b_obs = []
+            for i in range(33):
+                col = f"b_obs_{i}"
+                if col in row: b_obs.append(float(row[col]))
+            b_obs_arr = np.array(b_obs, dtype=np.float32)
+            b_act = int(row.get("act_boss", 0))
+            
+            # PLAYER DATA
+            p_obs = []
+            for i in range(33):
+                col = f"p_obs_{i}"
+                if col in row: p_obs.append(float(row[col]))
+            p_obs_arr = np.array(p_obs, dtype=np.float32)
+            p_act = int(row.get("act_player", 0))
+            
+            # Draw Both
+            brain_boss.draw(screen, None, b_obs_arr, last_action=b_act)
+            brain_player.draw(screen, None, p_obs_arr, last_action=p_act)
+            
+            # Labels
+            t_boss = font_large.render("BOSS AGENT", True, (255, 100, 100))
+            t_player = font_large.render("PLAYER AGENT", True, (100, 255, 100))
+            screen.blit(t_boss, (MARGIN, MARGIN - 20)) # A bit high, might be clipped, let's just overlay or depend on brain title
+            
+        else:
+            # FALLBACK TO OLD FORMAT
+            obs = []
+            for i in range(33):
+                col = f"obs_{i}"
+                if col in row: obs.append(float(row[col]))
+            obs_arr = np.array(obs, dtype=np.float32)
+            action = int(row.get("action", 0))
+            
+            brain_boss.draw(screen, None, obs_arr, last_action=action)
+            t_legacy = font_large.render("LEGACY LOG (SINGLE AGENT)", True, (200, 200, 200))
+            screen.blit(t_legacy, (MARGIN, HEIGHT - 100))
+
         # --- DRAW UI OVERLAY ---
         ui_y = HEIGHT - 60
         pygame.draw.rect(screen, (50, 50, 50), (0, ui_y, WIDTH, 60))

@@ -106,85 +106,77 @@ class DuelEnv(gym.Env):
         self.episode_count += 1
         self.total_reward = 0
         self.step_count = 0
-        self.last_damage_step = 0 # For Stalemate logic
-        self._user_exit = False # Reset exit flag
+        self.last_damage_step = 0 
         
-        # 1. Reset Game
+        # 1. Reset Game completely
         self.game.restart_game()
         
-        # 2. NUKE THE "STUPID BOSS" (Clear natural spawns)
-        # This prevents the level loader's JörnBoss from spawning
-        self.game.world.spawn_points = []
-        
-        # 3. Filter existing entities (just in case)
+        # 2. CLEAR EVERYTHING (Robustness Fix)
+        # Remove all default spawns (Scripted Bosses, normal enemies)
+        # Keep ONLY the player.
         self.game.gridObjects = [obj for obj in self.game.gridObjects if obj == self.game.player]
-        self.game.enemies = [] 
+        self.game.enemies = [] # Clear enemy list reference
+        self.game.world.spawn_points = [] # Disable spawners
         
-        # 4. FIX SPAWN POSITIONS (Use CELL_SIZE, not 32)
-        # Center of the 100x100 grid
+        # 3. Spawn the AI Boss
         center_x_pix = (self.game.world.width * CELL_SIZE) // 2
         center_y_pix = (self.game.world.height * CELL_SIZE) // 2
         
-        # Spawn Boss in the middle
         from entities.boss.joern import JoernBoss
         self.boss = JoernBoss(self.game, center_x_pix, center_y_pix)
-        self.game.gridObjects.append(self.boss)
         
-        # Spawn Player slightly to the left (200px away) so they don't overlap instantly
+        # IMPORTANT: Register Boss in BOTH lists
+        self.game.gridObjects.append(self.boss)
+        self.game.enemies.append(self.boss) 
+        
+        # 4. Position Player
         self.game.player.x = center_x_pix - 200
         self.game.player.y = center_y_pix
         
-        # 5. Configure Stats
+        # 5. Set Initial Health
         self.boss.health = 4000
         self.boss.max_health = 4000
-        
         self.game.player.health = self.game.player.max_health
-        
-        # Configure AI Control flags based on MODE and MODEL availability
-        
-        if self.mode == "TRAIN_BOSS":
-            # Agent controls Boss
-            self.boss.ai_controlled = True
-            
-            # Formally, Player AI is controlled if we have a model or if we want to script it via set_ai_action
-            # If no model, we fallback to our script.
-            # Our script in boss_env used keys. DuelEnv should ideally use set_ai_action for both for consistency.
-            if not self.human_opponent:
-                self.game.player.ai_controlled = True 
-            else:
-                self.game.player.ai_controlled = False 
-            
-        elif self.mode == "TRAIN_PLAYER":
-            # Agent controls Player
-            self.game.player.ai_controlled = True
-            
-            # Opponent (Boss)
-            if self.opponent_model:
-                self.boss.ai_controlled = True
-            else:
-                # If no model, let standard AI control Boss?
-                # Standard AI uses update() logic and ignores set_ai_action if ai_controlled=False.
-                # But to start standard AI, we just need ai_controlled=False.
-                self.boss.ai_controlled = False
-
         self.prev_boss_hp = self.boss.health
         self.prev_player_hp = self.game.player.health
+
+        # 6. Apply AI Flags (Initial)
+        self._enforce_ai_control()
         
-        # 6. Remove Spawners and Trapdoors (Distractors)
-        # We iterate through the grid and replace them with Floor
-        # This ensures the AI doesn't get distracted or teleport
+        # 7. Remove Distractors (Traps/Spawners)
         from core.registry import Registry
         floor_cell = Registry.get_cell("Floor")
-        
         if floor_cell:
             for y in range(self.game.world.height):
                 for x in range(self.game.world.width):
                     cell = self.game.world.get_cell(x, y)
-                    if cell:
-                         if cell.name == "Spawner" or cell.name == "Trapdoor":
-                             self.game.world.set_cell(x, y, floor_cell)
+                    if cell and (cell.name == "Spawner" or cell.name == "Trapdoor"):
+                        self.game.world.set_cell(x, y, floor_cell)
         
         return self._get_obs(), {}
+
+    def _enforce_ai_control(self):
+        """Helper to force AI flags to True, preventing 'dumb' restarts."""
+        if self.mode == "TRAIN_BOSS":
+            # Boss is AI
+            if self.boss:
+                self.boss.ai_controlled = True
+            
+            # Player is AI (unless Human is playing)
+            if not self.human_opponent:
+                self.game.player.ai_controlled = True
+            else:
+                self.game.player.ai_controlled = False
+                
+        elif self.mode == "TRAIN_PLAYER":
+            # Player is AI
+            self.game.player.ai_controlled = True
+            
+            # Boss is AI (if model exists) or Scripted
+            if self.opponent_model and self.boss:
+                self.boss.ai_controlled = True
+            elif self.boss:
+                self.boss.ai_controlled = False # Scripted Boss Opponent
 
     def get_cd_norm(self, name, duration):
         if not self.boss: return 0.0
@@ -196,35 +188,46 @@ class DuelEnv(gym.Env):
         else: return (last + duration - cur) / duration
 
     def step(self, action):
+        # --- FIX: FORCE AI CONTROL EVERY FRAME ---
+        # This prevents the "Restart Bug" where entities lose their AI flag.
+        self._enforce_ai_control()
+        
         obs = self._get_obs()
         
+        last_boss_action = 0
+        last_player_action = 0
+
         # Apply Actions
         if self.mode == "TRAIN_BOSS":
              # Agent controls Boss
-             if self.boss: self.boss.set_ai_action(action)
+             last_boss_action = int(action)
+             if self.boss: self.boss.set_ai_action(last_boss_action)
              
              # Opponent (Player)
              if not self.human_opponent and not self.opponent_model:
                  # Curriculum Bot
                  bot_action = self._get_bot_action()
-                 self.game.player.set_ai_action(bot_action)
+                 last_player_action = int(bot_action)
+                 self.game.player.set_ai_action(last_player_action)
              elif self.opponent_model:
                  # Trained Model Opponent
                  p_act, _ = self.opponent_model.predict(obs)
-                 self.game.player.set_ai_action(int(p_act))
+                 last_player_action = int(p_act)
+                 self.game.player.set_ai_action(last_player_action)
                  
         elif self.mode == "TRAIN_PLAYER":
              # Agent controls Player
-             self.game.player.set_ai_action(action)
+             last_player_action = int(action)
+             self.game.player.set_ai_action(last_player_action)
              
              # Opponent (Boss)
              if not self.opponent_model:
-                 # Standard AI uses behavior trees (better).
                  pass
              else:
                  # Trained Model Opponent
                  b_act, _ = self.opponent_model.predict(obs)
-                 if self.boss: self.boss.set_ai_action(int(b_act))
+                 last_boss_action = int(b_act)
+                 if self.boss: self.boss.set_ai_action(last_boss_action)
                  
         # Determine player movement keys based on bot logic
         # REMOVED: Legacy _get_bot_keys logic replaced by set_ai_action
@@ -424,15 +427,32 @@ class DuelEnv(gym.Env):
         info = {}
         if hasattr(self, '_user_exit') and self._user_exit:
             info['user_exit'] = True
+            
+        # PASS ACTIONS OUT FOR LOGGING
+        info['boss_action'] = last_boss_action
+        info['player_action'] = last_player_action
              
         return self._get_obs(), reward, terminated, truncated, info
 
-    def _get_obs(self):
+    def get_obs_for(self, perspective="BOSS"):
+        """Public method to get obs for a specific entity."""
+        return self._get_obs(perspective)
+
+    def _get_obs(self, perspective=None):
         if not self.boss or not self.game.player:
             return np.zeros(33, dtype=np.float32)
             
+        # Determine perspective
+        # If None, use current self.mode to decide
+        target_mode = self.mode
+        
+        if perspective == "BOSS":
+            target_mode = "TRAIN_BOSS"
+        elif perspective == "PLAYER":
+            target_mode = "TRAIN_PLAYER"
+            
         # 1. Determine "Self" and "Opponent" based on Mode
-        if self.mode == "TRAIN_BOSS":
+        if target_mode == "TRAIN_BOSS":
             me = self.boss
             opp = self.game.player
             # For Boss, normalized coordinates
@@ -505,8 +525,9 @@ class DuelEnv(gym.Env):
         # If I am Player, Enemy projectiles are dangerous.
         
         dangerous_projs = []
+        dangerous_projs = []
         for p in self.game.projectiles:
-            if self.mode == "TRAIN_BOSS":
+            if target_mode == "TRAIN_BOSS":
                 if p.owner_type == "player": dangerous_projs.append(p)
             else:
                 if p.owner_type == "enemy": dangerous_projs.append(p)

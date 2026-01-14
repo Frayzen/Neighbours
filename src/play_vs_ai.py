@@ -45,6 +45,7 @@ def run(human_opponent=True):
     history = [] # list of (timestamp, [obs...], action, value)
     import time
     import csv
+    from datetime import datetime
 
     obs, _ = env.reset()
     running = True
@@ -67,21 +68,33 @@ def run(human_opponent=True):
         else:
              action = env.action_space.sample() 
              
-        # Record Data
-        # Flatten obs if it's numpy
-        obs_list = obs.tolist() if hasattr(obs, 'tolist') else list(obs)
-        history.append({
-            "timestamp": game_tick,
-            "observations": obs_list,
-            "action": action,
-            "value": value
-        })
-        game_tick += 1
-
         # Step
         valid_action = action
-        
         obs, reward, terminated, truncated, info = env.step(valid_action)
+        
+        # Capture DUAL DATA
+        # obs right now is for the "Agent" (Boss by default in Watch Mode)
+        # But we want explicit Boss vs Player obs.
+        
+        obs_boss = env.get_obs_for("BOSS")
+        obs_player = env.get_obs_for("PLAYER")
+        
+        act_boss = info.get('boss_action', 0)
+        act_player = info.get('player_action', 0)
+             
+        # Record Data
+        # Flatten
+        ob_b_list = obs_boss.tolist() if hasattr(obs_boss, 'tolist') else list(obs_boss)
+        ob_p_list = obs_player.tolist() if hasattr(obs_player, 'tolist') else list(obs_player)
+        
+        history.append({
+            "timestamp": game_tick,
+            "obs_boss": ob_b_list,
+            "obs_player": ob_p_list,
+            "act_boss": act_boss,
+            "act_player": act_player
+        })
+        game_tick += 1
         
         env.render()
         
@@ -114,19 +127,31 @@ def run(human_opponent=True):
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
             
-        filename = os.path.join(log_dir, "ai_match_log.csv")
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(log_dir, f"ai_match_log_{timestamp_str}.csv")
         print(f"Saving match log to {filename} ({len(history)} frames)...")
         
         try:
             with open(filename, "w", newline='') as f:
                 writer = csv.writer(f)
-                # Header: timestamp, action, value, obs_0 ... obs_32
-                header = ["timestamp", "action", "value"] + [f"obs_{i}" for i in range(len(history[0]["observations"]))]
+                
+                # Header Gen
+                # timestamp, act_boss, act_player
+                # b_obs_0..32
+                # p_obs_0..32
+                
+                header = ["timestamp", "act_boss", "act_player"]
+                header += [f"b_obs_{i}" for i in range(33)]
+                header += [f"p_obs_{i}" for i in range(33)]
+                
                 writer.writerow(header)
                 
                 for row in history:
-                    line = [row["timestamp"], row["action"], row["value"]] + row["observations"]
+                    line = [row["timestamp"], row["act_boss"], row["act_player"]]
+                    line += row["obs_boss"]
+                    line += row["obs_player"]
                     writer.writerow(line)
+                    
             print("Log saved successfully.")
         except Exception as e:
             print(f"Failed to save log: {e}")
