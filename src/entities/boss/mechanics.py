@@ -37,8 +37,29 @@ def perform_summon(boss, game, enemy_type=None, count=None):
     Phase 1: Spawn minions.
     If enemy_type is None, picks random from pool.
     """
+    from entities.enemy import Enemy
+    
+    # 1. Check Cap
+
+    
+    # Filter for Enemy but not Boss
+    # Note: JoernBoss inherits from Enemy, so we must exclude it explicitly.
+    minion_count = len([obj for obj in game.gridObjects if isinstance(obj, Enemy) and obj != boss])
+    
+    if minion_count >= 10:
+        debug.log("Summon failed: Minion Cap Reached!")
+        return
+
+    # 2. Check next_summon_type
+    if enemy_type is None and hasattr(boss, 'next_summon_type') and boss.next_summon_type:
+        enemy_type = boss.next_summon_type
+        boss.next_summon_type = None # Reset
+        
     if count is None:
         count = random.randint(2, 3)
+        # If specific type, maybe spawn fewer? Or same.
+        if enemy_type:
+             count = 2 # Fixed for specific? Or keep random. User didn't specify.
         
     # Pool of summonable minions
     SUMMON_POOL = ["basic_enemy", "fast_enemy", "ranger", "tank_enemy", "healer"]
@@ -59,6 +80,7 @@ def perform_summon(boss, game, enemy_type=None, count=None):
         # Verify if enemy type exists to avoid crashes? The Enemy class handles fallback but warned.
         
         minion = Enemy(game, spawn_x, spawn_y, etype)
+        minion.summoner = boss # 3. Set Summoner
         game.gridObjects.append(minion)
         
     debug.log(f"JörnBoss summoned {count} {enemy_type if enemy_type else 'random'} minions!")

@@ -61,6 +61,23 @@ class Player(GridObject):
         except Exception as e:
             print(f"Failed to equip default weapons: {e}")
 
+        # Visuals
+        self.texture = None
+        try:
+            import os
+            # Build absolute path to avoid cwd issues
+            # We assume src is in path or we are running from root
+            # Let's try relative to this file
+            base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            img_path = os.path.join(base_path, "src", "assets", "images", "Alice.png")
+            
+            loaded_img = pygame.image.load(img_path).convert_alpha()
+            self.texture = pygame.transform.scale(loaded_img, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+            debug.log(f"Loaded Player Texture: {img_path}")
+        except Exception as e:
+            debug.log(f"Failed to load player texture: {e}")
+            self.texture = None
+
         # Physics / Forces
         self.external_force = [0, 0]
         self.force_decay = 0.9 # Retain 90% per frame (slippery) or 0.5 for fast stop
@@ -364,7 +381,10 @@ class Player(GridObject):
 
     def draw(self, screen):
         # Draw player
-        pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
+        if self.texture:
+            screen.blit(self.texture, (self.x, self.y))
+        else:
+            pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
         
         # Draw weapon
         weapon = self.combat.current_weapon

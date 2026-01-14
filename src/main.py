@@ -3,6 +3,10 @@ import sys
 import os
 import argparse
 import pygame
+import warnings
+
+# Suppress pkg_resources deprecation warning from pygame/setuptools
+warnings.filterwarnings("ignore", category=UserWarning, module="pkg_resources")
 
 # Set random seed
 random.seed(39)
@@ -116,8 +120,21 @@ def main():
             except ValueError:
                 print(f"Invalid input. Using default: {default_envs}")
                 n_envs = default_envs
+                
+            # Prompt for Training Target
+            print("Select Training Target:")
+            print("[1] Both (Ping-Pong)")
+            print("[2] Boss Only")
+            print("[3] Alice Only")
             
-            train(iterations=iterations, n_envs=n_envs)
+            target_map = {"1": "BOTH", "2": "BOSS", "3": "PLAYER"}
+            try:
+                t_input = input("Enter choice (1-3) [default: 1]: ").strip()
+                target_choice = target_map.get(t_input, "BOTH")
+            except Exception:
+                target_choice = "BOTH"
+            
+            train(iterations=iterations, n_envs=n_envs, target=target_choice)
         except ImportError as e:
              print(f"Error importing train_self_play: {e}")
         except Exception as e:

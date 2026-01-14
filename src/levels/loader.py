@@ -101,7 +101,7 @@ class WorldLoader:
                     self.world.set_cell(x, y, self.grass) # Floor
                     
         # House Door
-        self.world.set_cell(house_x + house_w // 2, house_y + house_h - 1, self.grass) # Opening
+        # self.world.set_cell(house_x + house_w // 2, house_y + house_h - 1, self.grass) # Opening (CLOSED FOR AI TRAINING)
         
         # 5. Trapdoor (inside house)
         trapdoor_cell = Registry.get_cell("Trapdoor")

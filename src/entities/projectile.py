@@ -4,7 +4,7 @@ from entities.base import GridObject
 from config.settings import CELL_SIZE
 
 class Projectile(GridObject):
-    def __init__(self, x, y, direction, speed, damage, owner_type, texture=None, behavior="LINEAR", visual_type="ARROW", target_pos=None, color=(255, 255, 0), explode_radius=0, start_delay=0):
+    def __init__(self, x, y, direction, speed, damage, owner_type, texture=None, behavior="LINEAR", visual_type="ARROW", target_pos=None, color=(255, 255, 0), explode_radius=0, start_delay=0, owner=None):
         super().__init__(x, y, 0.5, 0.5, color=color) 
         
         # Robust direction handling
@@ -23,6 +23,7 @@ class Projectile(GridObject):
         self.explode_radius = explode_radius
         self.should_explode = False
         self.start_delay = start_delay
+        self.owner = owner
         
         # Visual state
         self.anim_timer = 0

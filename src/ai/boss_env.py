@@ -7,6 +7,17 @@ from core.game import Game
 from entities.enemy import Enemy
 from core.registry import Registry
 from config.settings import CELL_SIZE
+from config.ai_weights import (
+    REWARD_DMG_DEALT_MULTIPLIER,
+    REWARD_DMG_TAKEN_MULTIPLIER,
+    REWARD_STEP_PENALTY,
+    REWARD_WHIFF_PENALTY,
+    REWARD_DISTANCE_BONUS,
+    REWARD_WIN,
+    REWARD_LOSS,
+    DISTANCE_BONUS_MIN,
+    DISTANCE_BONUS_MAX
+)
 
 class BossFightEnv(gym.Env):
     def __init__(self, headless=False, difficulty=1):
@@ -226,30 +237,30 @@ class BossFightEnv(gym.Env):
         
         # Reward Function
         # We want to maximize damage dealt and minimize damage taken.
-        # Encouraging Aggression: 2.0x for damage dealt
-        # Existential Penalty: -0.05 per step to force quick kills
-        reward = (dmg_dealt * 2.0) - (dmg_taken * 1.0)
-        reward -= 0.05
+        # Encouraging Aggression
+        # Existential Penalty: per step to force quick kills
+        reward = (dmg_dealt * REWARD_DMG_DEALT_MULTIPLIER) - (dmg_taken * REWARD_DMG_TAKEN_MULTIPLIER)
+        reward -= REWARD_STEP_PENALTY
         
         # Whiff Punishment (If attacked but dealt no damage)
         # Action 5 is Attack
         if action == 5 and dmg_dealt <= 0:
-            reward -= 0.2
+            reward -= REWARD_WHIFF_PENALTY
             
-        # Distance Reward (Sweet Spot: 150-400px)
+        # Distance Reward
         # Encourage staying within effective range but not hugging
         if self.boss:
              dx = self.game.player.x - self.boss.x
              dy = self.game.player.y - self.boss.y
              dist = (dx**2 + dy**2)**0.5
-             if 150 < dist < 450:
-                 reward += 0.01
+             if DISTANCE_BONUS_MIN < dist < DISTANCE_BONUS_MAX:
+                 reward += REWARD_DISTANCE_BONUS
         
         if current_boss_hp <= 0:
-            reward += 100 # Bonus for killing boss
+            reward += REWARD_WIN # Bonus for killing boss
         
         if current_player_hp <= 0:
-            reward -= 50 # Penalty for dying
+            reward -= REWARD_LOSS # Penalty for dying
             
         self.total_reward += reward
         self.step_count += 1

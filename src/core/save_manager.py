@@ -16,6 +16,10 @@ class SaveManager:
         We explicitly choose what to save to avoid pickling the entire Game object 
         (which contains non-serializable Pygame surfaces).
         """
+        if getattr(game, 'headless', False):
+            # debug.log("Skipping save in headless mode.")
+            return
+
         data = {
             "player": game.player,
             "gridObjects": game.gridObjects,

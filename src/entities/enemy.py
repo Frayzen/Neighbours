@@ -66,6 +66,12 @@ class Enemy(GridObject):
         
         self.last_attack_time = 0
         self.attack_cooldown = 2000 # Default, or could be in config
+        
+        # Minion Logic
+        self.next_summon_type = None
+        self.minion_damage_dealt = 0
+        self.minion_healing_received = 0
+        self.summoner = None
 
 
 
@@ -150,6 +156,18 @@ class Enemy(GridObject):
             self.ai_move_vector = (-1, 0)
         elif action == 4: # Right
             self.ai_move_vector = (1, 0)
+            
+        # Minion Choice Logic
+        if action == 8:
+            self.next_summon_type = "tank_enemy"
+            self.current_ai_action = 6 # Trigger Summon (Ability 1)
+        elif action == 9:
+            self.next_summon_type = "ranger"
+            self.current_ai_action = 6
+        elif action == 10:
+            self.next_summon_type = "healer"
+            self.current_ai_action = 6
+            
         # 5: Attack, 6: Ability 1, 7: Ability 2 are handled in update()
 
     def update(self, target_pos_or_flow_field, entities=None):
@@ -181,7 +199,8 @@ class Enemy(GridObject):
                             owner_type="enemy",
                             texture=None,
                             visual_type="ARROW",
-                            color=(150, 50, 255)
+                            color=(150, 50, 255),
+                            owner=self
                         )
                      )
                      self.last_attack_time = current_time
@@ -298,7 +317,8 @@ class Enemy(GridObject):
                             owner_type="enemy",
                             texture=None,
                             visual_type="ARROW",
-                            color=(150, 50, 255) # Purple enemy arrow
+                            color=(150, 50, 255), # Purple enemy arrow
+                            owner=self
                         )
                     )
                     self.last_attack_time = current_time

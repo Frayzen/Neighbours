@@ -35,9 +35,10 @@ def train():
         "MlpPolicy", 
         env, 
         verbose=1,
-        batch_size=512,
-        n_steps=2048,
-        learning_rate=3e-4
+        batch_size=2048,
+        n_steps=512,
+        learning_rate=3e-4,
+        device="cpu"
     )
     
     print("Starting Training (100,000 timesteps)...")

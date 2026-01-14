@@ -5,6 +5,7 @@ import pygame
 import traceback # Added for debuggingsys
 import os
 import sys
+import math
 from collections import defaultdict
 
 # Add src directory to python path
@@ -13,11 +14,27 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.game import Game
 from entities.enemy import Enemy
 from entities.player import Player
-from config.settings import CELL_SIZE
+from entities.player import Player
+from config.settings import CELL_SIZE, GRID_WIDTH, GRID_HEIGHT
+from ai.vision import cast_wall_ray, cast_entity_ray
 try:
     from stable_baselines3 import PPO
 except ImportError:
     PPO = None
+
+from config.ai_weights import (
+    REWARD_DMG_DEALT_MULTIPLIER,
+    REWARD_DMG_TAKEN_MULTIPLIER,
+    REWARD_STEP_PENALTY,
+    REWARD_WHIFF_PENALTY,
+    REWARD_WALL_COLLISION_PENALTY,
+    REWARD_STALEMATE_PENALTY,
+    REWARD_DISTANCE_BONUS,
+    REWARD_WIN,
+    REWARD_LOSS,
+    DISTANCE_BONUS_MIN,
+    DISTANCE_BONUS_MAX
+)
 
 class DuelEnv(gym.Env):
     def __init__(self, mode="TRAIN_BOSS", human_opponent=False, headless=False, difficulty=1):
@@ -27,18 +44,29 @@ class DuelEnv(gym.Env):
         self.human_opponent = human_opponent
         self.headless = headless
         self.difficulty = difficulty # 1: Stand Still, 2: Run Away, 3: Kite/Attack
-        print(f"DuelEnv Initialized in mode: {self.mode} (Headless: {headless}, Difficulty: {difficulty})")
+        
+        # Frame Skip Logic
+        # If Human Playing OR Watching (Not Headless), run 1x speed (frame_skip = 1)
+        # If Training (Headless and AI vs AI), run 4x speed (frame_skip = 4)
+        if self.human_opponent or not self.headless:
+            self.frame_skip = 1
+        else:
+            self.frame_skip = 4
+            
+        print(f"DuelEnv Initialized in mode: {self.mode} (Headless: {headless}, Difficulty: {difficulty}, FrameSkip: {self.frame_skip})")
         
         # Initialize Game
         self.game = Game(headless=self.headless)
         self.game.paused = False
         
         # Actions: 0: Idle, 1-4: Move, 5: Attack, 6: Ability 1, 7: Ability 2
-        # Both Boss and Player support 0-7 via set_ai_action
-        self.action_space = spaces.Discrete(8)
+        # 8: Summon Tank, 9: Summon Ranger, 10: Summon Healer
+        self.action_space = spaces.Discrete(11)
         
-        # Observation: [BossX, BossY, PlayerX, PlayerY, BossHP, PlayerHP, Phase, CD1, CD2]
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(9,), dtype=np.float32)
+        # Observation: 
+        # Old: [BossX, BossY, PlayerX, PlayerY, BossHP, PlayerHP, Phase, CD1, CD2] (9)
+        # New: Old(9) + WallRays(8) + EnemyRays(8) + ProjSectors(8) = 33
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(33,), dtype=np.float32)
         
         self.boss = None
         self.prev_boss_hp = 100
@@ -57,7 +85,7 @@ class DuelEnv(gym.Env):
         
         if self.mode == "TRAIN_BOSS":
             # Opponent is Player
-            self.opponent_model_path = "player_ai_v1" # Expected name
+            self.opponent_model_path = "alice_ai_v1" # Expected name
         elif self.mode == "TRAIN_PLAYER":
             # Opponent is Boss
             self.opponent_model_path = "joern_boss_ai_v1" # Expected name
@@ -106,8 +134,8 @@ class DuelEnv(gym.Env):
         self.game.player.y = center_y_pix
         
         # 5. Configure Stats
-        self.boss.health = 1000
-        self.boss.max_health = 1000
+        self.boss.health = 4000
+        self.boss.max_health = 4000
         
         self.game.player.health = self.game.player.max_health
         
@@ -141,7 +169,30 @@ class DuelEnv(gym.Env):
         self.prev_boss_hp = self.boss.health
         self.prev_player_hp = self.game.player.health
         
+        # 6. Remove Spawners and Trapdoors (Distractors)
+        # We iterate through the grid and replace them with Floor
+        # This ensures the AI doesn't get distracted or teleport
+        from core.registry import Registry
+        floor_cell = Registry.get_cell("Floor")
+        
+        if floor_cell:
+            for y in range(self.game.world.height):
+                for x in range(self.game.world.width):
+                    cell = self.game.world.get_cell(x, y)
+                    if cell:
+                         if cell.name == "Spawner" or cell.name == "Trapdoor":
+                             self.game.world.set_cell(x, y, floor_cell)
+        
         return self._get_obs(), {}
+
+    def get_cd_norm(self, name, duration):
+        if not self.boss: return 0.0
+        cur = pygame.time.get_ticks()
+        # Ensure boss has ability_cooldowns
+        if not hasattr(self.boss, 'ability_cooldowns'): return 0.0
+        last = self.boss.ability_cooldowns.get(name, 0)
+        if cur - last > duration: return 0.0
+        else: return (last + duration - cur) / duration
 
     def step(self, action):
         obs = self._get_obs()
@@ -178,20 +229,23 @@ class DuelEnv(gym.Env):
         # REMOVED: Legacy _get_bot_keys logic replaced by set_ai_action
         
         # Monkey patch pygame.key.get_pressed to simulate player input
-        # No longer needed if ai_controlled works, but keeping empty for safety
+        # ONLY if Human is NOT playing. If Human IS playing, let them use keyboard.
         original_get_pressed = pygame.key.get_pressed
-        pygame.key.get_pressed = lambda: defaultdict(int) # Safe for any key index
+        
+        if not self.human_opponent:
+             pygame.key.get_pressed = lambda: defaultdict(int) # Block keys for AI
         
         try:
-            # Frame Skipping: Run 4 frames per action
-            for _ in range(4):
+            # Frame Skipping: Run frame_skip frames per action
+            for _ in range(self.frame_skip):
                 self.game.logic.update()
         except Exception as e:
             print(f"Error during logic update: {e}")
             traceback.print_exc()
             
         finally:
-            pygame.key.get_pressed = original_get_pressed
+            if not self.human_opponent:
+                pygame.key.get_pressed = original_get_pressed
         
         # Handle Pygame Events
         for event in pygame.event.get():
@@ -210,35 +264,80 @@ class DuelEnv(gym.Env):
         dmg_dealt_to_boss = self.prev_boss_hp - current_boss_hp
         dmg_dealt_to_player = self.prev_player_hp - current_player_hp
         
+        # Calculate Minion Damage
+        minion_dmg = 0
+        if self.boss:
+            minion_dmg = getattr(self.boss, 'minion_damage_dealt', 0)
+        
         reward = 0
         
         if self.mode == "TRAIN_BOSS":
             # Reward Boss
             # + Damage Dealt to Player, - Damage Taken
-            reward = (dmg_dealt_to_player * 2.0) - (dmg_dealt_to_boss * 1.0)
-            reward -= 0.05
+            reward = (dmg_dealt_to_player * REWARD_DMG_DEALT_MULTIPLIER) - (dmg_dealt_to_boss * REWARD_DMG_TAKEN_MULTIPLIER)
+            reward -= REWARD_STEP_PENALTY
+            
+            # Minion Reward
+            if minion_dmg > 0:
+                reward += minion_dmg * 0.5
+                self.boss.minion_damage_dealt = 0 # Reset
+            
             dmg_dealt = dmg_dealt_to_player
             dmg_taken = dmg_dealt_to_boss
+            
+            # Wall Collision Penalty (Slight)
+            if self.boss:
+                # Check center point or just simple bounds check
+                # A robust check uses the game physics, but here we can check if the tile the boss is on is walkable.
+                # Boss width is usually > 1, so we check corners?
+                # Simplified: Check center tile
+                bx_tile = int(self.boss.x / CELL_SIZE)
+                by_tile = int(self.boss.y / CELL_SIZE)
+                
+                # Check neighbors if we really want to punish sticking to walls
+                # Or just check if we are actually colliding with a wall (physics handles collision, so x/y won't be IN a wall usually)
+                # But if physics pushed us out, we were touching it.
+                # Let's use the game's get_tile logic.
+                
+                # Better approach: Punish being near walls? Or just actual collision?
+                # User said "if he is in a wall are coliding with on".
+                # Since physics prevents being "in" a wall, we punish being "blocked" or very close.
+                # Let's check 4 points around the boss.
+                
+                colliding = False
+                corners = [
+                    (self.boss.x, self.boss.y),
+                    (self.boss.x + self.boss.w * CELL_SIZE, self.boss.y),
+                    (self.boss.x, self.boss.y + self.boss.h * CELL_SIZE),
+                    (self.boss.x + self.boss.w * CELL_SIZE, self.boss.y + self.boss.h * CELL_SIZE)
+                ]
+                
+                for cx, cy in corners:
+                    tx, ty = int(cx // CELL_SIZE), int(cy // CELL_SIZE)
+                    tile = self.game.world.get_cell(tx, ty)
+                    if tile and not tile.walkable:
+                        colliding = True
+                        break
+                        
+                if colliding:
+                    reward -= REWARD_WALL_COLLISION_PENALTY # Slight punishment per step
+            
         elif self.mode == "TRAIN_PLAYER":
             dmg_dealt = dmg_dealt_to_boss
             dmg_taken = dmg_dealt_to_player
             
-        # Reward Function
-        # We want to maximize damage dealt and minimize damage taken.
-        # Encouraging Aggression: 2.0x for damage dealt
-        # Existential Penalty: -0.05 per step to force quick kills
-        reward = (dmg_dealt * 2.0) - (dmg_taken * 1.0)
-        reward -= 0.05
+            reward = (dmg_dealt * REWARD_DMG_DEALT_MULTIPLIER) - (dmg_taken * REWARD_DMG_TAKEN_MULTIPLIER)
+            reward -= REWARD_STEP_PENALTY
         
         # Whiff Punishment & Distance Reward
         if self.mode == "TRAIN_BOSS" and self.boss:
             # Controlling Boss
              if action == 5 and dmg_dealt <= 0:
-                 reward -= 0.2
+                 reward -= REWARD_WHIFF_PENALTY
              
              dist = ((self.game.player.x - self.boss.x)**2 + (self.game.player.y - self.boss.y)**2)**0.5
-             if 150 < dist < 450:
-                 reward += 0.01
+             if DISTANCE_BONUS_MIN < dist < DISTANCE_BONUS_MAX:
+                 reward += REWARD_DISTANCE_BONUS
                  
         elif self.mode == "TRAIN_PLAYER":
             # Controlling Player
@@ -246,19 +345,19 @@ class DuelEnv(gym.Env):
              if action == 5 and dmg_dealt <= 0: # Assuming player dmg_dealt is to boss (dmg_dealt var is boss loss?)
                  # In TRAIN_PLAYER, we want to MAXIMIZE Boss Damage Taken.
                  # dmg_dealt = prev_boss_hp - cur_boss_hp. So positive dmg_dealt is good.
-                 reward -= 0.2
+                 reward -= REWARD_WHIFF_PENALTY
              
              dist = ((self.game.player.x - self.boss.x)**2 + (self.game.player.y - self.boss.y)**2)**0.5
-             if 150 < dist < 450:
-                 reward += 0.01
+             if DISTANCE_BONUS_MIN < dist < DISTANCE_BONUS_MAX:
+                 reward += REWARD_DISTANCE_BONUS
 
         if current_boss_hp <= 0:
-            if self.mode == "TRAIN_BOSS": reward -= 50 # Boss Died (Bad)
-            else: reward += 100 # Boss Died (Good for Player)
+            if self.mode == "TRAIN_BOSS": reward -= REWARD_LOSS # Boss Died (Bad)
+            else: reward += REWARD_WIN # Boss Died (Good for Player)
         
         if current_player_hp <= 0:
-            if self.mode == "TRAIN_BOSS": reward += 100 # Player Died (Good for Boss)
-            else: reward -= 50 # Player Died (Bad)         
+            if self.mode == "TRAIN_BOSS": reward += REWARD_WIN # Player Died (Good for Boss)
+            else: reward -= REWARD_LOSS # Player Died (Bad)         
         self.total_reward += reward
         self.step_count += 1
         
@@ -285,13 +384,13 @@ class DuelEnv(gym.Env):
             
         # STALEMATE BREAKER
         # If no damage dealt for N steps, end game
-        if dmg_dealt != 0 or dmg_taken != 0:
+        if dmg_dealt != 0 or dmg_taken != 0 or minion_dmg > 0:
             self.last_damage_step = self.step_count
             
         if self.step_count - self.last_damage_step > 500:
             terminated = True
             # Stalemate Penalty
-            reward -= 0.1
+            reward -= REWARD_STALEMATE_PENALTY
             truncated = True # Or just terminated? Truncated is better for time limit.
             
         if terminated and winner is not None:
@@ -303,31 +402,125 @@ class DuelEnv(gym.Env):
         return self._get_obs(), reward, terminated, truncated, {}
 
     def _get_obs(self):
-        # Same observation logic as BossFightEnv for compatibility
-        if not self.boss or self.boss not in self.game.gridObjects:
-             return np.zeros(9, dtype=np.float32)
-
-        w = max(1, self.game.world.width * 32)
-        h = max(1, self.game.world.height * 32)
+        if not self.boss or not self.game.player:
+            return np.zeros(33, dtype=np.float32)
+            
+        # 1. Determine "Self" and "Opponent" based on Mode
+        if self.mode == "TRAIN_BOSS":
+            me = self.boss
+            opp = self.game.player
+            # For Boss, normalized coordinates
+            my_x = me.x / (GRID_WIDTH * CELL_SIZE)
+            my_y = me.y / (GRID_HEIGHT * CELL_SIZE)
+            # Opponent relative to world
+            opp_x = opp.x / (GRID_WIDTH * CELL_SIZE)
+            opp_y = opp.y / (GRID_HEIGHT * CELL_SIZE)
+            
+            my_hp = me.health / me.max_health
+            opp_hp = opp.health / opp.max_health
+            
+            # Boss specific
+            phase = me.phase / 3.0 if hasattr(me, "phase") else 0
+            cd1 = self.get_cd_norm("projectile", 2000) # Example
+            cd2 = self.get_cd_norm("dash", 5000)
+            
+        else: # TRAIN_PLAYER
+            me = self.game.player
+            opp = self.boss
+            
+            my_x = me.x / (GRID_WIDTH * CELL_SIZE)
+            my_y = me.y / (GRID_HEIGHT * CELL_SIZE)
+            
+            opp_x = opp.x / (GRID_WIDTH * CELL_SIZE)
+            opp_y = opp.y / (GRID_HEIGHT * CELL_SIZE)
+            
+            my_hp = me.health / me.max_health
+            opp_hp = opp.health / opp.max_health
+            
+            phase = 0 # Player doesn't need phase? Or maybe boss phase is useful info
+            if opp:
+                 phase = opp.phase / 3.0 if hasattr(opp, "phase") else 0
+                 
+            # Player cooldowns
+            cd1 = 0 # TODO: hook up player cooldowns
+            cd2 = 0
+            
+        base_obs = [
+            my_x, my_y, opp_x, opp_y, my_hp, opp_hp, phase, cd1, cd2
+        ]
         
-        bx = self.boss.x / w
-        by = self.boss.y / h
-        px = self.game.player.x / w
-        py = self.game.player.y / h
-        bhp = self.boss.health / max(1, self.boss.max_health)
-        php = self.game.player.health / max(1, self.game.player.max_health)
-        phase = getattr(self.boss, 'phase', 1) / 3.0
+        # --- VISION SYSTEM ---
+        # 8 Directions: N, NE, E, SE, S, SW, W, NW
+        angles = [0, 45, 90, 135, 180, 225, 270, 315]
+        max_view_dist = 500 # pixels
         
-        cur = pygame.time.get_ticks()
-        def get_cd_norm(name, duration):
-            last = self.boss.ability_cooldowns.get(name, 0)
-            if cur - last > duration: return 0.0
-            else: return (last + duration - cur) / duration
-
-        cd1 = get_cd_norm("dash", 5000)
-        cd2 = get_cd_norm("shield", 10000)
+        wall_obs = []
+        enemy_obs = []
         
-        return np.array([bx, by, px, py, bhp, php, phase, cd1, cd2], dtype=np.float32)
+        cx, cy = me.x + (me.w * CELL_SIZE)//2, me.y + (me.h * CELL_SIZE)//2
+        
+        for deg in angles:
+            rad = math.radians(deg)
+            # Wall Ray
+            w_dist = cast_wall_ray(self.game, cx, cy, rad, max_view_dist)
+            wall_obs.append(w_dist)
+            
+            # Entity Ray (Opponent)
+            e_dist = cast_entity_ray(self.game, cx, cy, rad, max_view_dist, opp)
+            enemy_obs.append(e_dist)
+            
+        # --- PROJECTILE SECTOR SCAN ---
+        # Check 8 sectors for ANY dangerous projectile
+        # Closest projectile determines the value (1.0 = VERY close)
+        proj_sectors = [0.0] * 8
+        
+        # We need to know which projectiles are dangerous.
+        # If I am Boss, Player projectiles are dangerous.
+        # If I am Player, Enemy projectiles are dangerous.
+        
+        dangerous_projs = []
+        for p in self.game.projectiles:
+            if self.mode == "TRAIN_BOSS":
+                if p.owner_type == "player": dangerous_projs.append(p)
+            else:
+                if p.owner_type == "enemy": dangerous_projs.append(p)
+                
+        for p in dangerous_projs:
+            # Vector to projectile
+            dx = p.x - cx
+            dy = p.y - cy
+            dist = math.sqrt(dx*dx + dy*dy)
+            
+            if dist < max_view_dist:
+                # Calculate angle
+                angle = math.degrees(math.atan2(dy, dx))
+                if angle < 0: angle += 360
+                
+                # Map to 8 sectors (0-45 -> 0, etc.)
+                # Normalizing angle to index 0-7
+                # We want sectors centered on 0, 45, 90...
+                # Sector 0 covers 337.5 to 22.5.
+                # Sector 1 covers 22.5 to 67.5.
+                
+                idx = int((angle + 22.5) // 45) % 8
+                
+                # Value: Closer = Higher
+                val = 1.0 - (dist / max_view_dist)
+                
+                # Keep max danger for that sector
+                if val > proj_sectors[idx]:
+                    proj_sectors[idx] = val
+                    
+        # Concat all
+        full_obs = np.array(base_obs + wall_obs + enemy_obs + proj_sectors, dtype=np.float32)
+        
+        # Sanity check shape
+        if full_obs.shape[0] != 33:
+             print(f"WARNING: Obs shape mismatch! Expected 33, got {full_obs.shape[0]}")
+             # Pad or truncate
+             full_obs = np.resize(full_obs, (33,))
+             
+        return full_obs
 
         return 0 # Idle
 

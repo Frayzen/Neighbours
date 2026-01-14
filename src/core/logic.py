@@ -111,6 +111,11 @@ class GameLogic:
                          self._trigger_projectile_explosion(proj)
                      else:
                          player.take_damage(proj.damage)
+                         # Track Minion Damage
+                         if proj.owner and hasattr(proj.owner, 'summoner') and proj.owner.summoner:
+                             # Check if summoner has tracking
+                             if hasattr(proj.owner.summoner, 'minion_damage_dealt'):
+                                 proj.owner.summoner.minion_damage_dealt += proj.damage
                      
                      if proj not in to_remove:
                         to_remove.append(proj)
@@ -215,6 +220,10 @@ class GameLogic:
             enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.w * CELL_SIZE, enemy.h * CELL_SIZE)
             if player_rect.colliderect(enemy_rect):
                 self.game.player.take_damage(enemy.damage)
+                # Track Minion Damage
+                if hasattr(enemy, 'summoner') and enemy.summoner:
+                     if hasattr(enemy.summoner, 'minion_damage_dealt'):
+                         enemy.summoner.minion_damage_dealt += enemy.damage
 
     def _handle_pickups(self):
         # Pickup System (Items & XP)
