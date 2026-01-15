@@ -69,7 +69,13 @@ class DuelEnv(gym.Env):
         else:
             self.frame_skip = 4
             
+        # Smart Throttling: Ensure Opponent AI always runs at ~15Hz (Every 4 frames)
+        # If frame_skip is 1 (60fps step), run every 4 steps.
+        # If frame_skip is 4 (15fps step), run every 1 step.
+        self.ai_run_period = max(1, 4 // self.frame_skip)
+
         print(f"DuelEnv Initialized: {self.mode} (Human: {human_opponent}, Headless: {headless})")
+        print(f" > Frame Skip: {self.frame_skip}, Opponent AI Period: {self.ai_run_period} steps")
         
         self.game = Game(headless=self.headless)
         self.game.paused = False
@@ -94,6 +100,8 @@ class DuelEnv(gym.Env):
         self.opponent_episode_starts = np.ones((1,), dtype=bool)
         
         # Internal Frame Stacking for Opponent
+        # We manually stack 4 frames so the opponent (who expects 144 inputs) 
+        # doesn't crash when receiving only 36 inputs from the raw env.
         self.opponent_obs_stack = collections.deque(maxlen=4)
         self.last_opponent_action = 0
         
@@ -113,6 +121,13 @@ class DuelEnv(gym.Env):
     def set_opponent_pool(self, pool):
         """Allows the trainer to update opponents without restarting the process."""
         self.opponent_pool = pool
+
+    def set_mode(self, mode):
+        """Allows switching between TRAIN_BOSS and TRAIN_PLAYER modes dynamically."""
+        if mode in ["TRAIN_BOSS", "TRAIN_PLAYER"]:
+            self.mode = mode
+            # Reset control flags
+            self._enforce_ai_control()
 
     def _load_opponent(self, path):
         if not path: return
@@ -255,8 +270,8 @@ class DuelEnv(gym.Env):
             return np.concatenate(self.opponent_obs_stack, axis=-1)
 
         # SHOULD WE RUN NETWORK?
-        # Throttle: Run opponent AI only every 4th step (approx 15Hz if game is 60Hz)
-        run_opponent_ai = (self.step_count % 4 == 0)
+        # Throttle: Run opponent AI only every 4th game frame (15Hz)
+        run_opponent_ai = (self.step_count % self.ai_run_period == 0)
 
         if self.mode == "TRAIN_BOSS":
              last_boss_action = int(action)
@@ -268,6 +283,7 @@ class DuelEnv(gym.Env):
                          try:
                             # Use Stacked Obs
                             stacked_obs = get_stacked_obs()
+                            # if self.step_count % 100 == 0: print(f"DEBUG: Running Opponent NN Predict (Step {self.step_count})")
                             p_act, self.opponent_lstm_states = self.opponent_model.predict(
                                 stacked_obs, 
                                 state=self.opponent_lstm_states, 
@@ -276,7 +292,7 @@ class DuelEnv(gym.Env):
                             self.opponent_episode_starts = np.zeros((1,), dtype=bool) # Reset start flag
                             self.last_opponent_action = int(p_act)
                          except Exception as e:
-                            # print(f"AI Predict Error: {e}")
+                            print(f"AI Predict Error: {e}")
                             self.opponent_model = None 
                      
                      # Use cached action
@@ -284,6 +300,7 @@ class DuelEnv(gym.Env):
                      map_action_to_input(last_player_action, ai_input_state)
                  
                  if not self.opponent_model:
+                     if self.step_count % 1000 == 0: print("DEBUG: Using Scripted Bot")
                      bot_action = self._get_bot_action()
                      last_player_action = int(bot_action)
                      map_action_to_input(last_player_action, ai_input_state)

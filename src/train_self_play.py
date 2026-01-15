@@ -27,20 +27,30 @@ from ai.training_utils import (
 )
 
 
-def create_optimized_env(env_id, **env_kwargs):
+class MakeOptimizedEnv:
     """
-    Create environment with CPU affinity optimization.
-    This function is called by each worker process.
+    Callable class to create optimized environments.
+    Necessary for multiprocessing pickling on Windows.
     """
-    def _init():
+    def __init__(self, env_id, **kwargs):
+        self.env_id = env_id
+        self.kwargs = kwargs
+        
+    def __call__(self):
+        import os
+        from ai.duel_env import DuelEnv
+        from stable_baselines3.common.monitor import Monitor
+        from ai.training_utils import set_worker_cpu_affinity
+        
         # Set CPU affinity for this worker
+        env_kwargs = self.kwargs.copy()
         num_workers = env_kwargs.pop('_num_workers', os.cpu_count())
-        core_id = set_worker_cpu_affinity(env_id, num_workers)
+        set_worker_cpu_affinity(self.env_id, num_workers)
         
         # Create the environment
         env = DuelEnv(**env_kwargs)
+        env = Monitor(env)
         return env
-    return _init
 
 
 def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profile='AUTO'):
@@ -75,6 +85,7 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
         from stable_baselines3 import PPO
         from stable_baselines3.common.env_util import make_vec_env
         from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize, VecFrameStack, DummyVecEnv
+        from stable_baselines3.common.monitor import Monitor
         from sb3_contrib import RecurrentPPO
     except ImportError:
         print("❌ Error: stable_baselines3 or sb3-contrib not installed.")
@@ -109,12 +120,39 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
     boss_model = None
     player_model = None
 
-    # Training Loop
-    i = 1
-    env_boss = None
-    env_player = None
+    print("🔧 Initializing Training Setup...")
+    
+    boss_model = None
+    player_model = None
+
+    # --- INITIALIZE ENVIRONMENTS ONCE ---
+    # Create a single environment pool if possible, or separate if strict separation needed.
+    # Given we added 'set_mode', we can use a SINGLE pool for both.
+    
+    env_pool = None
+    
+    # Initialize the pool with default settings (will be updated in loop)
+    # We use BOSS mode as default initialization
+    print(f"🔧 Creating Optimized Environment Pool with {n_envs} workers...")
+    env_fns = [
+        MakeOptimizedEnv(
+            env_id=k,
+            mode="TRAIN_BOSS",
+            human_opponent=False,
+            headless=True,
+            opponent_pool=[], # Will be set dynamically
+            _num_workers=n_envs
+        ) for k in range(n_envs)
+    ]
+    
+    env_pool = SubprocVecEnv(env_fns)
+    env_pool = VecFrameStack(env_pool, n_stack=4)
+    env_pool = VecNormalize(env_pool, norm_obs=True, norm_reward=True, gamma=0.99)
     
     try:
+        # Training Loop
+        i = 1
+        
         while i <= ITERATIONS:
             
             # --- TRAIN BOSS ---
@@ -123,68 +161,41 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
                 
                 current_opponents = player_history if use_history else []
                 
-                # Create training environment FIRST
-                print("🔧 Creating Boss training environment...")
-                env_boss = make_vec_env(
-                    lambda: DuelEnv(
-                        mode="TRAIN_BOSS",
-                        human_opponent=False,
-                        headless=True,
-                        opponent_pool=current_opponents
-                    ), 
-                    n_envs=n_envs, 
-                    vec_env_cls=SubprocVecEnv
-                )
-                env_boss = VecFrameStack(env_boss, n_stack=4)
-                env_boss = VecNormalize(env_boss, norm_obs=True, norm_reward=True, gamma=0.99)
+                # 1. Update Environment Mode and Opponents
+                print("🔄 Configuring Environment for BOSS Training...")
+                env_pool.env_method("set_mode", "TRAIN_BOSS")
+                env_pool.env_method("set_opponent_pool", current_opponents)
                 
-                # Load or create model WITH the actual training environment
+                # Reset environment to apply changes and clear state
+                env_pool.reset()
+                
+                # 2. Load/Create Boss Model
                 if boss_model is None:
                     if os.path.exists(boss_model_name + ".zip"):
-                        print(f"📂 Loading Boss model with {n_envs} workers...")
-                        # Load WITH the training environment to properly handle worker count
-                        boss_model = RecurrentPPO.load(
-                            boss_model_name, 
-                            env=env_boss,
-                            device="cpu"
-                        )
+                        print(f"📂 Loading Boss model...")
+                        boss_model = RecurrentPPO.load(boss_model_name, env=env_pool, device="cpu")
                     else:
                         print("✨ Creating NEW Boss Model")
                         boss_model = RecurrentPPO(
-                            "MlpLstmPolicy", 
-                            env_boss, 
-                            verbose=1, 
-                            batch_size=512, 
-                            n_steps=1024, 
-                            learning_rate=3e-4, 
-                            device="cpu"
+                            "MlpLstmPolicy", env_pool, verbose=1, 
+                            batch_size=512, n_steps=1024, learning_rate=3e-4, device="cpu"
                         )
                 else:
-                    # Model already exists from previous iteration, just update env
-                    print(f"🔄 Updating Boss model environment to {n_envs} workers...")
-                    boss_model.set_env(env_boss)
+                    boss_model.set_env(env_pool)
                 
-                # Create callback for performance monitoring
+                # 3. Train
                 callback = MultiCoreCallback(n_envs=n_envs, verbose=1)
-                
                 print("🎮 Training BOSS...")
-                boss_model.learn(
-                    total_timesteps=STEPS_PER_ROUND, 
-                    reset_num_timesteps=False,
-                    callback=callback
-                )
-                boss_model.save(boss_model_name)
+                boss_model.learn(total_timesteps=STEPS_PER_ROUND, reset_num_timesteps=False, callback=callback)
                 
-                # Archive generation
+                # 4. Save
+                boss_model.save(boss_model_name)
                 v_name = f"models/boss_gen_{i}"
                 boss_model.save(v_name)
                 boss_history.append(v_name)
                 
-                env_boss.save("models/vec_normalize_boss.pkl")
+                env_pool.save("models/vec_normalize_boss.pkl")
                 print(f"💾 Saved Boss Generation {i}")
-                
-                env_boss.close()
-                env_boss = None
                 gc.collect()
 
             # --- TRAIN PLAYER ---
@@ -193,66 +204,41 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
                 
                 current_opponents = boss_history if use_history else []
                 
-                # Create training environment FIRST
-                print("🔧 Creating Player training environment...")
-                env_player = make_vec_env(
-                    lambda: DuelEnv(
-                        mode="TRAIN_PLAYER",
-                        human_opponent=False,
-                        headless=True,
-                        opponent_pool=current_opponents
-                    ), 
-                    n_envs=n_envs, 
-                    vec_env_cls=SubprocVecEnv
-                )
-                env_player = VecFrameStack(env_player, n_stack=4)
-                env_player = VecNormalize(env_player, norm_obs=True, norm_reward=True, gamma=0.99)
+                # 1. Update Environment Mode and Opponents
+                print("� Configuring Environment for PLAYER Training...")
+                env_pool.env_method("set_mode", "TRAIN_PLAYER")
+                env_pool.env_method("set_opponent_pool", current_opponents)
                 
-                # Load or create model WITH the actual training environment
+                # Reset environment
+                env_pool.reset()
+                
+                # 2. Load/Create Player Model
                 if player_model is None:
                     if os.path.exists(player_model_name + ".zip"):
-                        print(f"📂 Loading Player model with {n_envs} workers...")
-                        # Load WITH the training environment to properly handle worker count
-                        player_model = RecurrentPPO.load(
-                            player_model_name,
-                            env=env_player,
-                            device="cpu"
-                        )
+                        print(f"📂 Loading Player model...")
+                        player_model = RecurrentPPO.load(player_model_name, env=env_pool, device="cpu")
                     else:
                         print("✨ Creating NEW Player Model")
                         player_model = RecurrentPPO(
-                            "MlpLstmPolicy", 
-                            env_player, 
-                            verbose=1, 
-                            batch_size=512, 
-                            n_steps=1024, 
-                            learning_rate=3e-4, 
-                            device="cpu"
+                            "MlpLstmPolicy", env_pool, verbose=1, 
+                            batch_size=512, n_steps=1024, learning_rate=3e-4, device="cpu"
                         )
                 else:
-                    # Model already exists from previous iteration, just update env
-                    print(f"🔄 Updating Player model environment to {n_envs} workers...")
-                    player_model.set_env(env_player)
+                    player_model.set_env(env_pool)
                 
+                # 3. Train
                 callback = MultiCoreCallback(n_envs=n_envs, verbose=1)
-                
                 print("🎮 Training PLAYER...")
-                player_model.learn(
-                    total_timesteps=STEPS_PER_ROUND, 
-                    reset_num_timesteps=False,
-                    callback=callback
-                )
-                player_model.save(player_model_name)
+                player_model.learn(total_timesteps=STEPS_PER_ROUND, reset_num_timesteps=False, callback=callback)
                 
+                # 4. Save
+                player_model.save(player_model_name)
                 v_name = f"models/alice_gen_{i}"
                 player_model.save(v_name)
                 player_history.append(v_name)
                 
-                env_player.save("models/vec_normalize_player.pkl")
+                env_pool.save("models/vec_normalize_player.pkl")
                 print(f"💾 Saved Player Generation {i}")
-                
-                env_player.close()
-                env_player = None
                 gc.collect()
                 
             i += 1
@@ -268,11 +254,7 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
         
     finally:
         try:
-            if env_boss: env_boss.close()
-        except:
-            pass
-        try:
-            if env_player: env_player.close()
+            if env_pool: env_pool.close()
         except:
             pass
         print("\n✅ Training Session Closed.")
