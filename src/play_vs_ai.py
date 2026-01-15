@@ -15,7 +15,7 @@ from stable_baselines3 import PPO
 
 def run(human_opponent=True):
     print("\n------------------------------------------")
-    print("--- DEBUG: PLAY MODE (Env Injection Fix) ---")
+    print("--- DEBUG: PLAY MODE (Level Up System) ---")
     print("------------------------------------------\n")
     
     mode = "TRAIN_BOSS" 
@@ -24,7 +24,7 @@ def run(human_opponent=True):
     def make_env():
         return DuelEnv(mode=mode, human_opponent=human_opponent, render_mode="human")
     
-    # Wrap: Dummy -> FrameStack (33 -> 132)
+    # Wrap: Dummy -> FrameStack (36 -> 144)
     env = DummyVecEnv([make_env]) 
     env = VecFrameStack(env, n_stack=4) 
     
@@ -36,8 +36,7 @@ def run(human_opponent=True):
         print(f"Loading model: {model_name}")
         try:
             from sb3_contrib import RecurrentPPO
-            # --- THE FIX: PASS env=env HERE ---
-            # This tells the model: "Hey, use this FrameStacked environment!"
+            # Pass env=env so model adapts to the new shape if compatible
             model = RecurrentPPO.load(model_name, env=env) 
             print("Loaded as RecurrentPPO (LSTM).")
         except ImportError:
@@ -47,7 +46,6 @@ def run(human_opponent=True):
             print(f"Error loading model: {e}")
             return
             
-        # Verify Model Expectations
         if model.observation_space.shape:
             print(f"Model Expects Shape: {model.observation_space.shape}")
     else:
@@ -57,14 +55,14 @@ def run(human_opponent=True):
     obs = env.reset()
     print(f"Initial Obs Shape: {obs.shape}") 
     
-    if obs.shape[-1] != 132:
-        print("CRITICAL WARNING: Observation shape is NOT 132. Stack failed?")
+    # Check for 144 (36 * 4)
+    if obs.shape[-1] != 144:
+        print("CRITICAL WARNING: Observation shape is NOT 144. Stack failed?")
     
     running = True
     clock = pygame.time.Clock()
     print("Press ESC to exit.")
     
-    # LSTM States
     lstm_states = None
     episode_starts = np.ones((1,), dtype=bool)
 
@@ -72,35 +70,26 @@ def run(human_opponent=True):
     game_tick = 0
 
     while running:
-        # Action Logic
         action = [0]
         
         if model:
             try:
-                # Predict
-                # Since we injected env, the model now understands the stack
                 action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts)
             except Exception as e:
                 print(f"\nCRITICAL CRASH IN PREDICT:")
                 print(f"Input Obs Shape: {obs.shape}")
-                print(traceback.format_exc()) # Print full error trace
+                print(traceback.format_exc()) 
                 running = False
                 break
         else:
              action = [env.action_space.sample()]
              
-        # Step
         obs, rewards, dones, infos = env.step(action)
-        
         episode_starts = dones
-        
-        # Render
         env.render()
         
-        # Data Logging (Safe Access)
         if infos:
             info = infos[0]
-            # Access the inner environment safely
             inner_env = env.envs[0]
             
             history.append({
@@ -122,7 +111,6 @@ def run(human_opponent=True):
              
     env.close()
 
-    # Save Logs
     if history:
         log_dir = "logs"
         if not os.path.exists(log_dir): os.makedirs(log_dir)
@@ -130,7 +118,7 @@ def run(human_opponent=True):
         try:
             with open(filename, "w", newline='') as f:
                 writer = csv.writer(f)
-                header = ["timestamp", "act_boss", "act_player"] + [f"b_obs_{i}" for i in range(33)] + [f"p_obs_{i}" for i in range(33)]
+                header = ["timestamp", "act_boss", "act_player"] + [f"b_obs_{i}" for i in range(36)] + [f"p_obs_{i}" for i in range(36)]
                 writer.writerow(header)
                 for row in history:
                     writer.writerow([row["timestamp"], row["act_boss"], row["act_player"]] + row["obs_boss"] + row["obs_player"])

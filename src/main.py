@@ -30,7 +30,6 @@ def start_game():
         import traceback
         traceback.print_exc()
     finally:
-        # Ensure we can return cleanly if game crashes or closes
         try:
             pygame.quit()
         except:
@@ -124,6 +123,15 @@ def main():
                 print(f"Invalid input. Using default: {default_envs}")
                 n_envs = default_envs
                 
+            # Prompt for History Usage
+            use_hist = False
+            try:
+                h_input = input("Use League History (Old Versions)? [y/N]: ").strip().lower()
+                if h_input == 'y':
+                    use_hist = True
+            except:
+                pass
+                
             # Prompt for Training Target
             print("Select Training Target:")
             print("[1] Both (Ping-Pong)")
@@ -137,7 +145,9 @@ def main():
             except Exception:
                 target_choice = "BOTH"
             
-            train(iterations=iterations, n_envs=n_envs, target=target_choice)
+            # Call Train with new argument
+            train(iterations=iterations, n_envs=n_envs, target=target_choice, use_history=use_hist)
+            
         except ImportError as e:
              print(f"Error importing train_self_play: {e}")
         except Exception as e:

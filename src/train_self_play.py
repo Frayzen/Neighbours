@@ -1,8 +1,9 @@
 import os
 import sys
+import glob
 from ai.duel_env import DuelEnv
 
-def train(iterations=15, n_envs=6, target="BOTH"):
+def train(iterations=15, n_envs=6, target="BOTH", use_history=True):
     """
     Iterative Self-Play (Ping-Pong) Training Loop.
     
@@ -10,6 +11,8 @@ def train(iterations=15, n_envs=6, target="BOTH"):
         iterations (int): How many ping-pong rounds.
         n_envs (int): Number of parallel environments.
         target (str): "BOTH", "BOSS", or "PLAYER"
+        use_history (bool): If True, trains against a pool of past versions.
+                            If False, trains ONLY against the latest model.
     """
     
     # Configuration
@@ -30,6 +33,7 @@ def train(iterations=15, n_envs=6, target="BOTH"):
 
     print(f"\n=== Starting Iterative Self-Play (Ping-Pong) ===")
     print(f"Target: {target}")
+    print(f"History Mode: {'ON' if use_history else 'OFF (Latest Only)'}")
     print(f"Iterations: {'Infinite' if ITERATIONS == float('inf') else ITERATIONS}")
     print(f"Steps per round: {STEPS_PER_ROUND}")
 
@@ -42,15 +46,12 @@ def train(iterations=15, n_envs=6, target="BOTH"):
     boss_history = []
     player_history = []
     
-    # Seed history with initial if they exist?
-    # For now, let's just start fresh or rely on latest.
+    # Load existing history if we are using it
     if os.path.exists("models"):
-        # simple scan
-        import glob
-        boss_history = glob.glob("models/boss_gen_*.zip")
-        boss_history = [b.replace(".zip", "") for b in boss_history] # remove extension
-        player_history = glob.glob("models/alice_gen_*.zip")
-        player_history = [p.replace(".zip", "") for p in player_history]
+        b_files = glob.glob("models/boss_gen_*.zip")
+        boss_history = [b.replace(".zip", "") for b in b_files]
+        p_files = glob.glob("models/alice_gen_*.zip")
+        player_history = [p.replace(".zip", "") for p in p_files]
     
     i = 1
     while i <= ITERATIONS:
@@ -60,8 +61,11 @@ def train(iterations=15, n_envs=6, target="BOTH"):
         # PHASE 1: TRAIN BOSS
         # ---------------------------
         if target in ["BOTH", "BOSS"]:
-            print(f"[{i}/{'∞' if ITERATIONS == float('inf') else ITERATIONS}] Training BOSS (vs Alice) | Parallel Games: {N_ENVS}")
-            # env_boss = DuelEnv(mode="TRAIN_BOSS", human_opponent=False, headless=True)
+            print(f"[{i}] Training BOSS (vs Alice) | Mode: {'History' if use_history else 'Latest'}")
+            
+            # Decide Opponent Pool
+            current_opponents = player_history if use_history else []
+            
             env_boss = make_vec_env(
                 DuelEnv, 
                 n_envs=N_ENVS, 
@@ -70,13 +74,13 @@ def train(iterations=15, n_envs=6, target="BOTH"):
                     "mode": "TRAIN_BOSS", 
                     "human_opponent": False, 
                     "headless": True,
-                    "opponent_pool": player_history # Use Player History
+                    "opponent_pool": current_opponents
                 }
             )
             env_boss = VecFrameStack(env_boss, n_stack=4)
             env_boss = VecNormalize(env_boss, norm_obs=True, norm_reward=True, gamma=0.99)
             
-            # Load existing boss model or create new
+            # Load or Create
             if os.path.exists(boss_model_name + ".zip"):
                 print(f"Loading existing Boss model: {boss_model_name}")
                 boss_model = RecurrentPPO.load(boss_model_name, env=env_boss, device="cpu")
@@ -97,12 +101,12 @@ def train(iterations=15, n_envs=6, target="BOTH"):
                 boss_model.learn(total_timesteps=STEPS_PER_ROUND)
                 boss_model.save(boss_model_name)
                 
-                # Save Version
+                # Archive Version
                 version_name = f"models/boss_gen_{i}"
                 boss_model.save(version_name)
                 boss_history.append(version_name)
                 
-                print(f"Boss Model saved: {boss_model_name} and {version_name}")
+                print(f"Boss Model saved: {boss_model_name}")
             except KeyboardInterrupt:
                 print("Training Interrupted! Saving and exiting...")
                 boss_model.save(boss_model_name)
@@ -115,8 +119,10 @@ def train(iterations=15, n_envs=6, target="BOTH"):
         # PHASE 2: TRAIN PLAYER
         # ---------------------------
         if target in ["BOTH", "PLAYER"]:
-            print(f"[{i}/{'∞' if ITERATIONS == float('inf') else ITERATIONS}] Training ALICE (vs Boss) | Parallel Games: {N_ENVS}")
-            # env_player = DuelEnv(mode="TRAIN_PLAYER", human_opponent=False, headless=True)
+            print(f"[{i}] Training ALICE (vs Boss) | Mode: {'History' if use_history else 'Latest'}")
+            
+            current_opponents = boss_history if use_history else []
+            
             env_player = make_vec_env(
                 DuelEnv, 
                 n_envs=N_ENVS, 
@@ -125,13 +131,12 @@ def train(iterations=15, n_envs=6, target="BOTH"):
                     "mode": "TRAIN_PLAYER", 
                     "human_opponent": False, 
                     "headless": True,
-                    "opponent_pool": boss_history # Use Boss History
+                    "opponent_pool": current_opponents
                 }
             )
             env_player = VecFrameStack(env_player, n_stack=4)
             env_player = VecNormalize(env_player, norm_obs=True, norm_reward=True, gamma=0.99)
             
-            # Load existing player model or create new
             if os.path.exists(player_model_name + ".zip"):
                 print(f"Loading existing Alice model: {player_model_name}")
                 player_model = RecurrentPPO.load(player_model_name, env=env_player, device="cpu")
@@ -152,12 +157,11 @@ def train(iterations=15, n_envs=6, target="BOTH"):
                 player_model.learn(total_timesteps=STEPS_PER_ROUND)
                 player_model.save(player_model_name)
                   
-                # Save Version
                 version_name = f"models/alice_gen_{i}"
                 player_model.save(version_name)
                 player_history.append(version_name)
 
-                print(f"Alice Model saved: {player_model_name} and {version_name}")
+                print(f"Alice Model saved: {player_model_name}")
             except KeyboardInterrupt:
                 print("Training Interrupted! Saving and exiting...")
                 player_model.save(player_model_name)
