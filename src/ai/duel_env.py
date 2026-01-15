@@ -6,6 +6,8 @@ import traceback
 import os
 import sys
 import math
+import torch  # Required for thread optimization
+import collections
 
 # Add src directory to python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -42,7 +44,6 @@ from config.ai_weights import (
     DISTANCE_BONUS_MAX
 )
 
-# New Reward Constant
 REWARD_LEVEL_UP = 2.0 
 
 class DuelEnv(gym.Env):
@@ -50,6 +51,11 @@ class DuelEnv(gym.Env):
 
     def __init__(self, mode="TRAIN_BOSS", human_opponent=False, headless=False, difficulty=1, opponent_pool=None, render_mode=None):
         super(DuelEnv, self).__init__()
+        
+        # --- CRITICAL PERFORMANCE FIX ---
+        # Prevent PyTorch from using all cores for one small calculation.
+        # This allows parallel environments to run smoothly.
+        torch.set_num_threads(1)
         
         self.render_mode = render_mode
         self.mode = mode 
@@ -68,10 +74,7 @@ class DuelEnv(gym.Env):
         self.game = Game(headless=self.headless)
         self.game.paused = False
         
-        # Actions: 0-10
         self.action_space = spaces.Discrete(11)
-        
-        # Observation: 36 inputs (Added 3 for Items)
         self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(36,), dtype=np.float32)
         
         self.boss = None
@@ -87,7 +90,15 @@ class DuelEnv(gym.Env):
         
         self.opponent_model = None
         self.opponent_pool = opponent_pool if opponent_pool else []
+        self.opponent_lstm_states = None # Memory for the opponent
+        self.opponent_episode_starts = np.ones((1,), dtype=bool)
         
+        # Internal Frame Stacking for Opponent
+        self.opponent_obs_stack = collections.deque(maxlen=4)
+        self.last_opponent_action = 0
+        
+        self.model_cache = {} 
+
         if not self.human_opponent:
             if not self.opponent_pool:
                 path = ""
@@ -99,24 +110,43 @@ class DuelEnv(gym.Env):
         else:
             print("Human Opponent Active: Disabling internal Opponent AI.")
 
+    def set_opponent_pool(self, pool):
+        """Allows the trainer to update opponents without restarting the process."""
+        self.opponent_pool = pool
+
     def _load_opponent(self, path):
         if not path: return
+        
+        # 1. CHECK CACHE
+        if path in self.model_cache:
+            self.opponent_model = self.model_cache[path]
+            # print(f"DEBUG: Cache Hit for {path}") # Uncomment to verify
+            return
+
+        # 2. Load from Disk
         loaded = False
+        model = None
+        
+        # print(f"DEBUG: Loading from Disk {path}...")
+        
         if RecurrentPPO and os.path.exists(path + ".zip"):
             try:
-                self.opponent_model = RecurrentPPO.load(path)
+                model = RecurrentPPO.load(path, device="cpu") # Force CPU to avoid CUDA overhead in forks
                 loaded = True
             except: pass
 
         if not loaded and PPO and os.path.exists(path + ".zip"):
             try:
-                self.opponent_model = PPO.load(path)
+                model = PPO.load(path, device="cpu")
                 loaded = True
             except Exception as e:
                 print(f"Failed to load opponent {path}: {e}")
                 
-        if not loaded and not os.path.exists(path + ".zip"):
-             print(f"Opponent file not found: {path} (using script fallback)")
+        if loaded and model:
+             self.opponent_model = model
+             self.model_cache[path] = model
+        elif not os.path.exists(path + ".zip"):
+             # print(f"Opponent file not found: {path} (using script fallback)")
              self.opponent_model = None
                 
     def reset(self, seed=None, options=None):
@@ -163,18 +193,29 @@ class DuelEnv(gym.Env):
                     if cell and (cell.name == "Spawner" or cell.name == "Trapdoor"):
                         self.game.world.set_cell(x, y, floor_cell)
         
+        # Pick new opponent
         if not self.human_opponent and self.opponent_pool:
              selected_opp = np.random.choice(self.opponent_pool)
              self._load_opponent(selected_opp)
              
-        return self._get_obs(), {}
+        # Reset Opponent Memory (LSTM)
+        self.opponent_lstm_states = None
+        self.opponent_episode_starts = np.ones((1,), dtype=bool)
+        
+        # Reset & Fill Stack
+        obs = self._get_obs()
+        self.boss.last_obs = obs # Cache for safety
+        self.opponent_obs_stack.clear()
+        for _ in range(4):
+            self.opponent_obs_stack.append(obs)
+             
+        return obs, {}
 
     def _enforce_ai_control(self):
         if self.mode == "TRAIN_BOSS":
             if self.boss: self.boss.ai_controlled = True
             if not self.human_opponent: self.game.player.ai_controlled = True
             else: self.game.player.ai_controlled = False
-                
         elif self.mode == "TRAIN_PLAYER":
             self.game.player.ai_controlled = True
             if self.opponent_model and self.boss: self.boss.ai_controlled = True
@@ -192,6 +233,9 @@ class DuelEnv(gym.Env):
         self._enforce_ai_control()
         obs = self._get_obs()
         
+        # Update Stack
+        self.opponent_obs_stack.append(obs)
+        
         last_boss_action = 0
         last_player_action = 0
         ai_input_state = InputState()
@@ -205,18 +249,39 @@ class DuelEnv(gym.Env):
             elif act == 6: inp_state.dash = True
             return inp_state
 
+        def get_stacked_obs():
+            # Concatenate along the last dimension to match VecFrameStack behavior
+            # Shape: (36 * 4,) = (144,)
+            return np.concatenate(self.opponent_obs_stack, axis=-1)
+
+        # SHOULD WE RUN NETWORK?
+        # Throttle: Run opponent AI only every 4th step (approx 15Hz if game is 60Hz)
+        run_opponent_ai = (self.step_count % 4 == 0)
+
         if self.mode == "TRAIN_BOSS":
              last_boss_action = int(action)
              if self.boss: self.boss.set_ai_action(last_boss_action)
              
              if not self.human_opponent:
                  if self.opponent_model:
-                     try:
-                        p_act, _ = self.opponent_model.predict(obs)
-                        last_player_action = int(p_act)
-                        map_action_to_input(last_player_action, ai_input_state)
-                     except Exception as e:
-                        self.opponent_model = None 
+                     if run_opponent_ai:
+                         try:
+                            # Use Stacked Obs
+                            stacked_obs = get_stacked_obs()
+                            p_act, self.opponent_lstm_states = self.opponent_model.predict(
+                                stacked_obs, 
+                                state=self.opponent_lstm_states, 
+                                episode_start=self.opponent_episode_starts
+                            )
+                            self.opponent_episode_starts = np.zeros((1,), dtype=bool) # Reset start flag
+                            self.last_opponent_action = int(p_act)
+                         except Exception as e:
+                            # print(f"AI Predict Error: {e}")
+                            self.opponent_model = None 
+                     
+                     # Use cached action
+                     last_player_action = self.last_opponent_action
+                     map_action_to_input(last_player_action, ai_input_state)
                  
                  if not self.opponent_model:
                      bot_action = self._get_bot_action()
@@ -228,12 +293,21 @@ class DuelEnv(gym.Env):
              map_action_to_input(last_player_action, ai_input_state)
              
              if self.opponent_model:
-                 try:
-                     b_act, _ = self.opponent_model.predict(obs)
-                     last_boss_action = int(b_act)
-                     if self.boss: self.boss.set_ai_action(last_boss_action)
-                 except:
-                     self.opponent_model = None 
+                 if run_opponent_ai:
+                     try:
+                         stacked_obs = get_stacked_obs()
+                         b_act, self.opponent_lstm_states = self.opponent_model.predict(
+                            stacked_obs,
+                            state=self.opponent_lstm_states,
+                            episode_start=self.opponent_episode_starts
+                         )
+                         self.opponent_episode_starts = np.zeros((1,), dtype=bool)
+                         self.last_opponent_action = int(b_act)
+                     except:
+                         self.opponent_model = None 
+                 
+                 last_boss_action = self.last_opponent_action
+                 if self.boss: self.boss.set_ai_action(last_boss_action) 
 
         try:
             for _ in range(self.frame_skip):
@@ -253,13 +327,12 @@ class DuelEnv(gym.Env):
             if self.human_opponent and self.game:
                 self.game.logic.handle_event(event)
 
-        # Rewards
+        # Rewards Calculation
         current_boss_hp = self.boss.health if self.boss else 0
         current_player_hp = self.game.player.health
         dmg_dealt_to_boss = self.prev_boss_hp - current_boss_hp
         dmg_dealt_to_player = self.prev_player_hp - current_player_hp
         
-        # Level Up Logic
         current_level = self.game.player.level
         level_gained = 0
         if current_level > self.prev_player_level:
@@ -271,8 +344,20 @@ class DuelEnv(gym.Env):
         dmg_dealt = 0
         
         if self.mode == "TRAIN_BOSS":
-            reward = (dmg_dealt_to_player * REWARD_DMG_DEALT_MULTIPLIER) - (dmg_dealt_to_boss * REWARD_DMG_TAKEN_MULTIPLIER)
+            penalty_mod = 1.0
+            attack_mod = 1.0
+            
+            if self.boss:
+                if self.boss.phase == 1:
+                    penalty_mod = 0.5
+                elif self.boss.phase == 2:
+                    attack_mod = 2.0
+                elif self.boss.phase == 3:
+                    penalty_mod = 1.5
+            
+            reward = (dmg_dealt_to_player * REWARD_DMG_DEALT_MULTIPLIER * attack_mod) - (dmg_dealt_to_boss * REWARD_DMG_TAKEN_MULTIPLIER * penalty_mod)
             reward -= REWARD_STEP_PENALTY
+            
             if minion_dmg > 0:
                 reward += minion_dmg * 0.5
                 self.boss.minion_damage_dealt = 0 
@@ -281,11 +366,19 @@ class DuelEnv(gym.Env):
             if self.boss:
                 colliding = False
                 corners = [(self.boss.x, self.boss.y), (self.boss.x + self.boss.w * CELL_SIZE, self.boss.y)]
+                
+                # Optimized: Direct Grid Access
+                grid = self.game.world.grid
+                w_limit, h_limit = self.game.world.width, self.game.world.height
+                
                 for cx, cy in corners:
                     tx, ty = int(cx // CELL_SIZE), int(cy // CELL_SIZE)
-                    tile = self.game.world.get_cell(tx, ty)
-                    if tile and not tile.walkable:
-                        colliding = True; break
+                    if 0 <= tx < w_limit and 0 <= ty < h_limit:
+                         cell_data = grid[ty][tx]
+                         # cell_data is (Cell, (offset_x, offset_y))
+                         if not cell_data[0].walkable:
+                             colliding = True; break
+                
                 if colliding: reward -= REWARD_WALL_COLLISION_PENALTY
             
         elif self.mode == "TRAIN_PLAYER":
@@ -352,7 +445,6 @@ class DuelEnv(gym.Env):
         return self._get_obs(perspective)
 
     def _get_obs(self, perspective=None):
-        # 36 Inputs
         if not self.boss or not self.game.player: return np.zeros(36, dtype=np.float32)
         target_mode = self.mode
         if perspective == "BOSS": target_mode = "TRAIN_BOSS"
@@ -394,7 +486,6 @@ class DuelEnv(gym.Env):
                 val = 1.0 - (dist / max_dist)
                 if val > proj_sectors[idx]: proj_sectors[idx] = val
 
-        # Item Inputs
         item_x, item_y, item_dist = 0.0, 0.0, 0.0
         closest_item = None
         min_dist_sq = float('inf')
@@ -455,7 +546,6 @@ class DuelEnv(gym.Env):
         graph_w, graph_h = 200, 100
         x_base, y_base = w - graph_w - 10, h - graph_h - 10
         
-        # Safe Transparency Draw
         s = pygame.Surface((graph_w, graph_h))
         s.set_alpha(150)
         s.fill((0, 0, 0))

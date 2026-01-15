@@ -102,7 +102,6 @@ def main():
             
             # Default values
             default_iters = float('inf')
-            default_envs = 8
             
             # Prompt for Iterations
             try:
@@ -114,26 +113,57 @@ def main():
             except ValueError:
                 print("Invalid input. Using default: Infinite")
                 iterations = float('inf')
-                
-            # Prompt for Parallel Envs
+            
+            # CPU Profile Selection
+            print("\n--- CPU Optimization Profile ---")
+            print("[1] Auto-Detect (Recommended)")
+            print("[2] AMD Ryzen 7950X (16C/32T → 24 workers)")
+            print("[3] Intel i7 11th Gen (8C/16T → 12 workers)")
+            print("[4] Custom (Manual worker count)")
+            
+            cpu_profile = 'AUTO'
+            n_envs = None
+            
             try:
-                envs_input = input(f"Enter number of parallel games [default: {default_envs}]: ").strip()
-                n_envs = int(envs_input) if envs_input else default_envs
-            except ValueError:
-                print(f"Invalid input. Using default: {default_envs}")
-                n_envs = default_envs
+                cpu_choice = input("Select CPU profile (1-4) [default: 1]: ").strip()
+                
+                if cpu_choice == '2':
+                    cpu_profile = 'AMD_RYZEN_7950X'
+                    print("✓ Using AMD Ryzen 7950X profile (24 workers)")
+                elif cpu_choice == '3':
+                    cpu_profile = 'INTEL_I7_11GEN'
+                    print("✓ Using Intel i7 11th Gen profile (12 workers)")
+                elif cpu_choice == '4':
+                    # Custom worker count
+                    cpu_profile = 'AUTO'
+                    try:
+                        envs_input = input("Enter number of parallel workers [default: auto]: ").strip()
+                        n_envs = int(envs_input) if envs_input else None
+                        if n_envs:
+                            print(f"✓ Using custom worker count: {n_envs}")
+                    except ValueError:
+                        print("Invalid input. Using auto-detect.")
+                        n_envs = None
+                else:
+                    # Auto-detect (default)
+                    cpu_profile = 'AUTO'
+                    print("✓ Using auto-detect (will detect your CPU)")
+                    
+            except Exception:
+                cpu_profile = 'AUTO'
+                print("Using auto-detect")
                 
             # Prompt for History Usage
             use_hist = False
             try:
-                h_input = input("Use League History (Old Versions)? [y/N]: ").strip().lower()
+                h_input = input("\nUse League History (Old Versions)? [y/N]: ").strip().lower()
                 if h_input == 'y':
                     use_hist = True
             except:
                 pass
                 
             # Prompt for Training Target
-            print("Select Training Target:")
+            print("\nSelect Training Target:")
             print("[1] Both (Ping-Pong)")
             print("[2] Boss Only")
             print("[3] Alice Only")
@@ -145,8 +175,14 @@ def main():
             except Exception:
                 target_choice = "BOTH"
             
-            # Call Train with new argument
-            train(iterations=iterations, n_envs=n_envs, target=target_choice, use_history=use_hist)
+            # Call Train with CPU profile
+            train(
+                iterations=iterations, 
+                n_envs=n_envs, 
+                target=target_choice, 
+                use_history=use_hist,
+                cpu_profile=cpu_profile
+            )
             
         except ImportError as e:
              print(f"Error importing train_self_play: {e}")

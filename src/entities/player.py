@@ -220,8 +220,8 @@ class Player(GridObject):
         # --- NEW: STAT GROWTH ---
         self.max_health += 20
         self.health = self.max_health # Full Heal
-        self.damage_mult += 0.1       # +10% Damage
-        self.defense_mult += 0.05     # +5% Defense
+        self.damage_mult += 0.2       # +10% Damage
+        self.defense_mult += 0.1     # +5% Defense
         
         # Visuals
         self.game.damage_texts.spawn(self.x, self.y - 30, "LEVEL UP!", color=(255, 215, 0))
