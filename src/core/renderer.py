@@ -41,9 +41,10 @@ class GameRenderer:
 
     def draw(self, camera : Camera):
         self.game.screen.fill(COLOR_BACKGROUND)
-        self.rendering_surface.blit(self.background_world, (0,0))
 
         self.cam_rect = camera.get_subregion()
+        self.rendering_surface.blit(self.background_world, (self.cam_rect.x,self.cam_rect.y), area=self.cam_rect)
+
         self._draw_entities()
 
         self.game.screen.blit(self.rendering_surface, (0,0), area=self.cam_rect)

@@ -1,4 +1,4 @@
-from config.settings import GRID_HEIGHT, GRID_WIDTH, ROOM_AMOUNT, ROOM_EXTRA_SIZE
+from config.settings import GRID_HEIGHT, GRID_WIDTH, MAZE_SCALE_UP, ROOM_AMOUNT, ROOM_EXTRA_SIZE, ROOM_MIN_SIZE
 from core.registry import Registry
 from random import randint
 from core.world import World
@@ -60,7 +60,11 @@ class WorldLoader:
             self._generate_overworld()
         else:
             self._generate_dungeon()
-            
+        self.world.scale(MAZE_SCALE_UP)
+        for i in range(len(self.rooms)):
+            x, y, w, h =  self.rooms[i]
+            self.rooms[i] = (x * MAZE_SCALE_UP, y * MAZE_SCALE_UP, w * MAZE_SCALE_UP, h * MAZE_SCALE_UP)
+
         return self.world
 
     def _generate_overworld(self):
@@ -71,24 +75,26 @@ class WorldLoader:
                 
         # 2. Create 25x25 Grass Box
         # Center it
-        start_x = (GRID_WIDTH - 25) // 2
-        start_y = (GRID_HEIGHT - 25) // 2
+        GBW, GBH = 25, 25
+        start_x = (GRID_WIDTH - GBW) // 2
+        start_y = (GRID_HEIGHT - GBH) // 2
         
         self._start_region()
-        for y in range(start_y, start_y + 25):
-            for x in range(start_x, start_x + 25):
+        for y in range(start_y, start_y + GBH):
+            for x in range(start_x, start_x + GBW):
                 self._carve(x, y, self.grass)
                 
         # 3. Small Lake (let's say 5x5 approx, in top left of grass)
-        lake_x = start_x + 3
-        lake_y = start_y + 3
-        for y in range(lake_y, lake_y + 5):
-            for x in range(lake_x, lake_x + 5):
+        LW, LH = 5, 5
+        lake_x = start_x + LW // 2 + 1
+        lake_y = start_y + LH // 2 + 1
+        for y in range(lake_y, lake_y + LH):
+            for x in range(lake_x, lake_x + LW):
                 self.world.set_cell(x, y, self.water)
                 
         # 4. Small House (Walls + Door)
-        house_x = start_x + 15
-        house_y = start_y + 5
+        house_x = start_x + int(GBW * 0.6)
+        house_y = start_y + int(GBH * 0.2)
         house_w = 6
         house_h = 6
         
@@ -218,7 +224,7 @@ class WorldLoader:
 
         for _ in range(ROOM_AMOUNT):
 
-            size = randint(1, 1 + ROOM_EXTRA_SIZE) * 2 + 1
+            size = randint(ROOM_MIN_SIZE, ROOM_MIN_SIZE + ROOM_EXTRA_SIZE) * 2 + 1
             width = size
             height = size
 
