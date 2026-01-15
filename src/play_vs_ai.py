@@ -1,160 +1,141 @@
 import os
 import pygame
 import sys
+import numpy as np
+import csv
+from datetime import datetime
+import traceback
 
-# Assuming running from root, so src is in path if we run via main.
-# If running directly "python src/play_vs_ai.py", we might need to adjust path if imports fail.
-# But user instructions said "removing sys.path.append lines that point to src since the files are now inside src".
-# This implies we run them such that src is on path or they are relative.
-# "python src/play_vs_ai.py" adds src to path.
-# So "from ai.duel_env" works.
-
+# Imports
 from ai.duel_env import DuelEnv
-from ai.brain_vis import BrainVisualizer
+
+# Stable Baselines 3
+from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
+from stable_baselines3 import PPO
 
 def run(human_opponent=True):
-    mode = "TRAIN_BOSS" # Player vs Boss (TRAIN_BOSS means Agent is Boss, so Opponent is Player)
+    print("\n------------------------------------------")
+    print("--- DEBUG: PLAY MODE (Env Injection Fix) ---")
+    print("------------------------------------------\n")
     
-    try:
-        from stable_baselines3 import PPO
-    except ImportError:
-        print("Error: stable_baselines3 not installed or not found.")
-        return
-
-    print(f"\n--- Starting Duel Mode: {mode} (Human: {human_opponent}) ---")
+    mode = "TRAIN_BOSS" 
     
-    env = DuelEnv(mode=mode, human_opponent=human_opponent)
+    # 1. SETUP ENVIRONMENT
+    def make_env():
+        return DuelEnv(mode=mode, human_opponent=human_opponent, render_mode="human")
     
-    # Load Model (Boss AI)
+    # Wrap: Dummy -> FrameStack (33 -> 132)
+    env = DummyVecEnv([make_env]) 
+    env = VecFrameStack(env, n_stack=4) 
+    
+    # 2. LOAD MODEL WITH ENVIRONMENT INJECTION
     model = None
     model_name = "joern_boss_ai_v1"
         
-    if model_name:
-        if os.path.exists(model_name + ".zip"):
-             print(f"Loading model: {model_name}")
-             model = PPO.load(model_name)
-        else:
-             print(f"Model {model_name} not found. Running with random/scripted AI.")
+    if model_name and os.path.exists(model_name + ".zip"):
+        print(f"Loading model: {model_name}")
+        try:
+            from sb3_contrib import RecurrentPPO
+            # --- THE FIX: PASS env=env HERE ---
+            # This tells the model: "Hey, use this FrameStacked environment!"
+            model = RecurrentPPO.load(model_name, env=env) 
+            print("Loaded as RecurrentPPO (LSTM).")
+        except ImportError:
+            model = PPO.load(model_name, env=env)
+            print("Loaded as Standard PPO.")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            return
+            
+        # Verify Model Expectations
+        if model.observation_space.shape:
+            print(f"Model Expects Shape: {model.observation_space.shape}")
+    else:
+        print(f"Model {model_name} not found. Running with random AI.")
 
-    # Brain Visualizer (Disabled for Live View, we use Recorder + Log Reader now)
-    brain = None
-    # if not human_opponent:
-    #    brain = BrainVisualizer(x=20, y=100, width=600, height=500)
-
-    # Logging History
-    history = [] # list of (timestamp, [obs...], action, value)
-    import time
-    import csv
-    from datetime import datetime
-
-    obs, _ = env.reset()
+    # 3. RESET
+    obs = env.reset()
+    print(f"Initial Obs Shape: {obs.shape}") 
+    
+    if obs.shape[-1] != 132:
+        print("CRITICAL WARNING: Observation shape is NOT 132. Stack failed?")
+    
     running = True
     clock = pygame.time.Clock()
+    print("Press ESC to exit.")
     
-    print("Press ESC to exit Duel Mode.")
-    
+    # LSTM States
+    lstm_states = None
+    episode_starts = np.ones((1,), dtype=bool)
+
+    history = []
     game_tick = 0
 
     while running:
-        # Determine Action
-        action = 0
-        value = 0.0 # Placeholder if we can't get it easily
+        # Action Logic
+        action = [0]
         
         if model:
-             # Model predicts action
-             action, _ = model.predict(obs)
-             action = int(action)
-             # To get value, we'd need model.policy.predict_values(obs_tensor), skipping for now due to complexity
+            try:
+                # Predict
+                # Since we injected env, the model now understands the stack
+                action, lstm_states = model.predict(obs, state=lstm_states, episode_start=episode_starts)
+            except Exception as e:
+                print(f"\nCRITICAL CRASH IN PREDICT:")
+                print(f"Input Obs Shape: {obs.shape}")
+                print(traceback.format_exc()) # Print full error trace
+                running = False
+                break
         else:
-             action = env.action_space.sample() 
+             action = [env.action_space.sample()]
              
         # Step
-        valid_action = action
-        obs, reward, terminated, truncated, info = env.step(valid_action)
+        obs, rewards, dones, infos = env.step(action)
         
-        # Capture DUAL DATA
-        # obs right now is for the "Agent" (Boss by default in Watch Mode)
-        # But we want explicit Boss vs Player obs.
+        episode_starts = dones
         
-        obs_boss = env.get_obs_for("BOSS")
-        obs_player = env.get_obs_for("PLAYER")
-        
-        act_boss = info.get('boss_action', 0)
-        act_player = info.get('player_action', 0)
-             
-        # Record Data
-        # Flatten
-        ob_b_list = obs_boss.tolist() if hasattr(obs_boss, 'tolist') else list(obs_boss)
-        ob_p_list = obs_player.tolist() if hasattr(obs_player, 'tolist') else list(obs_player)
-        
-        history.append({
-            "timestamp": game_tick,
-            "obs_boss": ob_b_list,
-            "obs_player": ob_p_list,
-            "act_boss": act_boss,
-            "act_player": act_player
-        })
-        game_tick += 1
-        
+        # Render
         env.render()
         
-        # if brain:
-        #     screen = pygame.display.get_surface()
-        #     brain.draw(screen, model, obs, last_action=action)
-        #     pygame.display.flip()
+        # Data Logging (Safe Access)
+        if infos:
+            info = infos[0]
+            # Access the inner environment safely
+            inner_env = env.envs[0]
+            
+            history.append({
+                "timestamp": game_tick,
+                "obs_boss": inner_env.get_obs_for("BOSS").tolist(),
+                "obs_player": inner_env.get_obs_for("PLAYER").tolist(),
+                "act_boss": info.get('boss_action', 0),
+                "act_player": info.get('player_action', 0)
+            })
+            game_tick += 1
+            
+            if info.get('user_exit'):
+                running = False
         
-        # Just flip once if we aren't drawing the brain
-        pygame.display.flip()
-
-        if info.get('user_exit'):
-            running = False
-            
-        if terminated or truncated:
-            # Only reset if we are NOT exiting
-            if not info.get('user_exit'):
-                 obs, _ = env.reset()
-            
         if not pygame.display.get_init():
-             running = False
-             
+            running = False
+
         clock.tick(60)
              
     env.close()
 
-    # Save History to CSV
+    # Save Logs
     if history:
         log_dir = "logs"
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-            
-        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(log_dir, f"ai_match_log_{timestamp_str}.csv")
-        print(f"Saving match log to {filename} ({len(history)} frames)...")
-        
+        if not os.path.exists(log_dir): os.makedirs(log_dir)
+        filename = os.path.join(log_dir, f"ai_match_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
         try:
             with open(filename, "w", newline='') as f:
                 writer = csv.writer(f)
-                
-                # Header Gen
-                # timestamp, act_boss, act_player
-                # b_obs_0..32
-                # p_obs_0..32
-                
-                header = ["timestamp", "act_boss", "act_player"]
-                header += [f"b_obs_{i}" for i in range(33)]
-                header += [f"p_obs_{i}" for i in range(33)]
-                
+                header = ["timestamp", "act_boss", "act_player"] + [f"b_obs_{i}" for i in range(33)] + [f"p_obs_{i}" for i in range(33)]
                 writer.writerow(header)
-                
                 for row in history:
-                    line = [row["timestamp"], row["act_boss"], row["act_player"]]
-                    line += row["obs_boss"]
-                    line += row["obs_player"]
-                    writer.writerow(line)
-                    
-            print("Log saved successfully.")
-        except Exception as e:
-            print(f"Failed to save log: {e}")
+                    writer.writerow([row["timestamp"], row["act_boss"], row["act_player"]] + row["obs_boss"] + row["obs_player"])
+            print(f"Log saved: {filename}")
+        except: pass
 
 if __name__ == "__main__":
     run(human_opponent=True)

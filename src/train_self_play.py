@@ -22,7 +22,7 @@ def train(iterations=15, n_envs=6, target="BOTH"):
     try:
         from stable_baselines3 import PPO
         from stable_baselines3.common.env_util import make_vec_env
-        from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
+        from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize, VecFrameStack
         from sb3_contrib import RecurrentPPO
     except ImportError:
         print("Error: stable_baselines3 or sb3-contrib not installed.")
@@ -73,6 +73,7 @@ def train(iterations=15, n_envs=6, target="BOTH"):
                     "opponent_pool": player_history # Use Player History
                 }
             )
+            env_boss = VecFrameStack(env_boss, n_stack=4)
             env_boss = VecNormalize(env_boss, norm_obs=True, norm_reward=True, gamma=0.99)
             
             # Load existing boss model or create new
@@ -127,15 +128,16 @@ def train(iterations=15, n_envs=6, target="BOTH"):
                     "opponent_pool": boss_history # Use Boss History
                 }
             )
+            env_player = VecFrameStack(env_player, n_stack=4)
             env_player = VecNormalize(env_player, norm_obs=True, norm_reward=True, gamma=0.99)
             
             # Load existing player model or create new
             if os.path.exists(player_model_name + ".zip"):
-                 print(f"Loading existing Alice model: {player_model_name}")
-                 player_model = RecurrentPPO.load(player_model_name, env=env_player, device="cpu")
+                print(f"Loading existing Alice model: {player_model_name}")
+                player_model = RecurrentPPO.load(player_model_name, env=env_player, device="cpu")
             else:
-                 print("Creating NEW Alice model (LSTM)")
-                 player_model = RecurrentPPO(
+                print("Creating NEW Alice model (LSTM)")
+                player_model = RecurrentPPO(
                     "MlpLstmPolicy", 
                     env_player, 
                     verbose=1,
@@ -144,23 +146,23 @@ def train(iterations=15, n_envs=6, target="BOTH"):
                     learning_rate=3e-4,
                     device="cpu",
                     policy_kwargs=dict(net_arch=[256, 256])
-                 )
+                )
                  
             try:
-                 player_model.learn(total_timesteps=STEPS_PER_ROUND)
-                  player_model.save(player_model_name)
+                player_model.learn(total_timesteps=STEPS_PER_ROUND)
+                player_model.save(player_model_name)
                   
-                  # Save Version
-                  version_name = f"models/alice_gen_{i}"
-                  player_model.save(version_name)
-                  player_history.append(version_name)
+                # Save Version
+                version_name = f"models/alice_gen_{i}"
+                player_model.save(version_name)
+                player_history.append(version_name)
 
-                  print(f"Alice Model saved: {player_model_name} and {version_name}")
+                print(f"Alice Model saved: {player_model_name} and {version_name}")
             except KeyboardInterrupt:
-                 print("Training Interrupted! Saving and exiting...")
-                 player_model.save(player_model_name)
-                 env_player.close()
-                 return
+                print("Training Interrupted! Saving and exiting...")
+                player_model.save(player_model_name)
+                env_player.close()
+                return
                  
             env_player.close()
             

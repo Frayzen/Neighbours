@@ -23,6 +23,7 @@ from config.settings import (
     SCREEN_WIDTH_PIX,
     SCREEN_HEIGHT_PIX
     )
+from config.constants import TAG_FIRE, TAG_RANGED
 
 
 class GameRenderer:
@@ -213,11 +214,40 @@ class GameRenderer:
         print("SKIP", skip)
 
     def _draw_entities(self):
-        self.game.player.draw(self.rendering_surface)
+        self.draw_player(self.game.player)
         for obj in self.game.gridObjects:
             obj.draw(self.rendering_surface)
         for proj in self.game.projectiles:
             proj.draw(self.rendering_surface)
+
+    def draw_player(self, player):
+        screen = self.rendering_surface
+        # Draw player
+        if player.texture:
+            screen.blit(player.texture, (player.x, player.y))
+        else:
+            pygame.draw.rect(screen, (255, 255, 255), (player.x, player.y, player.w * CELL_SIZE, player.h * CELL_SIZE))
+        
+        # Draw weapon
+        weapon = player.combat.current_weapon
+        if weapon:
+            # Simple representation: a small colored rect next to the player
+            weapon_color = (200, 200, 200)
+            if TAG_FIRE in weapon.tags:
+                weapon_color = (255, 100, 0)
+            elif TAG_RANGED in weapon.tags:
+                weapon_color = (100, 255, 100)
+            
+            # Draw slightly offset
+            wx = player.x + (player.w * CELL_SIZE) * 0.8
+            wy = player.y + (player.h * CELL_SIZE) * 0.2
+            
+            if weapon.image:
+                 # Scale weapon image if needed (arbitrary size choice or based on tiles)
+                 scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
+                 screen.blit(scaled_weapon, (wx, wy))
+            else:
+                 pygame.draw.rect(screen, weapon_color, (wx, wy, 4, 10))
 
     def draw_pause_menu(self):
         # Semi-transparent overlay

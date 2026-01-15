@@ -6,6 +6,12 @@ __pycache__/
 
 savegame.pkl
 
+# /models
+/models/
+
+# /logs
+/logs/
+
 
 # Virtual Environment
 venv/

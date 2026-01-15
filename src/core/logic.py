@@ -11,6 +11,7 @@ from core.triggers import execute_trigger
 from core.vfx import vfx_manager, ExplosionEffect
 from core.registry import Registry
 from core.pathfinding import FlowField
+from core.input_state import InputState
 
 
 class GameLogic:
@@ -25,10 +26,32 @@ class GameLogic:
             if event.key == pygame.K_q:
                 self.game.player.combat.switch_weapon()
             elif event.key == pygame.K_SPACE:
-                self.game.player.dash()
+                # self.game.player.dash() # Moved to InputState in update
+                pass
 
-    def update(self):
+    def _get_human_input(self):
+        keys = pygame.key.get_pressed()
+        input_state = InputState()
+        
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]: input_state.move_x = -1
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]: input_state.move_x = 1
+        if keys[pygame.K_UP] or keys[pygame.K_w]: input_state.move_y = -1
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]: input_state.move_y = 1
+        
+        if keys[pygame.K_SPACE]: input_state.dash = True
+        
+        # Mouse Attack?
+        if pygame.mouse.get_pressed()[0]: # Left Click
+             input_state.attack = True
+             
+        return input_state
+
+    def update(self, input_state=None):
         vfx_manager.update()
+        
+        # Determine Input
+        if input_state is None:
+             input_state = self._get_human_input()
         
         # Update Flow Field (Throttled)
         current_time = pygame.time.get_ticks()
@@ -36,8 +59,10 @@ class GameLogic:
             self.flow_field.update(self.game.player.x, self.game.player.y, self.game.world, max_dist=30)
             self.last_pathfinding_update = current_time
         
-        self._handle_player_movement()
-        self._handle_combat()
+            self.last_pathfinding_update = current_time
+        
+        self._handle_player_movement(input_state)
+        self._handle_combat(input_state)
         
         # Check for game over (restart)
         if self.game.player.health <= 0:
@@ -187,8 +212,8 @@ class GameLogic:
                 SaveManager.delete_save_file()
                 self.game.restart_game()
 
-    def _handle_player_movement(self):
-        result = self.game.player.move(pygame.key.get_pressed(), self.game.world)
+    def _handle_player_movement(self, input_state):
+        result = self.game.player.move(input_state, self.game.world)
         
         # Check for triggers on the tile the player is currently standing on
         # Calculate center of player
@@ -208,11 +233,11 @@ class GameLogic:
             if cell.trigger:
                 execute_trigger(cell.trigger, self.game, x, y)
 
-    def _handle_combat(self):
+    def _handle_combat(self, input_state):
         # Update player combat logic
         # Filter enemies from gridObjects
         enemies = [obj for obj in self.game.gridObjects if isinstance(obj, Enemy)]
-        self.game.player.update(enemies)
+        self.game.player.update(input_state, enemies)
 
         # Check for collisions between player and enemies
         player_rect = pygame.Rect(self.game.player.x, self.game.player.y, self.game.player.w * CELL_SIZE, self.game.player.h * CELL_SIZE)

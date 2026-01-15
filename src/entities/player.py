@@ -63,19 +63,26 @@ class Player(GridObject):
 
         # Visuals
         self.texture = None
-        try:
-            import os
-            # Build absolute path to avoid cwd issues
-            # We assume src is in path or we are running from root
-            # Let's try relative to this file
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            img_path = os.path.join(base_path, "src", "assets", "images", "Alice.png")
-            
-            loaded_img = pygame.image.load(img_path).convert_alpha()
-            self.texture = pygame.transform.scale(loaded_img, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
-            debug.log(f"Loaded Player Texture: {img_path}")
-        except Exception as e:
-            debug.log(f"Failed to load player texture: {e}")
+        
+        # Check if headless
+        self.headless = getattr(game, 'headless', False)
+        
+        if not self.headless:
+            try:
+                import os
+                # Build absolute path to avoid cwd issues
+                # We assume src is in path or we are running from root
+                # Let's try relative to this file
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                img_path = os.path.join(base_path, "src", "assets", "images", "Alice.png")
+                
+                loaded_img = pygame.image.load(img_path).convert_alpha()
+                self.texture = pygame.transform.scale(loaded_img, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                debug.log(f"Loaded Player Texture: {img_path}")
+            except Exception as e:
+                debug.log(f"Failed to load player texture: {e}")
+                self.texture = None
+        else:
             self.texture = None
 
         # Physics / Forces
@@ -94,31 +101,14 @@ class Player(GridObject):
         self.dash_speed_mult = 3.0 # 3x speed
         self.dash_direction = (0, 0)
         
-        # AI Control Flags
-        self.ai_controlled = False
-        self.ai_move_dir = (0, 0)
-        self.ai_attack = False
-        self.ai_dash = False
+        # AI Control Flags - DEPRECATED / REDUNDANT with InputState but kept if referenced elsewhere
+        # Ideally we remove them and rely purely on InputState passed to update/move
+        self.ai_controlled = False # Still useful for distinguishing "Bot Mode" behavior vs Human
+        # self.ai_move_dir = (0, 0) # InputState handles this
+        # self.ai_attack = False
+        # self.ai_dash = False
 
-    def set_ai_action(self, action):
-        """
-        Maps discrete action (0-7) to player controls.
-        0: Idle
-        1: Up, 2: Down, 3: Left, 4: Right
-        5: Attack
-        6: Dash
-        7: Switch Weapon? (Unused/Placeholder)
-        """
-        self.ai_move_dir = (0, 0)
-        self.ai_attack = False
-        self.ai_dash = False
-        
-        if action == 1: self.ai_move_dir = (0, -1)
-        elif action == 2: self.ai_move_dir = (0, 1)
-        elif action == 3: self.ai_move_dir = (-1, 0)
-        elif action == 4: self.ai_move_dir = (1, 0)
-        elif action == 5: self.ai_attack = True
-        elif action == 6: self.ai_dash = True
+    # set_ai_action removed - InputState handles this externally
         
     def _modify_stat(self, effect, op, value, revert=False):
         if effect == STAT_HEAL:
@@ -173,7 +163,7 @@ class Player(GridObject):
             val = data["value"]
             self._modify_stat(effect, op, val, revert=False)
 
-    def dash(self):
+    def dash(self, input_state):
         """
         Activates dash if charges available.
         """
@@ -187,39 +177,24 @@ class Player(GridObject):
             self.is_dashing = True
             self.invulnerable = True # I-Frames
             self.dash_start_time = current_time
-            # Keep dash_last_recharge relative to last update or reset? 
-            # If we are at 3 charges, timer is dormant. If we drop to 2, timer starts? 
-            # Let's handle recharge in update.
             
-            # Determine direction from last input or default
-            keys = pygame.key.get_pressed()
-            dx, dy = 0, 0
-            if keys[pygame.K_LEFT] or keys[pygame.K_a]: dx = -1
-            if keys[pygame.K_RIGHT] or keys[pygame.K_d]: dx = 1
-            if keys[pygame.K_UP] or keys[pygame.K_w]: dy = -1
-            if keys[pygame.K_DOWN] or keys[pygame.K_s]: dy = 1
+            # Determine direction from InputState
+            dx, dy = input_state.move_x, input_state.move_y
             
             # Normalize
             if dx != 0 or dy != 0:
                 length = (dx*dx + dy*dy)**0.5
                 self.dash_direction = (dx/length, dy/length)
             else:
-                # Default dash forward (right?) or last faced? 
-                # For now default right if static
-                self.dash_direction = (0, 0) # No dash if standing still? Or dash forward?
-                # User says "movement direction". If no movement, no dash velocity? 
-                # Let's assume no dash movement if stationary, but still consume charge? 
-                # Or just abort? Most games dash forward.
-                # Let's abort if no input.
-                if dx == 0 and dy == 0:
-                     self.is_dashing = False
-                     self.invulnerable = False
-                     self.dash_charges += 1 # Refund
-                     return
+                # No input, abort dash refund
+                self.is_dashing = False
+                self.invulnerable = False
+                self.dash_charges += 1 # Refund
+                return
 
             debug.log(f"Dash! Charges remaining: {self.dash_charges}")
 
-    def update(self, enemies=None):
+    def update(self, input_state, enemies=None):
         current_time = pygame.time.get_ticks()
         
         # Dash Logic
@@ -227,11 +202,6 @@ class Player(GridObject):
             if current_time - self.dash_start_time > self.dash_duration:
                 self.is_dashing = False
                 self.invulnerable = False
-                # If we were invulnerable due to hit, we might accidentally clear it.
-                # But typically dash i-frames override everything.
-                # Better: Check if invulnerable_duration from hit is still active? 
-                # For simplicity: Dash end clears invulnerability. 
-                # If player gets hit right after dash, normal logic applies.
 
         # Dash Recharge
         if self.dash_charges < self.max_dash_charges:
@@ -261,24 +231,39 @@ class Player(GridObject):
             if current_time - self.last_hit_time > self.invulnerability_duration:
                 self.invulnerable = False
 
-        # AI Actions
-        if self.ai_controlled:
-            if self.ai_dash:
-                 self.dash()
-            if self.ai_attack and enemies:
-                 # Find nearest enemy
-                 nearest = None
-                 min_d = float('inf')
-                 for e in enemies:
-                     d = (e.x - self.x)**2 + (e.y - self.y)**2
-                     if d < min_d:
-                         min_d = d
-                         nearest = e
-                         
-                 if nearest:
-                     # Check cooldown and attack
-                     if self.combat.current_weapon and self.combat.current_weapon.can_attack(current_time):
-                         self.combat.attack(nearest, enemies, current_time)
+        # Actions based on InputState
+        if input_state:
+            if input_state.dash:
+                 self.dash(input_state)
+            
+            # Attack logic
+            if input_state.attack:
+                 # If AI controlled, we might want auto-target logic?
+                 # Or if InputState came from AI, it just means "Attack", and we might need a target.
+                 # If human, attack happens in direction? Or just AOE/forward?
+                 
+                 # The old AI logic found nearest enemy.
+                 if self.ai_controlled and enemies:
+                     # Find nearest enemy
+                     nearest = None
+                     min_d = float('inf')
+                     for e in enemies:
+                         d = (e.x - self.x)**2 + (e.y - self.y)**2
+                         if d < min_d:
+                             min_d = d
+                             nearest = e
+                             
+                     if nearest:
+                         if self.combat.current_weapon and self.combat.current_weapon.can_attack(current_time):
+                             self.combat.attack(nearest, enemies, current_time)
+                 else:
+                     # Human or simple attack (forward handling needed?)
+                     # Existing combat manager might need target?
+                     # For now, let's assume human attacks "nothing" or mouse pos?
+                     # The combat system seems to rely on 'attack(target, ...)'
+                     # If human, we might need mouse pos from somewhere else if it's mouse aiming.
+                     # But old logic didn't show human attack logic here, it was likely in logic/combat manager.
+                     pass
 
         self.combat.update(enemies, current_time)
 
@@ -313,8 +298,7 @@ class Player(GridObject):
         debug.log(f"Level Up! New Level: {self.level}")
         # TODO: Trigger level up UI or choices
 
-    def move(self, keys, world):  # movement using arrow keys or WASD
-        # pygame.K_ DIRECTION is used to detect key presses on this precise touch
+    def move(self, input_state, world):  
         dx = 0
         dy = 0
         
@@ -325,21 +309,10 @@ class Player(GridObject):
              dx = self.dash_direction[0] * current_speed * self.dash_speed_mult
              dy = self.dash_direction[1] * current_speed * self.dash_speed_mult
         
-        elif self.ai_controlled:
-            # AI Movement
-            dx = self.ai_move_dir[0] * current_speed
-            dy = self.ai_move_dir[1] * current_speed
-            
-        else:
-            # Keyboard Movement
-            if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
-                dx -= current_speed
-            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                dx += current_speed
-            if keys[pygame.K_UP] or keys[pygame.K_w]:
-                dy -= current_speed
-            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                dy += current_speed
+        elif input_state:
+            # InputState Movement (Unified for AI and Human)
+            dx = input_state.move_x * current_speed
+            dy = input_state.move_y * current_speed
 
         # Apply external forces (e.g. Gravity Smash)
         dx += self.external_force[0]
@@ -379,34 +352,7 @@ class Player(GridObject):
         # Return trigger if any collision was a trigger
         return final_collision
 
-    def draw(self, screen):
-        # Draw player
-        if self.texture:
-            screen.blit(self.texture, (self.x, self.y))
-        else:
-            pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
-        
-        # Draw weapon
-        weapon = self.combat.current_weapon
-        if weapon:
-            # Simple representation: a small colored rect next to the player
-            weapon_color = (200, 200, 200)
-            weapon_color = (200, 200, 200)
-            if TAG_FIRE in weapon.tags:
-                weapon_color = (255, 100, 0)
-            elif TAG_RANGED in weapon.tags:
-                weapon_color = (100, 255, 100)
-            
-            # Draw slightly offset
-            wx = self.x + (self.w * CELL_SIZE) * 0.8
-            wy = self.y + (self.h * CELL_SIZE) * 0.2
-            
-            if weapon.image:
-                 # Scale weapon image if needed (arbitrary size choice or based on tiles)
-                 scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
-                 screen.blit(scaled_weapon, (wx, wy))
-            else:
-                 pygame.draw.rect(screen, weapon_color, (wx, wy, 4, 10))
+    # draw() removed - moved to renderer.py
 
     # Serialization
     def __getstate__(self):
