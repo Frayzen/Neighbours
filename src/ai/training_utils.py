@@ -70,7 +70,7 @@ def get_cpu_profile(profile_name, n_envs_requested):
     # Profil: Extreme SMT (Maximale Auslastung)
     elif profile_name == "AMD_RYZEN_7950X_SMT":
         # Wir nehmen Logical Threads minus 4 (für OS/Overhead)
-        workers = max(16, logical - 4)
+        workers = max(16, logical - 2)
         profile = {
             "name": f"AMD_RYZEN_7950X (Extreme SMT)",
             "description": f"Using Logical Cores ({workers} Workers)",
