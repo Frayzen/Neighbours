@@ -1,8 +1,8 @@
 """
-Multi-Core Optimized AI Training Script (Persistent & Dynamic)
+Multi-Core Optimized AI Training Script (Single Shared Pool Edition)
 """
 
-# CRITICAL: Set environment variables BEFORE any other imports
+# 1. CRITICAL: Env Vars for AMD Performance
 import os
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -23,22 +23,22 @@ from ai.training_utils import (
     print_training_header
 )
 
+# Wrapper class for Windows Multiprocessing
 class MakeOptimizedEnv:
     def __init__(self, env_id, **kwargs):
         self.env_id = env_id
         self.kwargs = kwargs
-        
+    
     def __call__(self):
         from ai.duel_env import DuelEnv
         from stable_baselines3.common.monitor import Monitor
         from ai.training_utils import set_worker_cpu_affinity
         
-        # Set CPU affinity for this worker
-        env_kwargs = self.kwargs.copy()
-        num_workers = env_kwargs.pop('_num_workers', os.cpu_count())
+        # Pin this worker to a specific core
+        num_workers = self.kwargs.pop('_num_workers', 16)
         set_worker_cpu_affinity(self.env_id, num_workers)
         
-        env = DuelEnv(**env_kwargs)
+        env = DuelEnv(**self.kwargs)
         env = Monitor(env)
         return env
 
@@ -51,20 +51,19 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
     ITERATIONS = iterations
     
     # --- DYNAMIC TUNING ---
-    # Adjust hyperparameters based on the hardware profile
     if "AMD" in profile['name']:
         # Ryzen 7950X Optimized Settings
         STEPS_PER_ROUND = 40000 
         PPO_KWARGS = {
-            "n_steps": 2048,      # Large buffer for 16 cores
+            "n_steps": 2048,      # Large buffer for 16 cores (Total 32k steps)
             "batch_size": 2048,   # Massive batch for AVX-512
             "learning_rate": 3e-4,
-            "n_epochs": 5,        # Fast updates
+            "n_epochs": 4,        # REDUCED: Faster "Study" phase (Less downtime)
             "device": "cpu",
             "verbose": 1
         }
     else:
-        # Standard Settings (Safer for lower core counts)
+        # Standard Settings
         STEPS_PER_ROUND = 20000
         PPO_KWARGS = {
             "n_steps": 1024,
@@ -79,71 +78,50 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
     player_model_name = "alice_ai_v1"
     
     try:
-        from stable_baselines3 import PPO
         from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize, VecFrameStack
         from sb3_contrib import RecurrentPPO
     except ImportError:
-        print("❌ Error: stable_baselines3 or sb3-contrib not installed.")
+        print("❌ Error: stable_baselines3 not installed.")
         return
 
-    print("\n" + "="*70)
-    print("🚀 PERSISTENT SELF-PLAY TRAINING")
-    print("="*70)
-    print(f"🎯 Target: {target}")
-    print(f"💻 Profile: {profile['name']}")
-    print(f"🔢 Workers: {n_envs}")
-    print(f"⚡ Batch Size: {PPO_KWARGS['batch_size']}")
-    print("="*70 + "\n")
+    print(f"\n🚀 RYZEN SHARED POOL TRAINING | Workers: {n_envs}")
+    print(f"⚙️  Batch Size: {PPO_KWARGS['batch_size']} | Epochs: {PPO_KWARGS['n_epochs']}")
 
-    if not os.path.exists("models"):
-        os.makedirs("models")
-        
-    boss_history = []
-    player_history = []
+    if not os.path.exists("models"): os.makedirs("models")
     
-    if os.path.exists("models"):
-        b_files = glob.glob("models/boss_gen_*.zip")
-        boss_history = [b.replace(".zip", "") for b in b_files]
-        p_files = glob.glob("models/alice_gen_*.zip")
-        player_history = [p.replace(".zip", "") for p in p_files]
+    boss_history = [f.replace(".zip", "") for f in glob.glob("models/boss_gen_*.zip")]
+    player_history = [f.replace(".zip", "") for f in glob.glob("models/alice_gen_*.zip")]
 
-    # --- 1. INITIALIZE ENVIRONMENTS (ONCE) ---
-    print("🔧 Initializing Environments (This takes a moment)...")
+    # --- 1. INITIALIZE SHARED POOL (ONCE) ---
+    print("🔧 Spawning 16 Persistent Workers (Shared)...")
     
-    env_boss = None
-    env_player = None
+    # We initialize in BOSS mode, but will toggle dynamically
+    env_fns = [MakeOptimizedEnv(i, mode="TRAIN_BOSS", human_opponent=False, headless=True, opponent_pool=[], _num_workers=n_envs) for i in range(n_envs)]
     
-    if target in ["BOTH", "BOSS"]:
-        env_fns = [MakeOptimizedEnv(i, mode="TRAIN_BOSS", human_opponent=False, headless=True, opponent_pool=[], _num_workers=n_envs) for i in range(n_envs)]
-        env_boss = SubprocVecEnv(env_fns)
-        env_boss = VecFrameStack(env_boss, n_stack=4)
-        env_boss = VecNormalize(env_boss, norm_obs=True, norm_reward=True, gamma=0.99)
-
-    if target in ["BOTH", "PLAYER"]:
-        env_fns = [MakeOptimizedEnv(i, mode="TRAIN_PLAYER", human_opponent=False, headless=True, opponent_pool=[], _num_workers=n_envs) for i in range(n_envs)]
-        env_player = SubprocVecEnv(env_fns)
-        env_player = VecFrameStack(env_player, n_stack=4)
-        env_player = VecNormalize(env_player, norm_obs=True, norm_reward=True, gamma=0.99)
+    shared_env = SubprocVecEnv(env_fns)
+    shared_env = VecFrameStack(shared_env, n_stack=4)
+    # Shared Normalization (Both agents contribute to world stats - typically beneficial)
+    shared_env = VecNormalize(shared_env, norm_obs=True, norm_reward=True, gamma=0.99)
 
     # --- 2. LOAD MODELS ---
     boss_model = None
     player_model = None
 
-    if env_boss:
-        if os.path.exists(boss_model_name + ".zip"):
-            print(f"📂 Loading Boss Model...")
-            boss_model = RecurrentPPO.load(boss_model_name, env=env_boss, device="cpu")
-        else:
-            print("✨ Creating NEW Boss Model")
-            boss_model = RecurrentPPO("MlpLstmPolicy", env_boss, **PPO_KWARGS)
+    # Load Boss attached to Shared Env
+    if os.path.exists(boss_model_name + ".zip"):
+        print(f"📂 Loading Boss...")
+        boss_model = RecurrentPPO.load(boss_model_name, env=shared_env, device="cpu")
+    else:
+        print("✨ Creating Boss...")
+        boss_model = RecurrentPPO("MlpLstmPolicy", shared_env, **PPO_KWARGS)
 
-    if env_player:
-        if os.path.exists(player_model_name + ".zip"):
-            print(f"📂 Loading Player Model...")
-            player_model = RecurrentPPO.load(player_model_name, env=env_player, device="cpu")
-        else:
-            print("✨ Creating NEW Player Model")
-            player_model = RecurrentPPO("MlpLstmPolicy", env_player, **PPO_KWARGS)
+    # Load Player attached to Shared Env
+    if os.path.exists(player_model_name + ".zip"):
+        print(f"📂 Loading Player...")
+        player_model = RecurrentPPO.load(player_model_name, env=shared_env, device="cpu")
+    else:
+        print("✨ Creating Player...")
+        player_model = RecurrentPPO("MlpLstmPolicy", shared_env, **PPO_KWARGS)
 
     # --- 3. TRAINING LOOP ---
     print("\n⚡ Training Loop Started")
@@ -151,47 +129,56 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
     
     try:
         while i <= ITERATIONS:
-            print(f"\n--- ROUND {i}/{ITERATIONS} ---")
             
             # === TRAIN BOSS ===
-            if boss_model:
+            if target in ["BOTH", "BOSS"]:
                 print_training_header(i, ITERATIONS, "BOSS", n_envs)
                 
-                # Update opponents dynamically WITHOUT restarting env
-                current_opponents = player_history if use_history else []
-                env_boss.env_method("set_opponent_pool", current_opponents)
+                # 1. Configure Env for Boss
+                # We use env_method to tell the workers to switch modes internally
+                shared_env.env_method("set_mode", "TRAIN_BOSS")
                 
-                callback = MultiCoreCallback(n_envs=n_envs, verbose=1)
-                boss_model.learn(total_timesteps=STEPS_PER_ROUND, reset_num_timesteps=False, callback=callback)
+                # 2. Update Opponents
+                current_opps = player_history if use_history else []
+                shared_env.env_method("set_opponent_pool", current_opps)
                 
+                # 3. Train (Game Reset happens automatically inside learn)
+                # We use reset_num_timesteps=False to keep logging consistent
+                boss_model.learn(total_timesteps=STEPS_PER_ROUND, reset_num_timesteps=False, callback=MultiCoreCallback(n_envs=n_envs))
+                
+                # 4. Save
                 boss_model.save(boss_model_name)
                 v_name = f"models/boss_gen_{i}"
                 boss_model.save(v_name)
                 boss_history.append(v_name)
-                
-                if env_boss: env_boss.save("models/vec_normalize_boss.pkl")
-                print(f"✅ Boss Gen {i} Saved")
+                shared_env.save("models/vec_normalize_shared.pkl") # Save stats
 
             # === TRAIN PLAYER ===
-            if player_model:
+            if target in ["BOTH", "PLAYER"]:
                 print_training_header(i, ITERATIONS, "PLAYER", n_envs)
                 
-                current_opponents = boss_history if use_history else []
-                env_player.env_method("set_opponent_pool", current_opponents)
+                # 1. Configure Env for Player
+                shared_env.env_method("set_mode", "TRAIN_PLAYER")
                 
-                callback = MultiCoreCallback(n_envs=n_envs, verbose=1)
-                player_model.learn(total_timesteps=STEPS_PER_ROUND, reset_num_timesteps=False, callback=callback)
+                # 2. Update Opponents
+                current_opps = boss_history if use_history else []
+                shared_env.env_method("set_opponent_pool", current_opps)
                 
+                # 3. Train
+                player_model.learn(total_timesteps=STEPS_PER_ROUND, reset_num_timesteps=False, callback=MultiCoreCallback(n_envs=n_envs))
+                
+                # 4. Save
                 player_model.save(player_model_name)
                 v_name = f"models/alice_gen_{i}"
                 player_model.save(v_name)
                 player_history.append(v_name)
-                
-                if env_player: env_player.save("models/vec_normalize_player.pkl")
-                print(f"✅ Player Gen {i} Saved")
+                shared_env.save("models/vec_normalize_shared.pkl")
                 
             i += 1
-            gc.collect()
+            
+            # Less Aggressive GC (Prevents stutters)
+            if i % 10 == 0:
+                gc.collect()
 
     except KeyboardInterrupt:
         print("\n⚠️ Training Interrupted! Saving state...")
@@ -200,8 +187,7 @@ def train(iterations=15, n_envs=None, target="BOTH", use_history=True, cpu_profi
         
     finally:
         print("Cleaning up environments...")
-        if env_boss: env_boss.close()
-        if env_player: env_player.close()
+        shared_env.close()
         print("Done.")
 
 if __name__ == "__main__":
