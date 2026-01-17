@@ -40,9 +40,9 @@ def main():
     parser.add_argument(
         "--mode", 
         type=str, 
-        choices=['play', 'train_boss', 'vs_ai', 'train_self'], 
+        choices=['play', 'train_boss', 'vs_ai', 'train_self', 'train_amd'], 
         default=None,
-        help="Select the game mode: 'play', 'train_boss', 'vs_ai', or 'train_self'."
+        help="Select the game mode."
     )
     
     args = parser.parse_args()
@@ -53,12 +53,13 @@ def main():
         print("1. Play Normal Game")
         print("2. Fight Boss (Player vs AI)")
         print("3. Watch AI vs AI")
-        print("4. Train Self Play (Ping-Pong)")
+        print("4. Train Self Play (Standard)")
         print("5. Visualize AI Log")
+        print("6. Train AMD Optimized (Ryzen 7950X)")
         print("================================")
         
         try:
-            choice = input("Enter choice (1-5) [default: 1]: ").strip()
+            choice = input("Enter choice (1-6) [default: 1]: ").strip()
         except EOFError:
             choice = ""
             
@@ -70,6 +71,8 @@ def main():
             mode = 'train_self'
         elif choice == '5':
             mode = 'vis_log'
+        elif choice == '6':
+            mode = 'train_amd'
         else:
             mode = 'play'
             
@@ -100,89 +103,40 @@ def main():
         try:
             from train_self_play import train
             
-            # Default values
-            default_iters = float('inf')
-            
-            # Prompt for Iterations
+            print("\n--- Standard Self-Play Configuration ---")
             try:
                 iters_input = input("Enter number of iterations [default: Infinite]: ").strip()
-                if not iters_input:
-                    iterations = float('inf')
-                else:
-                    iterations = int(iters_input)
+                iterations = int(iters_input) if iters_input else float('inf')
             except ValueError:
-                print("Invalid input. Using default: Infinite")
+                iterations = float('inf')
+                
+            try:
+                envs_input = input(f"Enter number of parallel games [default: 8]: ").strip()
+                n_envs = int(envs_input) if envs_input else 8
+            except ValueError:
+                n_envs = 8
+            
+            train(iterations=iterations, n_envs=n_envs, target="BOTH", use_history=True, cpu_profile="AUTO")
+            
+        except ImportError as e:
+             print(f"Error importing train_self_play: {e}")
+        except Exception as e:
+             print(f"Error running train_self_play: {e}")
+
+    elif mode == 'train_amd':
+        try:
+            from train_self_play import train
+            print("\n--- AMD Ryzen 7950X Unleashed Mode ---")
+            print("Settings: 16 Workers, High-Bandwidth Training, CCD-Pinning enabled.")
+            
+            try:
+                iters_input = input("Enter number of iterations [default: Infinite]: ").strip()
+                iterations = int(iters_input) if iters_input else float('inf')
+            except ValueError:
                 iterations = float('inf')
             
-            # CPU Profile Selection
-            print("\n--- CPU Optimization Profile ---")
-            print("[1] Auto-Detect (Recommended)")
-            print("[2] AMD Ryzen 7950X (16C/32T → 24 workers)")
-            print("[3] Intel i7 11th Gen (8C/16T → 12 workers)")
-            print("[4] Custom (Manual worker count)")
-            
-            cpu_profile = 'AUTO'
-            n_envs = None
-            
-            try:
-                cpu_choice = input("Select CPU profile (1-4) [default: 1]: ").strip()
-                
-                if cpu_choice == '2':
-                    cpu_profile = 'AMD_RYZEN_7950X'
-                    print("✓ Using AMD Ryzen 7950X profile (24 workers)")
-                elif cpu_choice == '3':
-                    cpu_profile = 'INTEL_I7_11GEN'
-                    print("✓ Using Intel i7 11th Gen profile (12 workers)")
-                elif cpu_choice == '4':
-                    # Custom worker count
-                    cpu_profile = 'AUTO'
-                    try:
-                        envs_input = input("Enter number of parallel workers [default: auto]: ").strip()
-                        n_envs = int(envs_input) if envs_input else None
-                        if n_envs:
-                            print(f"✓ Using custom worker count: {n_envs}")
-                    except ValueError:
-                        print("Invalid input. Using auto-detect.")
-                        n_envs = None
-                else:
-                    # Auto-detect (default)
-                    cpu_profile = 'AUTO'
-                    print("✓ Using auto-detect (will detect your CPU)")
-                    
-            except Exception:
-                cpu_profile = 'AUTO'
-                print("Using auto-detect")
-                
-            # Prompt for History Usage
-            use_hist = False
-            try:
-                h_input = input("\nUse League History (Old Versions)? [y/N]: ").strip().lower()
-                if h_input == 'y':
-                    use_hist = True
-            except:
-                pass
-                
-            # Prompt for Training Target
-            print("\nSelect Training Target:")
-            print("[1] Both (Ping-Pong)")
-            print("[2] Boss Only")
-            print("[3] Alice Only")
-            
-            target_map = {"1": "BOTH", "2": "BOSS", "3": "PLAYER"}
-            try:
-                t_input = input("Enter choice (1-3) [default: 1]: ").strip()
-                target_choice = target_map.get(t_input, "BOTH")
-            except Exception:
-                target_choice = "BOTH"
-            
-            # Call Train with CPU profile
-            train(
-                iterations=iterations, 
-                n_envs=n_envs, 
-                target=target_choice, 
-                use_history=use_hist,
-                cpu_profile=cpu_profile
-            )
+            # Force Ryzen Profile
+            train(iterations=iterations, n_envs=16, target="BOTH", use_history=True, cpu_profile="AMD_RYZEN_7950X")
             
         except ImportError as e:
              print(f"Error importing train_self_play: {e}")
