@@ -127,13 +127,13 @@ class WorldLoader:
 
         # Add Continuous Spawner
         # Move to open field (far right of grass box)
-        spawner_x = start_x + 20
-        spawner_y = start_y + 10
+        spawner_x = start_x + GBW // 2
+        spawner_y = start_y + GBH // 2
         self.world.set_cell(spawner_x, spawner_y, self.spawner)
         
         self.world.spawn_points.append({
-            'x': spawner_x,
-            'y': spawner_y,
+            'x': spawner_x * MAZE_SCALE_UP,
+            'y': spawner_y* MAZE_SCALE_UP,
             'enemy_count': 1, # Spawn 1 Boss
             'type': "JörnBoss", # Explicit Boss type
             'spawned': False,

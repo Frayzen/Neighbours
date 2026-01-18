@@ -189,7 +189,6 @@ class GameRenderer:
             pygame.draw.polygon(self.game.screen, (200, 200, 200), points, 1) # Border
 
     def _draw_world(self):
-        skip = 0
         for y in range(self.game.world.height):
             for x in range(self.game.world.width):
                 cell = self.game.world.get_cell(x, y)
@@ -211,10 +210,8 @@ class GameRenderer:
                         self.background_world.blit(cell.texture, rect)
                     else:
                         pygame.draw.rect(self.background_world, cell.color, rect)
-        print("SKIP", skip)
 
     def _draw_entities(self):
-        self.game.player.draw(self.rendering_surface)
         for obj in self.game.gridObjects:
             obj.draw(self.rendering_surface)
         for proj in self.game.projectiles:
