@@ -268,8 +268,8 @@ class WorldLoader:
                 spawn_type = enemy_types[randint(0, len(enemy_types)-1)]
                 
             self.world.spawn_points.append({
-                'x': center_x, 
-                'y': center_y, 
+                'x': center_x * MAZE_SCALE_UP, 
+                'y': center_y* MAZE_SCALE_UP, 
                 'enemy_count': randint(2, 5), 
                 'type': spawn_type,
                 'spawned': False
