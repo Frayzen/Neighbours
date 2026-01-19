@@ -21,6 +21,7 @@ class Cell:
         self.height = height
         self.trigger = trigger
         self.texture = None  # Will hold the pygame Surface
+        self.textures = [] # List of textures for randomization
 
     def __str__(self):
         return self.name

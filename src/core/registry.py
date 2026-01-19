@@ -30,9 +30,29 @@ class Registry:
             )
             
             # Load texture if path is provided
+            # Load texture if path is provided
             if cell.texture_path:
                 full_path = os.path.normpath(os.path.join(base_path, cell.texture_path))
-                if os.path.exists(full_path):
+                
+                if os.path.isdir(full_path):
+                    # Load all images in directory
+                    print(f"Loading multiple textures from {full_path}")
+                    try:
+                        for file in os.listdir(full_path):
+                             if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                                tex_path = os.path.join(full_path, file)
+                                tex = pygame.image.load(tex_path).convert_alpha()
+                                cell.textures.append(tex)
+                        
+                        if cell.textures:
+                            cell.texture = cell.textures[0] # Default to first
+                            print(f"Loaded {len(cell.textures)} textures for {name}")
+                        else:
+                            print(f"No textures found in {full_path} for {name}")
+                    except Exception as e:
+                        print(f"Failed to load textures from {full_path}: {e}")
+
+                elif os.path.exists(full_path):
                     try:
                         cell.texture = pygame.image.load(full_path).convert_alpha()
                         print(f"Loaded texture for {name} from {full_path}")

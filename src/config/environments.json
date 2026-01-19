@@ -1,4 +1,13 @@
 {
+    "Ground": {
+        "walkable": true,
+        "texture_path": "../assets/images/Ground",
+        "color": [
+            34,
+            139,
+            34
+        ]
+    },
     "Grass": {
         "walkable": true,
         "color": [

@@ -1,3 +1,4 @@
+import random # Ensure this is imported
 from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX, DEBUG_MODE
 import pygame
 from core.camera import Camera
@@ -33,10 +34,12 @@ class GameRenderer:
 
         self.background_world = pygame.Surface((GRID_WIDTH_PIX, GRID_HEIGHT_PIX))
         self.background_world.fill(COLOR_BACKGROUND)
+        self.texture_seed = random.randint(0, 100000)
         self._draw_world()
 
     def reload_world(self):
         self.background_world.fill(COLOR_BACKGROUND)
+        self.texture_seed = random.randint(0, 100000)
         self._draw_world()
 
     def draw(self, camera : Camera):
@@ -199,15 +202,30 @@ class GameRenderer:
                         CELL_SIZE,
                         CELL_SIZE,
                     )
-                    if cell.texture:
+                    
+                    texture_to_draw = cell.texture
+                    
+                    # Randomized texture selection
+                    if cell.textures:
+                        # Simple deterministic hash with seed
+                        index = ((x * 73856093) ^ (y * 19349663) ^ self.texture_seed) % len(cell.textures)
+                        texture_to_draw = cell.textures[index]
+
+                    if texture_to_draw:
                         if (
-                            cell.texture.get_width() != CELL_SIZE
-                            or cell.texture.get_height() != CELL_SIZE
+                            texture_to_draw.get_width() != CELL_SIZE
+                            or texture_to_draw.get_height() != CELL_SIZE
                         ):
-                            cell.texture = pygame.transform.scale(
-                                cell.texture, (CELL_SIZE, CELL_SIZE)
+                            # Warning: This scales on every frame if not cached, but cell.texture is usually pre-scaled or we rely on blit scaling if we didn't save it back.
+                            # Better: just scale on draw or assume pre-scaled. 
+                            # If we modify cell.texture it affects all cells.
+                            # We should probably scale once on load, but here we just scale surface.
+                            # Optimize: Registry loads should scale? Or we scale here on the fly (expensive).
+                            # For now, let's just scale the surface we got.
+                            texture_to_draw = pygame.transform.scale(
+                                texture_to_draw, (CELL_SIZE, CELL_SIZE)
                             )
-                        self.background_world.blit(cell.texture, rect)
+                        self.background_world.blit(texture_to_draw, rect)
                     else:
                         pygame.draw.rect(self.background_world, cell.color, rect)
 

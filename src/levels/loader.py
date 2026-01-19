@@ -23,6 +23,7 @@ class WorldLoader:
 
         # Get cells from Registry
         self.grass = Registry.get_cell("Grass")
+        self.ground = Registry.get_cell("Ground")
         self.wall = Registry.get_cell("Wall")
         self.water = Registry.get_cell("Water")
         self.door = Registry.get_cell("Door")
@@ -41,7 +42,7 @@ class WorldLoader:
 
     def _carve(self, x, y, cell_type=None):
         if cell_type is None:
-            cell_type = self.grass
+            cell_type = self.ground if self.ground else self.grass
         self.world.set_cell(x, y, cell_type)
         self.regions[y][x] = self.current_region
 
@@ -80,9 +81,10 @@ class WorldLoader:
         start_y = (GRID_HEIGHT - GBH) // 2
         
         self._start_region()
+        fill_cell = self.ground if self.ground else self.grass
         for y in range(start_y, start_y + GBH):
             for x in range(start_x, start_x + GBW):
-                self._carve(x, y, self.grass)
+                self._carve(x, y, fill_cell)
                 
         # 3. Small Lake (let's say 5x5 approx, in top left of grass)
         LW, LH = 5, 5
@@ -104,10 +106,10 @@ class WorldLoader:
                 if x == house_x or x == house_x + house_w - 1 or y == house_y or y == house_y + house_h - 1:
                      self.world.set_cell(x, y, self.wall)
                 else:
-                    self.world.set_cell(x, y, self.grass) # Floor
+                    self.world.set_cell(x, y, fill_cell) # Floor
                     
         # House Door
-        self.world.set_cell(house_x + house_w // 2, house_y + house_h - 1, self.grass) # Opening
+        self.world.set_cell(house_x + house_w // 2, house_y + house_h - 1, fill_cell) # Opening
         
         # 5. Trapdoor (inside house)
         trapdoor_cell = Registry.get_cell("Trapdoor")
@@ -346,7 +348,8 @@ class WorldLoader:
             if randint(1, 3) == 1:
                 self.world.set_cell(x, y, self.door)
             else:
-                self.world.set_cell(x, y, self.grass)
+                fill_cell = self.ground if self.ground else self.grass
+                self.world.set_cell(x, y, fill_cell)
         else:
             # Mostly closed doors
             self.world.set_cell(x, y, self.door)
