@@ -18,7 +18,7 @@
     },
     "Wall": {
         "walkable": false,
-        "texture_path": "../assets/images/wall.jpg",
+        "texture_path": "../assets/images/Wall/Wall_Top.png",
         "color": [
             128,
             128,

@@ -1,6 +1,7 @@
 import random # Ensure this is imported
-from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX, DEBUG_MODE, MAZE_SCALE_UP
+from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX, DEBUG_MODE, MAZE_SCALE_UP, BASE_DIR
 import pygame
+import os
 from core.camera import Camera
 from core.debug import debug
 from core.vfx import vfx_manager
@@ -34,6 +35,33 @@ class GameRenderer:
 
         self.background_world = pygame.Surface((GRID_WIDTH_PIX, GRID_HEIGHT_PIX))
         self.background_world.fill(COLOR_BACKGROUND)
+        
+        # Load Wall Overlays
+        self.overlays = {}
+        overlay_path = os.path.join(BASE_DIR, "assets", "images", "Wall", "Wallpiec.png")
+        if os.path.exists(overlay_path):
+             try:
+                 base_overlay = pygame.image.load(overlay_path).convert_alpha()
+                 base_overlay = pygame.transform.scale(base_overlay, (CELL_SIZE, CELL_SIZE))
+                 
+                 # Assume base is Top/North.
+                 # Rotations for neighbors:
+                 # Standard Pygame rotation is counter-clockwise.
+                 # (0, -1) [North]: No rotation
+                 # (0, 1) [South]: 180
+                 # (-1, 0) [West]: 90 (or -270)
+                 # (1, 0) [East]: -90 (or 270)
+                 
+                 self.overlays[(0, -1)] = base_overlay
+                 self.overlays[(0, 1)] = pygame.transform.rotate(base_overlay, 180)
+                 self.overlays[(-1, 0)] = pygame.transform.rotate(base_overlay, 90)
+                 self.overlays[(1, 0)] = pygame.transform.rotate(base_overlay, -90)
+                 print("DEBUG: Loaded Wall Overlays.")
+             except Exception as e:
+                 print(f"Failed to load wall overlay: {e}")
+        else:
+             print(f"Warning: Wall overlay not found at {overlay_path}")
+
         self.texture_seed = random.randint(0, 100000)
         self._draw_world()
 
@@ -234,16 +262,28 @@ class GameRenderer:
                             texture_to_draw.get_width() != CELL_SIZE
                             or texture_to_draw.get_height() != CELL_SIZE
                         ):
-                            # Warning: This scales on every frame if not cached, but cell.texture is usually pre-scaled or we rely on blit scaling if we didn't save it back.
-                            # Better: just scale on draw or assume pre-scaled. 
-                            # If we modify cell.texture it affects all cells.
-                            # We should probably scale once on load, but here we just scale surface.
-                            # Optimize: Registry loads should scale? Or we scale here on the fly (expensive).
-                            # For now, let's just scale the surface we got.
                             texture_to_draw = pygame.transform.scale(
                                 texture_to_draw, (CELL_SIZE, CELL_SIZE)
                             )
                         self.background_world.blit(texture_to_draw, rect)
+                        
+                        # Wall Overlay Logic
+                        if cell.name == "Wall" and self.overlays:
+                             # Check Neighbors
+                             for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                                 nx, ny = x + dx, y + dy
+                                 
+                                 # Determine if neighbor is NOT a wall (e.g. None or Ground or Floor)
+                                 # get_cell returns None if out of bounds -> Treat as wall/void? Or treat as non-wall?
+                                 # Usually void is "nothing", so maybe border? Let's say we border valid non-wall cells.
+                                 neighbor = self.game.world.get_cell(nx, ny)
+                                 
+                                 # If neighbor exists and is NOT Wall, draw overlay
+                                 if neighbor and neighbor.name != "Wall":
+                                     overlay_img = self.overlays.get((dx, dy))
+                                     if overlay_img:
+                                         self.background_world.blit(overlay_img, rect)
+                                         
                     else:
                         pygame.draw.rect(self.background_world, cell.color, rect)
 
