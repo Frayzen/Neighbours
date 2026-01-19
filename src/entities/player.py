@@ -33,6 +33,22 @@ class Player(GridObject):
         self.speed = speed
         self.health = PLAYER_MAX_HEALTH
         self.max_health = PLAYER_MAX_HEALTH
+        
+        # Load texture
+        import os
+        from config.settings import BASE_DIR
+        self.image = None
+        try:
+            image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+            if os.path.exists(image_path):
+                raw_image = pygame.image.load(image_path).convert_alpha()
+                self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                debug.log(f"Loaded player texture: {image_path}")
+            else:
+                debug.log(f"Player texture not found at: {image_path}")
+        except Exception as e:
+            debug.log(f"Error loading player texture: {e}")
+
         self.invulnerable = False
         self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
         self.last_hit_time = 0
@@ -312,7 +328,10 @@ class Player(GridObject):
 
     def draw(self, screen):
         # Draw player
-        pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
+        if self.image:
+             screen.blit(self.image, (self.x, self.y))
+        else:
+             pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
         
         # Draw weapon
         weapon = self.combat.current_weapon
