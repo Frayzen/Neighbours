@@ -98,12 +98,15 @@ class Spawner(GridObject):
         # Draw disguise texture (always visible if loaded)
         if hasattr(self, 'texture') and self.texture:
             screen.blit(self.texture, (self.x, self.y))
-        elif getattr(self.game, 'show_debug_path', False):
+        elif getattr(self.game, 'show_debug_path', False) or getattr(self.game, 'debug_mode', False):
              # Draw placeholder only in debug mode if no texture
              super().draw(screen)
 
         # Draw debug info
-        if getattr(self.game, 'show_debug_path', False):
+        # Check both pathfinding debug and general debug mode
+        show_debug = getattr(self.game, 'show_debug_path', False) or getattr(self.game, 'debug_mode', False)
+        
+        if show_debug:
              # Draw range circle
              pygame.draw.circle(screen, (0, 255, 0), 
                                 (int(self.x + self.w*CELL_SIZE/2), int(self.y + self.h*CELL_SIZE/2)), 

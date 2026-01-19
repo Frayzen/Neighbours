@@ -381,13 +381,18 @@ class GameLogic:
                 else:
                     debug.log("Failed to find valid spawn location for enemy.")
 
-        if keystate[pygame.K_t]:
-             # Toggle pathfinding
-             if not getattr(self, "t_pressed", False): # Debounce
-                 self.game.show_debug_path = not self.game.show_debug_path
-                 self.t_pressed = True
+        if keystate[pygame.K_h]:
+             if not getattr(self, "h_pressed", False):
+                 # Master Toggle: Switch both
+                 new_state = not getattr(self.game, 'debug_mode', False)
+                 self.game.debug_mode = new_state
+                 self.game.show_debug_path = new_state
                  
-                 if self.game.show_debug_path:
+                 self.h_pressed = True
+                 debug.log(f"Debug Mode: {'ON' if new_state else 'OFF'}")
+                 
+                 # If turned ON, we need to calculate the path just like 'T' did
+                 if new_state:
                      # Find Trapdoor
                      target = None
                      min_dist = float('inf')
@@ -406,12 +411,46 @@ class GameLogic:
                      
                      if target:
                          from core.pathfinding import find_path
-                         print(f"DEBUG: Calculating path to {target}...")
+                         # print(f"DEBUG: Calculating path to {target}...")
                          self.game.debug_path_points = find_path(px, py, target[0], target[1], self.game.world)
-                         print(f"DEBUG: Path found with {len(self.game.debug_path_points)} points.")
                      else:
-                         print("DEBUG: No Trapdoor found to pathfind to.")
                          self.game.debug_path_points = []
-             
         else:
+             self.h_pressed = False
+
+        # Keep 'T' as a separate toggle for JUST pathfinding if the user wants fine control?
+        # The user said "turn of an on ALL the debug functions", implying H is master.
+        # Leaving T available but H overrides it is a good pattern.
+        if getattr(self.game, 'debug_mode', False):
+            if keystate[pygame.K_t]:
+                 # Toggle pathfinding only
+                 if not getattr(self, "t_pressed", False): # Debounce
+                     self.game.show_debug_path = not self.game.show_debug_path
+                     self.t_pressed = True
+                     
+                     if self.game.show_debug_path:
+                         # Find Trapdoor logic (Duplicate for now, or could refactor)
+                         target = None
+                         min_dist = float('inf')
+                         px, py = self.game.player.x, self.game.player.y
+                         
+                         for y in range(self.game.world.height):
+                             for x in range(self.game.world.width):
+                                 cell = self.game.world.get_cell(x, y)
+                                 if cell and cell.name == "Trapdoor":
+                                     cx, cy = x * CELL_SIZE, y * CELL_SIZE
+                                     dist = (cx - px)**2 + (cy - py)**2
+                                     if dist < min_dist:
+                                         min_dist = dist
+                                         target = (cx, cy)
+                         
+                         if target:
+                             from core.pathfinding import find_path
+                             self.game.debug_path_points = find_path(px, py, target[0], target[1], self.game.world)
+                         else:
+                             self.game.debug_path_points = []
+            else:
+                 self.t_pressed = False
+        else:
+             # Ensure T key state is reset even if we can't use it, to avoid stuck state
              self.t_pressed = False

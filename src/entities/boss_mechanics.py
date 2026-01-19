@@ -82,6 +82,8 @@ def perform_dash(boss, player):
     dx = player.x - boss.x
     dy = player.y - boss.y
     dist = math.sqrt(dx*dx + dy*dy)
+
+    boss.speed = 4
     
     if dist > 0:
         # Vector Boss -> Player
@@ -232,6 +234,8 @@ def perform_The_Final_Ember(boss, game):
     Set random World tiles on fire.
     """
     from entities.hazard import FireHazard
+
+    boss.speed = 1.5
     
     # Configuration
     NUM_FIRES = 20 

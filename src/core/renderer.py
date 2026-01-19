@@ -87,21 +87,23 @@ class GameRenderer:
         if self.game.paused:
             self.draw_pause_menu()
             
-        if self.game.show_debug_path and self.game.debug_path_points:
-             if len(self.game.debug_path_points) > 1:
-                 # Adjust points for camera
-                 cam_x, cam_y = self.game.camera.x, self.game.camera.y
-                 adjusted_points = [(p[0] - cam_x, p[1] - cam_y) for p in self.game.debug_path_points]
-                 pygame.draw.lines(self.game.screen, (255, 255, 0), False, adjusted_points, 4)
-        
-        debug.draw(self.game.screen)
-        
-        if DEBUG_MODE:
-            fps = self.game.clock.get_fps()
-            fps_text = self.font.render(f"FPS: {int(fps)}", True, (0, 255, 0))
-            # Top right corner
-            rect = fps_text.get_rect(topright=(SCREEN_WIDTH_PIX - 10, 10))
-            self.game.screen.blit(fps_text, rect)
+        if getattr(self.game, 'debug_mode', False): # Only draw explicit debug info if enabled
+            if self.game.show_debug_path and self.game.debug_path_points:
+                 if len(self.game.debug_path_points) > 1:
+                     # Adjust points for camera
+                     cam_x, cam_y = self.game.camera.x, self.game.camera.y
+                     adjusted_points = [(p[0] - cam_x, p[1] - cam_y) for p in self.game.debug_path_points]
+                     pygame.draw.lines(self.game.screen, (255, 255, 0), False, adjusted_points, 4)
+            
+            debug.draw(self.game.screen)
+            
+            if DEBUG_MODE: # Global config constant, maybe we should use self.game.debug_mode instead or AND them?
+                # User requested "all the debug text... should not be visible if dbug is off"
+                fps = self.game.clock.get_fps()
+                fps_text = self.font.render(f"FPS: {int(fps)}", True, (0, 255, 0))
+                # Top right corner
+                rect = fps_text.get_rect(topright=(SCREEN_WIDTH_PIX - 10, 10))
+                self.game.screen.blit(fps_text, rect)
             
         pygame.display.flip()
 
