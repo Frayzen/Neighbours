@@ -289,7 +289,7 @@ class WorldLoader:
             # Place Spawner in center
             center_x = x + width // 2
             center_y = y + height // 2
-            self.world.set_cell(center_x, center_y, self.spawner)
+            # self.world.set_cell(center_x, center_y, self.spawner) # REMOVED: Prevent visual grid artifact (2x2 purple blocks). We use Entities now.
             
             # Using Spawner Entity Concept now
             # We don't add to world.spawn_points anymore, but we need to tell Game to create Spawners
@@ -400,13 +400,32 @@ class WorldLoader:
         # 1/4 chance of being open path or open door
         if randint(1, 4) == 1:
             if randint(1, 3) == 1:
-                self.world.set_cell(x, y, self.door)
+                # Door
+                # self.world.set_cell(x, y, self.door) # REMOVED: Replaced with Entity to avoid 2x2 tiling
+                fill_cell = self.ground if self.ground else self.grass
+                self.world.set_cell(x, y, fill_cell)
+                
+                # Add Door Entity marker
+                # Note: Center of the junction. 
+                # Spawn points list stores keys for setup.py
+                self.world.spawn_points.append({
+                    'x': x * MAZE_SCALE_UP,
+                    'y': y * MAZE_SCALE_UP,
+                    'type': 'door'
+                })
             else:
                 fill_cell = self.ground if self.ground else self.grass
                 self.world.set_cell(x, y, fill_cell)
         else:
             # Mostly closed doors
-            self.world.set_cell(x, y, self.door)
+            # self.world.set_cell(x, y, self.door) # REMOVED
+            fill_cell = self.ground if self.ground else self.grass
+            self.world.set_cell(x, y, fill_cell)
+            self.world.spawn_points.append({
+                'x': x * MAZE_SCALE_UP,
+                'y': y * MAZE_SCALE_UP,
+                'type': 'door'
+            })
 
     # -------------------------------------------------------------------------
     # DEAD-END REMOVAL

@@ -126,6 +126,13 @@ class GameSetup:
             if sp.get('type') == 'spawner_entity':
                 spawner = Spawner(self.game, sp['x'] * CELL_SIZE, sp['y'] * CELL_SIZE)
                 self.game.gridObjects.append(spawner)
+            elif sp.get('type') == 'door':
+                from entities.door import Door
+                # Note: Coordinates are already scaled? 
+                # Loader puts x * MAZE_SCALE_UP into 'x'.
+                # Setup handles pixel conversion with * CELL_SIZE.
+                door = Door(self.game, sp['x'] * CELL_SIZE, sp['y'] * CELL_SIZE)
+                self.game.gridObjects.append(door)
             else:
                 # Legacy / Manual handling (JSON Levels)
                 # Create a Spawner that immediately triggers with fixed enemies
