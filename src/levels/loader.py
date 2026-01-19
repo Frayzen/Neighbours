@@ -49,103 +49,134 @@ class WorldLoader:
     # -------------------------------------------------------------------------
     # MAIN GENERATOR
     # -------------------------------------------------------------------------
-    def generate(self, layer_index=0):
+    def generate(self, config):
+        if config is None:
+            # Fallback legacy
+            return self._generate_dungeon()
+
         self.world = World() # Reset world for new layer
+        
+        # Override world dimensions if provided
+        if "width" in config and "height" in config:
+            self.world = World(width=config["width"], height=config["height"])
+        
         # Reset regions
         self.regions = [[None for _ in range(self.world.width)]
                         for _ in range(self.world.height)]
         self.current_region = -1
         self.rooms = [] # Reset rooms
-
-        if layer_index == 0:
-            self._generate_overworld()
+        
+        level_type = config.get("type", "dungeon")
+        
+        if level_type == "file":
+             self._load_from_json(config.get("path"))
+        elif level_type == "dungeon":
+             self._generate_dungeon(config)
         else:
-            self._generate_dungeon()
+             print(f"Unknown level type: {level_type}")
+             self._generate_dungeon() # Fallback
+
         self.world.scale(MAZE_SCALE_UP)
+        
+        # Scale rooms if present (dungeons)
         for i in range(len(self.rooms)):
             x, y, w, h =  self.rooms[i]
             self.rooms[i] = (x * MAZE_SCALE_UP, y * MAZE_SCALE_UP, w * MAZE_SCALE_UP, h * MAZE_SCALE_UP)
 
         return self.world
 
-    def _generate_overworld(self):
-        # 1. Fill background with wall (or empty, but wall is safer for boundary)
-        for y in range(self.world.height):
-            for x in range(self.world.width):
-                self.world.set_cell(x, y, self.wall)
+    def _load_from_json(self, path):
+        import json
+        import os
+        from config.settings import BASE_DIR
+        
+        # Construct full path (relative to src/ generally)
+        # config paths were like "config/levels/spawn.json"
+        full_path = os.path.join(BASE_DIR, path)
+        if not os.path.exists(full_path):
+             # Try relative to src if needed, but BASE_DIR should be right
+             print(f"ERROR: Level file not found at {full_path}")
+             return
+
+        try:
+            with open(full_path, 'r') as f:
+                data = json.load(f)
+            
+            # Dimensions are likely handled in generate() but let's ensure
+            if "width" in data and "height" in data:
+                 w, h = data["width"], data["height"]
+                 if w != self.world.width or h != self.world.height:
+                     print(f"DEBUG: Resizing world to {w}x{h} based on JSON file.")
+                     self.world = World(width=w, height=h)
+                     # Reset regions for new size
+                     self.regions = [[None for _ in range(self.world.width)]
+                                     for _ in range(self.world.height)]
+
+            # Legend mapping
+            legend = data.get("legend", {})
+            layout = data.get("layout", [])
+            
+            # Map legend keys to Cell objects
+            cell_map = {}
+            for key, val in legend.items():
+                cell = Registry.get_cell(val)
+                if not cell:
+                    print(f"Warning: Cell '{val}' not found in Registry.")
+                    cell = self.wall # Fallback
+                cell_map[key] = cell
+            
+            # Fill World
+            start_y = 0
+            for row_idx, line in enumerate(layout):
+                if row_idx >= self.world.height: break
+                for col_idx, char in enumerate(line):
+                     if col_idx >= self.world.width: break
+                     
+                     cell = cell_map.get(char, self.wall)
+                     self.world.set_cell(col_idx, row_idx, cell)
+            
+            # Handle Spawn Point (Fake room for setup.py compatibility)
+            spawn_pt = data.get("spawn_point")
+            if spawn_pt:
+                # Add a 1x1 room at spawn for logic that needs it
+                # Using 5x5 just to be safe with spiral search logic
+                sx, sy = spawn_pt.get("x", 1), spawn_pt.get("y", 1)
+                self.rooms.append((sx, sy, 1, 1)) 
+            else:
+                 self.rooms.append((1, 1, 1, 1))
+
+            # Handle Spawners (Entities)
+            # Add them to world.spawn_points
+            spawners = data.get("spawners", [])
+            for sp in spawners:
+                # Convert to world coordinates (pre-scale)
+                # But spawn_points expect POST-SCALE coordinates usually?
+                # Looking at _generate_overworld original: 
+                # spawner_x * MAZE_SCALE_UP
                 
-        # 2. Create 25x25 Grass Box
-        # Center it
-        GBW, GBH = 25, 25
-        start_x = (GRID_WIDTH - GBW) // 2
-        start_y = (GRID_HEIGHT - GBH) // 2
-        
-        self._start_region()
-        fill_cell = self.ground if self.ground else self.grass
-        for y in range(start_y, start_y + GBH):
-            for x in range(start_x, start_x + GBW):
-                self._carve(x, y, fill_cell)
+                # So we store them as pre-scale here, but valid format?
+                # world.spawn_points entry:
+                # 'x': spawner_x * MAZE_SCALE_UP
                 
-        # 3. Small Lake (let's say 5x5 approx, in top left of grass)
-        LW, LH = 5, 5
-        lake_x = start_x + LW // 2 + 1
-        lake_y = start_y + LH // 2 + 1
-        for y in range(lake_y, lake_y + LH):
-            for x in range(lake_x, lake_x + LW):
-                self.world.set_cell(x, y, self.water)
+                self.world.spawn_points.append({
+                    'x': sp.get('x') * MAZE_SCALE_UP,
+                    'y': sp.get('y') * MAZE_SCALE_UP,
+                    'enemy_count': sp.get('enemy_count', 1),
+                    'type': sp.get('type', 'basic_enemy'),
+                    'spawned': sp.get('spawned', False),
+                    'spawn_mode': sp.get('spawn_mode', 'once'),
+                    'cooldown': sp.get('cooldown', 5000),
+                    'last_spawn_time': 0
+                })
                 
-        # 4. Small House (Walls + Door)
-        house_x = start_x + int(GBW * 0.6)
-        house_y = start_y + int(GBH * 0.2)
-        house_w = 6
-        house_h = 6
-        
-        # House Walls
-        for y in range(house_y, house_y + house_h):
-            for x in range(house_x, house_x + house_w):
-                if x == house_x or x == house_x + house_w - 1 or y == house_y or y == house_y + house_h - 1:
-                     self.world.set_cell(x, y, self.wall)
-                else:
-                    self.world.set_cell(x, y, fill_cell) # Floor
-                    
-        # House Door
-        self.world.set_cell(house_x + house_w // 2, house_y + house_h - 1, fill_cell) # Opening
-        
-        # 5. Trapdoor (inside house)
-        trapdoor_cell = Registry.get_cell("Trapdoor")
-        if trapdoor_cell:
-            self.world.set_cell(house_x + house_w // 2, house_y + house_h // 2, trapdoor_cell)
-        else:
-            print("ERROR: Trapdoor cell not found in Registry!")
-
-        # Set spawn point for first layer (center of grass box) generally, 
-        # but let's put it near the unexpected lake? Or just center. 
-        # Using the rooms list format to be compatible with _init_entities in setup.py
-        # Setup.py expects: spawn_room[MINX] + spawn_room[HEIGHT] // 2...
-        # It treats rooms as (x, y, width, height)
-        # We can fake a room for the spawn point.
-        fake_spawn_room = (start_x + 10, start_y + 10, 5, 5) # Somewhere in the grass
-        self.rooms.append(fake_spawn_room)
-
-        # Add Continuous Spawner
-        # Move to open field (far right of grass box)
-        spawner_x = start_x + GBW // 2
-        spawner_y = start_y + GBH // 2
-        self.world.set_cell(spawner_x, spawner_y, self.spawner)
-        
-        self.world.spawn_points.append({
-            'x': spawner_x * MAZE_SCALE_UP,
-            'y': spawner_y* MAZE_SCALE_UP,
-            'enemy_count': 1, # Spawn 1 Boss
-            'type': "JörnBoss", # Explicit Boss type
-            'spawned': False,
-            'spawn_mode': 'once', # Only once
-            'cooldown': 5000, 
-            'last_spawn_time': 0
-        })
+                # Visual placement of spawner if needed? 
+                # Usually invisible or under floor, but if legend had 'B' for spawner, we might have placed a 'Spawner' cell already.
+                
+        except Exception as e:
+            print(f"Failed to load level JSON: {e}")
 
 
-    def _generate_dungeon(self):
+    def _generate_dungeon(self, config=None):
         # Fill background with wall
         for y in range(self.world.height):
             for x in range(self.world.width):
@@ -154,8 +185,8 @@ class WorldLoader:
         self.__generate_rooms()
 
         # Fill unused space with mazes
-        for x in range(1, GRID_WIDTH, 2):
-            for y in range(1, GRID_HEIGHT, 2):
+        for x in range(1, self.world.width, 2):
+            for y in range(1, self.world.height, 2):
                 if self.world.get_cell(x, y) != self.wall:
                     continue
                 self.__growMaze(x, y)
@@ -236,8 +267,8 @@ class WorldLoader:
             else:
                 height += rectangularity
 
-            x = randint(0, (GRID_WIDTH - width) // 2) * 2 + 1
-            y = randint(0, (GRID_HEIGHT - height) // 2) * 2 + 1
+            x = randint(0, (self.world.width - width) // 2) * 2 + 1
+            y = randint(0, (self.world.height - height) // 2) * 2 + 1
             current = (x, y, width, height)
 
             intersects = False
@@ -276,6 +307,31 @@ class WorldLoader:
                 'type': spawn_type,
                 'spawned': False
             })
+
+        # GUARANTEED TRAPDOOR in the LAST room generated
+        if self.rooms:
+            last_room = self.rooms[-1]
+            lx, ly, lw, lh = last_room
+            
+            # Center of last room
+            tx = lx + lw // 2
+            ty = ly + lh // 2
+            
+            # Place Trapdoor Cell
+            trapdoor = Registry.get_cell("Trapdoor")
+            if trapdoor:
+                self.world.set_cell(tx, ty, trapdoor)
+                print(f"DEBUG: Placed Guaranteed Trapdoor at ({tx}, {ty})")
+                
+                # Remove any spawner at this exact location to avoid stacking
+                # We placed a spawner at center_x, center_y for every room above
+                # So we just need to remove the last entry in self.world.spawn_points?
+                # The loop ends, so the last append corresponds to the last room.
+                if self.world.spawn_points:
+                    self.world.spawn_points.pop()
+                    print("DEBUG: Removed conflicting spawner for Trapdoor.")
+            else:
+                print("ERROR: Trapdoor cell not found!")
 
     # -------------------------------------------------------------------------
     # CONNECT REGIONS

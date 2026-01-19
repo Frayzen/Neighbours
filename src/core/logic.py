@@ -315,8 +315,8 @@ class GameLogic:
                     # Determine type
                     if base_type == "random":
                         # Exclude Boss from random spawns
-                        available = [e for e in Registry.get_enemy_types() if "Boss" not in e and e != "JörnBoss"]
-                        print(f"DEBUG: Spawning random enemy. Excluded JörnBoss. Available: {available}")
+                        available = [e for e in Registry.get_enemy_types() if "Boss" not in e and e != "JoernBoss"]
+                        print(f"DEBUG: Spawning random enemy. Excluded JoernBoss. Available: {available}")
                         # Start with a default
                         e_type = "basic_enemy"
                         if available:
@@ -354,7 +354,7 @@ class GameLogic:
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_p]:
             min_x, min_y, max_x, max_y = 0, 0, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX
-            enemy_types = [e for e in Registry.get_enemy_types() if e != "JörnBoss"]
+            enemy_types = [e for e in Registry.get_enemy_types() if e != "JoernBoss"]
             if enemy_types:
                 # Try to find a valid spawn position
                 for _ in range(50):
@@ -380,3 +380,38 @@ class GameLogic:
                         break
                 else:
                     debug.log("Failed to find valid spawn location for enemy.")
+
+        if keystate[pygame.K_t]:
+             # Toggle pathfinding
+             if not getattr(self, "t_pressed", False): # Debounce
+                 self.game.show_debug_path = not self.game.show_debug_path
+                 self.t_pressed = True
+                 
+                 if self.game.show_debug_path:
+                     # Find Trapdoor
+                     target = None
+                     min_dist = float('inf')
+                     px, py = self.game.player.x, self.game.player.y
+                     
+                     for y in range(self.game.world.height):
+                         for x in range(self.game.world.width):
+                             cell = self.game.world.get_cell(x, y)
+                             if cell and cell.name == "Trapdoor":
+                                 # This is a trapdoor tile
+                                 cx, cy = x * CELL_SIZE, y * CELL_SIZE
+                                 dist = (cx - px)**2 + (cy - py)**2
+                                 if dist < min_dist:
+                                     min_dist = dist
+                                     target = (cx, cy)
+                     
+                     if target:
+                         from core.pathfinding import find_path
+                         print(f"DEBUG: Calculating path to {target}...")
+                         self.game.debug_path_points = find_path(px, py, target[0], target[1], self.game.world)
+                         print(f"DEBUG: Path found with {len(self.game.debug_path_points)} points.")
+                     else:
+                         print("DEBUG: No Trapdoor found to pathfind to.")
+                         self.game.debug_path_points = []
+             
+        else:
+             self.t_pressed = False

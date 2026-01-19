@@ -1,5 +1,5 @@
 import random # Ensure this is imported
-from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX, DEBUG_MODE
+from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX, DEBUG_MODE, MAZE_SCALE_UP
 import pygame
 from core.camera import Camera
 from core.debug import debug
@@ -59,6 +59,13 @@ class GameRenderer:
         if self.game.paused:
             self.draw_pause_menu()
             
+        if self.game.show_debug_path and self.game.debug_path_points:
+             if len(self.game.debug_path_points) > 1:
+                 # Adjust points for camera
+                 cam_x, cam_y = self.game.camera.x, self.game.camera.y
+                 adjusted_points = [(p[0] - cam_x, p[1] - cam_y) for p in self.game.debug_path_points]
+                 pygame.draw.lines(self.game.screen, (255, 255, 0), False, adjusted_points, 4)
+        
         debug.draw(self.game.screen)
         
         if DEBUG_MODE:
@@ -194,14 +201,25 @@ class GameRenderer:
     def _draw_world(self):
         for y in range(self.game.world.height):
             for x in range(self.game.world.width):
-                cell = self.game.world.get_cell(x, y)
-                if cell:
+                cell_data = self.game.world.get_cell_full(x, y)
+                if cell_data:
+                    cell, (offset_x, offset_y) = cell_data
+                    
                     rect = pygame.Rect(
                         x * CELL_SIZE,
                         y * CELL_SIZE,
                         CELL_SIZE,
                         CELL_SIZE,
                     )
+                    
+                    if cell.name == "Trapdoor":
+                        if offset_x == 0 and offset_y == 0:
+                            # Draw big texture spanning MAZE_SCALE_UP cells
+                            size = CELL_SIZE * MAZE_SCALE_UP
+                            if cell.texture:
+                                tex = pygame.transform.scale(cell.texture, (size, size))
+                                self.background_world.blit(tex, rect)
+                        continue # Skip standard drawing for trapdoor parts
                     
                     texture_to_draw = cell.texture
                     

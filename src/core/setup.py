@@ -47,7 +47,9 @@ class GameSetup:
 
     def _init_level(self):
         self.world_loader = WorldLoader()
-        self.game.world = self.world_loader.generate()
+        level_config = self.game.level_manager.get_current_level()
+        print(f"DEBUG: Generating initial level: {level_config}")
+        self.game.world = self.world_loader.generate(level_config)
 
     def _init_entities(self):
         self.game.gridObjects = []

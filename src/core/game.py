@@ -15,8 +15,12 @@ class Game:
         pygame.init()
         self.player = None
 
+        # Level Management
+        from core.level_manager import LevelManager
+        self.level_manager = LevelManager()
+
         # Perform initial setup
-        self.current_layer_index = 0
+        self.current_layer_index = 0 # DEPRECATED: Use level_manager.get_level_index() logic
         self.setup = GameSetup(self)
         self.setup.perform_setup()
 
@@ -30,6 +34,10 @@ class Game:
         self.projectiles = []
 
         self.paused = False
+
+        # Debug
+        self.show_debug_path = False
+        self.debug_path_points = []
 
         # Auto-load logic
         from core.save_manager import SaveManager
@@ -55,12 +63,18 @@ class Game:
         self.paused = False
 
     def next_layer(self):
-        self.current_layer_index += 1
-        print(f"DEBUG: Generating layer {self.current_layer_index}...")
+        if not self.level_manager.advance_level():
+            print("DEBUG: No more levels! Game Over or Loop?")
+            return
+
+        self.current_layer_index = self.level_manager.get_level_index()
+        print(f"DEBUG: Generating level {self.current_layer_index}...")
+        
+        level_config = self.level_manager.get_current_level()
         
         # Determine player health and other persistent state if needed
         # For now, we just regenerate the world
-        self.world = self.setup.world_loader.generate(self.current_layer_index)
+        self.world = self.setup.world_loader.generate(level_config)
         
         # Re-initialize entities for the new layer (Preserve Player)
         self.setup.respawn_player() 

@@ -36,7 +36,7 @@
     },
     "Door": {
         "walkable": true,
-        "texture_path": "../assets/images/trapdoor.png",
+        "texture_path": "../assets/images/door.png",
         "color": [
             139,
             69,

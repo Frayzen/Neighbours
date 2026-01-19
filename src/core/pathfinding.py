@@ -109,3 +109,68 @@ class FlowField:
          grid_x = int(x / CELL_SIZE)
          grid_y = int(y / CELL_SIZE)
          return self.distance_field.get((grid_x, grid_y), float('inf'))
+
+def find_path(start_x, start_y, target_x, target_y, world):
+    """
+    A* Pathfinding implementation.
+    Returns a list of (x, y) tuples in WORLD COORDINATES (pixels) representing the path.
+    """
+    # Grid coordinates
+    sx, sy = int(start_x // CELL_SIZE), int(start_y // CELL_SIZE)
+    tx, ty = int(target_x // CELL_SIZE), int(target_y // CELL_SIZE)
+    
+    cols = world.width
+    rows = world.height
+    
+    # Heuristic: Manhattan distance
+    def heuristic(a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    frontier = []
+    heapq.heappush(frontier, (0, (sx, sy)))
+    came_from = {}
+    cost_so_far = {}
+    came_from[(sx, sy)] = None
+    cost_so_far[(sx, sy)] = 0
+    
+    found = False
+    
+    while frontier:
+        _, current = heapq.heappop(frontier)
+        
+        if current == (tx, ty):
+            found = True
+            break
+        
+        # Neighbors: Up, Down, Left, Right
+        for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+            nx, ny = current[0] + dx, current[1] + dy
+            
+            if 0 <= nx < cols and 0 <= ny < rows:
+                cell = world.get_cell(nx, ny)
+                if cell and not cell.walkable:
+                     continue
+                
+                new_cost = cost_so_far[current] + 1
+                if (nx, ny) not in cost_so_far or new_cost < cost_so_far[(nx, ny)]:
+                    cost_so_far[(nx, ny)] = new_cost
+                    priority = new_cost + heuristic((nx, ny), (tx, ty))
+                    heapq.heappush(frontier, (priority, (nx, ny)))
+                    came_from[(nx, ny)] = current
+                    
+    if found:
+        # Reconstruct path
+        path = []
+        curr = (tx, ty)
+        while curr != (sx, sy):
+            # Center of the cell in world coords
+            wx = curr[0] * CELL_SIZE + CELL_SIZE // 2
+            wy = curr[1] * CELL_SIZE + CELL_SIZE // 2
+            path.append((wx, wy))
+            curr = came_from[curr]
+            
+        path.append((sx * CELL_SIZE + CELL_SIZE // 2, sy * CELL_SIZE + CELL_SIZE // 2))
+        path.reverse()
+        return path
+    
+    return []

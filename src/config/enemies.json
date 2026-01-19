@@ -77,7 +77,7 @@
         "height": 1,
         "behavior": "healer"
     },
-    "JörnBoss": {
+    "JoernBoss": {
         "health": 5000,
         "speed": 2.5,
         "damage": 40,

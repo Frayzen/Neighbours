@@ -122,7 +122,7 @@ class Enemy(GridObject):
         current_time = pygame.time.get_ticks()
 
         # Boss Phase Logic
-        if self.enemy_type == "JörnBoss":
+        if self.enemy_type == "JoernBoss":
             hp_percent = self.health / self.max_health
             
             # Phase 2 check
