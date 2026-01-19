@@ -34,34 +34,45 @@ def perform_gravity_smash(boss, player):
 
 def perform_summon(boss, game, enemy_type=None, count=None):
     """
-    Phase 1: Spawn minions.
-    If enemy_type is None, picks random from pool.
+    Phase 1: Spawn minions using Director Budget.
     """
-    if count is None:
-        count = random.randint(2, 3)
-        
-    # Pool of summonable minions
-    SUMMON_POOL = ["basic_enemy", "fast_enemy", "ranger", "tank_enemy", "healer"]
-    
+    from core.director import Director
     from entities.enemy import Enemy
     
-    for _ in range(count):
-        # Choose type
-        etype = enemy_type if enemy_type else random.choice(SUMMON_POOL)
+    debug.log(f"JörnBoss initiating Summon...")
+    
+    # Calculate Budget
+    # Boss adds extra pressure but not full floor worth?
+    director = Director(game)
+    full_budget = director.calculate_difficulty_budget()
+    
+    # Use 50% of floor budget for this ability
+    boss_budget = max(20, int(full_budget * 0.5))
+    
+    if count is not None:
+        # Override: specific count of specific type (Legacy support or specific mechanics)
+        wave = [enemy_type if enemy_type else "basic_enemy"] * count
+    else:
+        # Director Logic
+        wave = director.generate_wave(boss_budget)
         
+    if not wave:
+        wave = ["basic_enemy"] # Fallback
+    
+    for etype in wave:
         # Random pos around boss
         angle = random.uniform(0, 6.28)
         radius = random.randint(50, 100)
         spawn_x = boss.x + math.cos(angle) * radius
         spawn_y = boss.y + math.sin(angle) * radius
         
-        # Check bounds/walls? Assuming okay for now or handled by collision resolution later
-        # Verify if enemy type exists to avoid crashes? The Enemy class handles fallback but warned.
+        # Determine valid position?
+        # For boss arena, usually open space, so simple check or center bias
         
         minion = Enemy(game, spawn_x, spawn_y, etype)
         game.gridObjects.append(minion)
         
-    debug.log(f"JörnBoss summoned {count} {enemy_type if enemy_type else 'random'} minions!")
+    debug.log(f"JörnBoss summoned {len(wave)} minions (Budget: {boss_budget})!")
 
 def perform_dash(boss, player):
     """

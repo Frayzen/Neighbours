@@ -15,7 +15,7 @@ from core.physics import check_collision
 from entities.behaviors import EnemyBehaviors
 
 class Enemy(GridObject):
-    def __init__(self, game, x, y, enemy_type="basic_enemy"):
+    def __init__(self, game, x, y, enemy_type="basic_enemy", modifiers=None):
         from core.registry import Registry
 
         config = Registry.get_enemy_config(enemy_type)
@@ -47,6 +47,23 @@ class Enemy(GridObject):
             self.heal_cooldown = config.get("heal_cooldown", 2000)
             
         self.behavior_name = behavior_name
+
+        # Apply Modifiers
+        if modifiers:
+            stat_mult = modifiers.get("stat_mult", 1.0)
+            health = int(health * stat_mult)
+            damage = int(damage * stat_mult)
+            xp_value = int(xp_value * stat_mult)
+            
+            # visual tint (subtractive for darker/elite look or additive)
+            # Simple tint: subtract from color
+            if "color_tint" in modifiers:
+                tint = modifiers["color_tint"]
+                color = (
+                    max(0, color[0] - tint[0]),
+                    max(0, color[1] - tint[1]),
+                    max(0, color[2] - tint[2])
+                )
 
         super().__init__(x, y, w, h, color=color)
         self.game = game

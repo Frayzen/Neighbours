@@ -118,5 +118,32 @@ class GameSetup:
             self.game.player.x = spawn_x
             self.game.player.y = spawn_y
 
-        # Enemies will now be spawned by the Logic system based on proximity using self.game.world.spawn_points
-        # (Current logic relies on update loop to populate enemies)
+        # Initialize Spawners from World Data
+        from entities.spawner import Spawner
+        
+        for sp in self.game.world.spawn_points:
+            # Check if this marker is meant for a Spawner Entity
+            if sp.get('type') == 'spawner_entity':
+                spawner = Spawner(self.game, sp['x'] * CELL_SIZE, sp['y'] * CELL_SIZE)
+                self.game.gridObjects.append(spawner)
+            else:
+                # Legacy / Manual handling (JSON Levels)
+                # Create a Spawner that immediately triggers with fixed enemies
+                # This ensures consistent logic but respects the map design
+                count = sp.get('enemy_count', 1)
+                etype = sp.get('type', 'basic_enemy')
+                
+                # If specific enemy (e.g. Boss), we want it to spawn immediately or when player is near.
+                # Spawner with trigger distance handles "when near".
+                # For Boss, trigger distance might need to be large or 0 (auto)? 
+                # Let's use standard distance for now.
+                
+                fixed_wave = [etype] * count
+                spawner = Spawner(self.game, sp['x'] * CELL_SIZE, sp['y'] * CELL_SIZE, trigger_distance=10, fixed_wave=fixed_wave)
+                self.game.gridObjects.append(spawner)
+                
+                # If "spawned" was true in save/logic, we'd skip? 
+                # But typically loader resets this.
+                
+        # Clear spawn_points so we don't re-process or confuse logic
+        # self.game.world.spawn_points = []

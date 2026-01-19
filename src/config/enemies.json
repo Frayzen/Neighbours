@@ -4,6 +4,7 @@
         "speed": 2,
         "damage": 10,
         "xp_value": 10,
+        "cost": 10,
         "color": [
             255,
             0,
@@ -19,6 +20,7 @@
         "speed": 4,
         "damage": 5,
         "xp_value": 15,
+        "cost": 15,
         "color": [
             255,
             100,
@@ -34,6 +36,7 @@
         "speed": 1,
         "damage": 20,
         "xp_value": 25,
+        "cost": 30,
         "color": [
             100,
             0,
@@ -49,6 +52,7 @@
         "speed": 3,
         "damage": 8,
         "xp_value": 15,
+        "cost": 20,
         "color": [
             0,
             255,
@@ -67,6 +71,7 @@
         "heal_amount": 20,
         "heal_cooldown": 2000,
         "xp_value": 20,
+        "cost": 25,
         "color": [
             255,
             0,
@@ -82,6 +87,7 @@
         "speed": 2.5,
         "damage": 40,
         "xp_value": 500,
+        "cost": 0,
         "texture_path": "../assets/images/Boss/JörnPhase1.png",
         "width": 3,
         "height": 3,

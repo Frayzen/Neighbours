@@ -46,7 +46,7 @@ class GameLogic:
 
         self._handle_pickups()
         self._handle_spawning_and_drops()
-        self._handle_proximity_spawning()
+        # self._handle_proximity_spawning() # DEPRECATED: Handled by Spawner Entity
 
         for obj in self.game.gridObjects:
             if obj == self.game.player:

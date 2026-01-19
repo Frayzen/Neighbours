@@ -291,21 +291,19 @@ class WorldLoader:
             center_y = y + height // 2
             self.world.set_cell(center_x, center_y, self.spawner)
             
-            # Add spawn metadata
-            # For now picking a random enemy type - ideally we'd have a weighted list or valid set
-            from core.registry import Registry # Import here to avoid circular if any
-            enemy_types = [e for e in Registry.get_enemy_types() if "Boss" not in e and e != "JörnBoss"]
+            # Using Spawner Entity Concept now
+            # We don't add to world.spawn_points anymore, but we need to tell Game to create Spawners
+            # The Loader mainly builds the static World. The GameSetup or GameLogic handles Entities.
+            # However, the loader generates the structure.
+            # Let's attach the spawner data to the world, so setup can instantiate them?
+            # OR if we have access to 'game' here? We don't.
+            # We can store "spawner_locations" in world and let setup create them.
             
-            spawn_type = "basic_enemy"
-            if enemy_types:
-                spawn_type = enemy_types[randint(0, len(enemy_types)-1)]
-                
+            # Reusing spawn_points list but storing just location for Spawner Entity creation
             self.world.spawn_points.append({
                 'x': center_x * MAZE_SCALE_UP, 
-                'y': center_y* MAZE_SCALE_UP, 
-                'enemy_count': randint(2, 5), 
-                'type': spawn_type,
-                'spawned': False
+                'y': center_y * MAZE_SCALE_UP,
+                'type': 'spawner_entity' # Marker for setup
             })
 
         # GUARANTEED TRAPDOOR in the LAST room generated
