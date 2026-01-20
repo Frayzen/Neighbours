@@ -1,4 +1,5 @@
 import pygame
+import random
 from entities.base import GridObject
 from core.debug import debug
 from config.settings import (
@@ -82,7 +83,13 @@ class Enemy(GridObject):
         self.wander_timer = 0
         
         self.last_attack_time = 0
+        self.next_attack_time = 0 
         self.attack_cooldown = 2000 # Default, or could be in config
+        
+        # Rapid Fire Stats
+        self.rapid_fire_active = False
+        self.rapid_fire_shots_left = 0
+        self.rapid_fire_last_shot_time = 0
 
         # Boss specific
         self.phase = 1
@@ -261,6 +268,10 @@ class Enemy(GridObject):
             dx = direction_tuple[0] * self.speed
             dy = direction_tuple[1] * self.speed
             
+            # Freeze movement if rapid firing
+            if self.rapid_fire_active:
+                dx, dy = 0, 0
+            
             # Run heal logic if applicable
             self._try_heal(entities)
         else:
@@ -288,37 +299,79 @@ class Enemy(GridObject):
             self.y = new_y
             
         # Ranged Attack Logic
-        if dx == 0 and dy == 0 and self.behavior_name == "ranged":
+        # Ranged Attack Logic
+        is_stationary = (dx == 0 and dy == 0)
+        if self.behavior_name == "ranged" and (is_stationary or self.rapid_fire_active):
             current_time = pygame.time.get_ticks()
-            if current_time - self.last_attack_time > self.attack_cooldown:
-                # Shoot at player
+            
+            # --- RAPID FIRE SEQUENCE ---
+            if self.rapid_fire_active:
+                # Fire next shot or end sequence
+                if current_time - self.rapid_fire_last_shot_time > 150: # 150ms between rapid shots
+                    self._fire_projectile()
+                    self.rapid_fire_shots_left -= 1
+                    self.rapid_fire_last_shot_time = current_time
+                    
+                    if self.rapid_fire_shots_left <= 0:
+                        self.rapid_fire_active = False
+                        # Long cooldown after rapid fire
+                        self.next_attack_time = current_time + self.attack_cooldown + random.randint(500, 1000)
+                        debug.log(f"{self.enemy_type} finished Rapid Fire sequence.")
+
+            # --- NORMAL ATTACK CHECK ---
+            elif current_time > self.next_attack_time:
+                # Check distance
                 player = self.game.player
-                
-                # Simple distance check is sufficient
                 dist_sq = (player.x - self.x)**2 + (player.y - self.y)**2
+                
+                # Only attack if in range
                 if dist_sq < (self.attack_range * CELL_SIZE)**2:
-                    # Attack!
-                    from entities.projectile import Projectile
                     
-                    dx = self.game.player.x - self.x
-                    dy = self.game.player.y - self.y
-                    # Center to center
-                    # ... simple enough for now
+                    # 20% Chance for Rapid Fire
+                    if random.random() < 0.20:
+                        self.rapid_fire_active = True
+                        self.rapid_fire_shots_left = 5
+                        self.rapid_fire_last_shot_time = current_time
+                        
+                        # Handle first shot immediately? Let's wait one tick or do it now. 
+                        # Doing it now ensures immediate feedback.
+                        self._fire_projectile()
+                        self.rapid_fire_shots_left -= 1
+                        
+                        debug.log(f"{self.enemy_type} STARTING RAPID FIRE!")
                     
-                    self.game.projectiles.append(
-                        Projectile(
-                            self.x, self.y,
-                            direction=(dx, dy),
-                            speed=6,
-                            damage=self.damage,
-                            owner_type="enemy",
-                            texture=None,
-                            visual_type="ARROW",
-                            color=(150, 50, 255) # Purple enemy arrow
-                        )
-                    )
-                    self.last_attack_time = current_time
-                    debug.log(f"{self.enemy_type} fired projectile!")
+                    else:
+                        # Normal Shot
+                        self._fire_projectile()
+                        
+                        # Variable Cooldown: Base + Random(-200, +200)
+                        variance = random.randint(-400, 400)
+                        self.next_attack_time = current_time + self.attack_cooldown + variance
+                        self.last_attack_time = current_time # Keep compat if needed
+
+    def _fire_projectile(self):
+        from entities.projectile import Projectile
+        
+        # Calculate direction to player
+        dx = self.game.player.x - self.x
+        dy = self.game.player.y - self.y
+        
+        # Randomize Speed slightly (Base ~6, +/- 1.5)
+        # Using 5.5 to 8.5 as requested "more dangerous range"
+        speed = random.uniform(5.5, 8.5)
+        
+        self.game.projectiles.append(
+            Projectile(
+                self.x, self.y,
+                direction=(dx, dy),
+                speed=speed,
+                damage=self.damage,
+                owner_type="enemy",
+                texture=None,
+                visual_type="ARROW",
+                color=(150, 50, 255) # Purple enemy arrow
+            )
+        )
 
     def _try_heal(self, entities):
         current_time = pygame.time.get_ticks()
