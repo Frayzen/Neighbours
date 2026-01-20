@@ -28,12 +28,16 @@ class Game:
         self.renderer = GameRenderer(self)
         self.logic = GameLogic(self)
         self.current_time = 0
+        self.start_time = pygame.time.get_ticks() # Track run duration
+        self.end_time = 0
         self.camera = Camera()
         self.damage_texts = DamageTexts()
         self.enemies = []
         self.projectiles = []
 
         self.paused = False
+        self.game_over = False
+        self.victory = False
 
         # Debug
         self.show_debug_path = False
@@ -55,12 +59,34 @@ class Game:
             print("DEBUG: No save file. Starting fresh.")
             self.paused = False
 
-    def restart_game(self):
-        # Reset game state
-        self.current_layer_index = 0
         self.setup.perform_setup()
         self.logic = GameLogic(self)
         self.paused = False
+        self.start_time = pygame.time.get_ticks()
+        self.end_time = 0
+
+    def trigger_game_over(self):
+        if not self.victory:
+            self.game_over = True
+            self.end_time = pygame.time.get_ticks()
+            
+    def trigger_victory(self):
+        if not self.game_over:
+            self.victory = True
+            self.end_time = pygame.time.get_ticks()
+
+    def get_run_time_string(self):
+        if self.end_time > 0:
+            millis = self.end_time - self.start_time
+        else:
+            # Fallback if called during gameplay or logic update
+            # Use current_time which matches the frame time
+            millis = self.current_time - self.start_time
+            
+        seconds = int(millis / 1000)
+        minutes = int(seconds / 60)
+        seconds = seconds % 60
+        return f"{minutes:02d}:{seconds:02d}"
 
     def next_layer(self):
         if not self.level_manager.advance_level():
@@ -98,20 +124,40 @@ class Game:
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        self.paused = not self.paused
+                         if not self.game_over and not self.victory:
+                             self.paused = not self.paused
+                    
+                    if (self.game_over or self.victory) and event.key == pygame.K_r:
+                        self.restart_game()
 
-                # Handle Pause Menu Inputs (Mouse)
+                    # Debug
+                    if event.key == pygame.K_F1:
+                         self.show_debug_path = not self.show_debug_path
+                    
+                    if event.key == pygame.K_h:
+                         # Toggle all debug
+                         pass
+                    
+                # Pass events to subsystems if not paused/gameover (or specific events)
                 if self.paused:
-                    self.logic.handle_pause_input(event)
+                     self.logic.handle_pause_input(event)
 
-                if not self.paused:
+                if not self.paused and not self.game_over and not self.victory:
                     self.logic.handle_event(event)
 
-            if not self.paused:
-                self.logic.update()
+            # Update Logic (only if playing)
+            if not self.paused and not self.game_over and not self.victory:
+                self.logic.update(self.current_time)
                 self.damage_texts.update()
-                self.camera.update(self.player)
+            
+            # Helper for camera debug
+            if self.show_debug_path:
+                 pass
 
+            # Update Camera
+            self.camera.update(self.player)
+            
+            # Draw
             self.renderer.draw(self.camera)
 
             self.clock.tick(FPS)

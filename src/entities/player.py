@@ -251,7 +251,7 @@ class Player(GridObject):
 
     def die(self):
         debug.log("Player died!")
-        # TODO: Handle player death (restart game, show game over screen, etc.)
+        self.game.trigger_game_over()
 
     def gain_xp(self, amount):
         self.xp += amount

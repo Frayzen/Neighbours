@@ -27,11 +27,13 @@ class GameLogic:
             elif event.key == pygame.K_SPACE:
                 self.game.player.dash()
 
-    def update(self):
+    def update(self, current_time=None):
         vfx_manager.update()
         
         # Update Flow Field (Throttled)
-        current_time = pygame.time.get_ticks()
+        if current_time is None:
+            current_time = pygame.time.get_ticks()
+            
         if current_time - self.last_pathfinding_update > self.pathfinding_interval:
             self.flow_field.update(self.game.player.x, self.game.player.y, self.game.world, max_dist=30)
             self.last_pathfinding_update = current_time
@@ -41,7 +43,7 @@ class GameLogic:
         
         # Check for game over (restart)
         if self.game.player.health <= 0:
-            self.game.restart_game()
+            self.game.player.die()
             return
 
         self._handle_pickups()

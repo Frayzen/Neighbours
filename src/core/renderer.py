@@ -87,6 +87,12 @@ class GameRenderer:
         if self.game.paused:
             self.draw_pause_menu()
             
+        if self.game.game_over:
+             self.draw_game_over_screen()
+             
+        if self.game.victory:
+             self.draw_victory_screen()
+            
         if getattr(self.game, 'debug_mode', False): # Only draw explicit debug info if enabled
             if self.game.show_debug_path and self.game.debug_path_points:
                  if len(self.game.debug_path_points) > 1:
@@ -97,15 +103,62 @@ class GameRenderer:
             
             debug.draw(self.game.screen)
             
-            if DEBUG_MODE: # Global config constant, maybe we should use self.game.debug_mode instead or AND them?
-                # User requested "all the debug text... should not be visible if dbug is off"
+            if DEBUG_MODE: 
                 fps = self.game.clock.get_fps()
                 fps_text = self.font.render(f"FPS: {int(fps)}", True, (0, 255, 0))
-                # Top right corner
                 rect = fps_text.get_rect(topright=(SCREEN_WIDTH_PIX - 10, 10))
                 self.game.screen.blit(fps_text, rect)
             
         pygame.display.flip()
+
+    def draw_game_over_screen(self):
+         overlay = pygame.Surface((SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX))
+         overlay.set_alpha(200)
+         overlay.fill((50, 0, 0)) # Dark Red
+         self.game.screen.blit(overlay, (0, 0))
+         
+         font_big = pygame.font.SysFont("Arial", 64, bold=True)
+         text = font_big.render("YOU DIED", True, (255, 0, 0))
+         rect = text.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 - 50))
+         self.game.screen.blit(text, rect)
+         
+         # Time Display
+         font_med = pygame.font.SysFont("Arial", 36)
+         time_str = self.game.get_run_time_string()
+         text_time = font_med.render(f"Time: {time_str}", True, (255, 200, 200))
+         rect_time = text_time.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 10))
+         self.game.screen.blit(text_time, rect_time)
+         
+         font_small = pygame.font.SysFont("Arial", 32)
+         text2 = font_small.render("Press R to Restart", True, (255, 255, 255))
+         rect2 = text2.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 60))
+         self.game.screen.blit(text2, rect2)
+
+    def draw_victory_screen(self):
+         overlay = pygame.Surface((SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX))
+         overlay.set_alpha(200)
+         overlay.fill((50, 50, 0)) # Dark Gold
+         self.game.screen.blit(overlay, (0, 0))
+         
+         font_big = pygame.font.SysFont("Arial", 64, bold=True)
+         text = font_big.render("VICTORY", True, (255, 215, 0)) # Gold
+         rect = text.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 - 60))
+         self.game.screen.blit(text, rect)
+         
+         font_small = pygame.font.SysFont("Arial", 32)
+         text2 = font_small.render("You defeated Jörn!", True, (255, 255, 255))
+         rect2 = text2.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2))
+         self.game.screen.blit(text2, rect2)
+
+         # Time Display
+         time_str = self.game.get_run_time_string()
+         text_time = font_small.render(f"Time: {time_str}", True, (255, 255, 200))
+         rect_time = text_time.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 40))
+         self.game.screen.blit(text_time, rect_time)
+
+         text3 = font_small.render("Press R to Play Again", True, (200, 200, 200))
+         rect3 = text3.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 90))
+         self.game.screen.blit(text3, rect3)
 
     def _draw_ui(self):
         # Common data 

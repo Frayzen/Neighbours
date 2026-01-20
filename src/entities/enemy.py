@@ -131,7 +131,9 @@ class Enemy(GridObject):
             self.die()
 
     def die(self):
-        debug.log("Enemy died!")
+        debug.log(f"Enemy died: {self.enemy_type}")
+        if self.enemy_type == "JoernBoss":
+            self.game.trigger_victory()
 
 
 
