@@ -237,6 +237,8 @@ class Player(GridObject):
         self.combat.update(target_pos, current_time)
 
     def take_damage(self, amount):
+        if amount <= 0: return # Ignore 0 or negative damage (heals should use heal logic)
+        
         if self.invulnerable:
             return
 
