@@ -290,10 +290,27 @@ class GameRenderer:
                         pygame.draw.rect(self.background_world, cell.color, rect)
 
     def _draw_entities(self):
-        for obj in self.game.gridObjects:
+        # 1. Separate Player from other entities
+        others = [obj for obj in self.game.gridObjects if obj != self.game.player]
+        
+        # 2. Sort other entities by Y-depth (draw top-to-bottom)
+        sorted_others = sorted(
+            others, 
+            key=lambda obj: obj.y + getattr(obj, 'h', 0) * CELL_SIZE
+        )
+        
+        # 3. Draw sorted entities (Walls/Props/Enemies)
+        for obj in sorted_others:
             obj.draw(self.rendering_surface)
+            
+        # 4. Draw Projectiles (usually fly over props, but under UI/VFX)
+        # If user wants Player over EVERYTHING, Player draws after Projectiles.
         for proj in self.game.projectiles:
             proj.draw(self.rendering_surface)
+
+        # 5. Draw Player LAST (Always on Top of World & Projectiles)
+        if self.game.player:
+            self.game.player.draw(self.rendering_surface)
 
     def draw_pause_menu(self):
         # Semi-transparent overlay
