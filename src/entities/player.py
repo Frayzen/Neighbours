@@ -358,16 +358,31 @@ class Player(GridObject):
     # Serialization
     def __getstate__(self):
         state = self.__dict__.copy()
-        # Exclude non-serializable game reference
-        del state['game']
+        # Exclude non-serializable game reference and surface
+        if 'game' in state:
+            del state['game']
+        state['image'] = None
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         # 'game' will be re-assigned by SaveManager
         self.game = None 
+        self.image = None
 
     def post_load(self):
+        # Reload player texture
+        try:
+            import os
+            from config.settings import BASE_DIR, CELL_SIZE
+            image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+            if os.path.exists(image_path):
+                raw_image = pygame.image.load(image_path).convert_alpha()
+                self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                debug.log(f"Reloaded player texture from {image_path}")
+        except Exception as e:
+            debug.log(f"Failed to reload player texture: {e}")
+
         # Reload weapon images
         for weapon in self.combat.weapons:
             if hasattr(weapon, 'reload_texture'):

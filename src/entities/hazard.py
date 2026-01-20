@@ -83,3 +83,28 @@ class FireHazard(GridObject):
              surf.fill((*color, alpha))
              
              screen.blit(surf, (self.x, self.y))
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['texture'] = None
+        if 'game' in state:
+            del state['game']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.texture = None
+        self.game = None
+        # Reloading texture for Hazard is complex due to Registry pattern used in init
+        # For now, let's just leave it None and rely on the fallback flicker or simple reload
+        try:
+             import os
+             import pygame
+             path = os.path.normpath(os.path.join("src/assets/images/Lava.png"))
+             # We rely on relative path from CWD
+             if os.path.exists(path):
+                 raw = pygame.image.load(path).convert_alpha()
+                 from config.settings import CELL_SIZE
+                 self.texture = pygame.transform.scale(raw, (self.w * CELL_SIZE, self.h * CELL_SIZE))
+        except:
+            pass

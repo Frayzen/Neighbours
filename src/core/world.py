@@ -26,6 +26,20 @@ class Cell:
     def __str__(self):
         return self.name
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Exclude Pygame surfaces
+        state['texture'] = None
+        state['textures'] = [] # Clear the list of surfaces
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Textures will be reloaded by post_load logic in SaveManager
+        self.texture = None
+        self.textures = []
+
+
 
 class World:
     def __init__(self, width=GRID_WIDTH, height=GRID_HEIGHT):
@@ -38,6 +52,13 @@ class World:
             [(empty_cell, (0, 0)) for _ in range(width)] for _ in range(height)
         ]
         self.spawn_points = []
+
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
 
     def set_cell(self, x, y, cell):
         if 0 <= x < self.width and 0 <= y < self.height:

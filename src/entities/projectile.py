@@ -120,3 +120,12 @@ class Projectile(GridObject):
         else:
             # Default
             pygame.draw.circle(screen, self.color, (cx, cy), 4)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['texture'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.texture = None

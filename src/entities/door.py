@@ -32,3 +32,27 @@ class Door(GridObject):
             screen.blit(self.texture, (self.x, self.y))
         else:
             super().draw(screen)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['texture'] = None
+        if 'game' in state:
+            del state['game']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.texture = None
+        self.game = None
+
+    def post_load(self):
+        try:
+             # Hardcoded path matching __init__
+             from config.settings import BASE_DIR, CELL_SIZE
+             import os
+             path = os.path.join(BASE_DIR, "assets", "images", "door.png")
+             if os.path.exists(path):
+                 raw = pygame.image.load(path).convert_alpha()
+                 self.texture = pygame.transform.scale(raw, (int(self.w*CELL_SIZE), int(self.h*CELL_SIZE)))
+        except Exception as e:
+            print(f"Failed to reload Door texture: {e}")

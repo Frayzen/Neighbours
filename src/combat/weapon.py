@@ -126,14 +126,16 @@ class Weapon:
         
     def __getstate__(self):
         state = self.__dict__.copy()
-        # Exclude image and behavior function
+        # Exclude image and behavior function and projectile image
         state['image'] = None
+        state['projectile_image'] = None
         state['behavior_func'] = None 
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         self.image = None
+        self.projectile_image = None
         self.behavior_func = None
         
         # Backward compatibility
@@ -141,8 +143,6 @@ class Weapon:
             self.projectile_speed = 0
         if not hasattr(self, 'projectile_texture_path'):
             self.projectile_texture_path = None
-        if not hasattr(self, 'projectile_image'):
-            self.projectile_image = None
 
     def reload_texture(self):
         if self.texture_path:

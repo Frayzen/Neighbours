@@ -17,18 +17,55 @@ class Spawner(GridObject):
         # Load Ground Texture
         # We can use Registry or direct load. Let's try to match the world's ground style?
         # Or just use a generic one.
+        self.texture_path = None
         try:
              import os
              from config.settings import BASE_DIR
              # Pick a random ground texture to blend in
              num = randint(1, 6)
-             tex_path = os.path.join(BASE_DIR, "assets", "images", "Ground", f"Ground{num}.png")
-             if os.path.exists(tex_path):
-                 raw = pygame.image.load(tex_path).convert_alpha()
+             tex_path = os.path.join("assets", "images", "Ground", f"Ground{num}.png") # Relative
+             full_path = os.path.join(BASE_DIR, tex_path)
+             
+             if os.path.exists(full_path):
+                 raw = pygame.image.load(full_path).convert_alpha()
                  self.texture = pygame.transform.scale(raw, (int(self.w*CELL_SIZE), int(self.h*CELL_SIZE)))
                  self.color = None # Disable color rect drawing if texture exists
+                 self.texture_path = tex_path
         except Exception as e:
             print(f"Failed to load Spawner texture: {e}")
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['texture'] = None
+        if 'game' in state:
+            del state['game']
+        if 'director' in state:
+            del state['director']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.texture = None
+        self.game = None
+        self.director = None
+        
+    def post_load(self):
+        # Restore Director
+        if hasattr(self, 'game') and self.game:
+            from core.director import Director
+            self.director = Director(self.game)
+            
+        if self.texture_path:
+            try:
+                import os
+                from config.settings import BASE_DIR
+                full_path = os.path.join(BASE_DIR, self.texture_path)
+                if os.path.exists(full_path):
+                     raw = pygame.image.load(full_path).convert_alpha()
+                     from config.settings import CELL_SIZE
+                     self.texture = pygame.transform.scale(raw, (int(self.w*CELL_SIZE), int(self.h*CELL_SIZE)))
+            except Exception as e:
+                print(f"Failed to reload Spawner texture: {e}")
         
     def update(self, *args, **kwargs):
         if self.triggered:
