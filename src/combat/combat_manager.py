@@ -135,6 +135,10 @@ class CombatManager:
     def attack(self, target, enemies, current_time):
         self.current_weapon.attack(current_time, owner=self.owner, target=target, enemies=enemies)
         
+        # Trigger Animation on Owner
+        if hasattr(self.owner, 'trigger_attack_animation'):
+             self.owner.trigger_attack_animation(self.current_weapon.behavior_name)
+        
         # Prevent double damage for projectile weapons
         PROJECTILE_BEHAVIORS = ["fireball_cast", "ranged_shot"]
         if self.current_weapon.behavior_name in PROJECTILE_BEHAVIORS:

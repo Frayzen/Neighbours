@@ -38,9 +38,11 @@ class Enemy(GridObject):
             xp_value = config.get("xp_value", 10)
             texture = config.get("texture")
             behavior_name = config.get("behavior", "melee")
+            animation_csv_path = config.get("animation_csv_path")
             
         self.behavior_name = behavior_name
-
+        self.animation_csv_path = animation_csv_path
+        
         # Apply Modifiers
         if modifiers:
             stat_mult = modifiers.get("stat_mult", 1.0)
@@ -67,6 +69,36 @@ class Enemy(GridObject):
         self.texture = texture
         self.enemy_type = enemy_type
         
+        # Animation Setup
+        from core.animation import AnimationController
+        from config.animation_constants import ANIM_IDLE, ANIM_WALK
+        import os
+        from config.settings import BASE_DIR
+        
+        self.animator = AnimationController()
+        self.use_animation = False
+        
+        if self.animation_csv_path:
+             # Assume texture_path in config (which loaded self.texture) acts as the sheet?
+             # Or we need the raw path. 
+             # Registry loaded 'texture' but we might need the path to reload if needed?
+             # Actually, AnimationController needs the Surface. self.texture is the Surface.
+             # But 'load_from_csv' expects the surface.
+             # 'load_from_paths' expects the path.
+             
+             # Let's try to use the raw path if we can find it, or use the loaded texture surface.
+             # The registry config has 'texture_path'.
+             texture_config_path = config.get("texture_path")
+             if texture_config_path:
+                 full_texture_path = os.path.normpath(os.path.join("src/config", texture_config_path))
+                 full_csv_path = os.path.normpath(os.path.join("src/config", self.animation_csv_path))
+                 
+                 # Try loading
+                 if self.animator.load_from_paths(full_csv_path, full_texture_path):
+                     self.use_animation = True
+                     self.animator.play(ANIM_IDLE)
+                     debug.log(f"Enemy {enemy_type} animation loaded.")
+        
         self.behavior = EnemyBehaviors.get_behavior(behavior_name)
         
         # Common cooldowns (subclasses can use them)
@@ -79,7 +111,17 @@ class Enemy(GridObject):
         self.wander_timer = 0
         
     def draw(self, screen):
-        if self.texture:
+        frame = self.animator.get_frame() if self.use_animation else None
+        
+        if frame:
+            # Scale if needed
+             target_w = int(self.w * CELL_SIZE)
+             target_h = int(self.h * CELL_SIZE)
+             if frame.get_width() != target_w or frame.get_height() != target_h:
+                  frame = pygame.transform.scale(frame, (target_w, target_h))
+             screen.blit(frame, (self.x, self.y))
+             
+        elif self.texture:
             scaled_texture = pygame.transform.scale(
                 self.texture, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE))
             )
@@ -137,6 +179,23 @@ class Enemy(GridObject):
                 dx = direction.x * self.speed
                 dy = direction.y * self.speed
         
+        # Update Animation State
+        if self.use_animation:
+             from config.animation_constants import ANIM_IDLE, ANIM_WALK
+             if abs(dx) > 0.1 or abs(dy) > 0.1:
+                 self.animator.play(ANIM_WALK)
+             else:
+                 self.animator.play(ANIM_IDLE)
+             
+             # Flip based on moving direction
+             if dx < 0: self.animator.flip_x = True
+             if dx > 0: self.animator.flip_x = False
+             
+             # Update animator (assume 60fps dt)
+             dt = 1.0/60.0
+             if hasattr(self.game, 'dt'): dt = self.game.dt
+             self.animator.update(dt)
+
         return self._apply_movement(dx, dy)
 
     def _apply_movement(self, dx, dy):

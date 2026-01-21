@@ -39,7 +39,7 @@ class Boss(Enemy):
                 self.phase = 2
                 self.color = (255, 100, 0) # Orange-ish for Phase 2
                 debug.log(f"{self.enemy_type} entered Phase 2!")
-                self._load_phase_texture("texture_phase_2")
+                self._load_phase_assets(2)
                 
             # Phase 3 check
             if hp_percent < 0.33 and self.phase < 3:
@@ -50,7 +50,7 @@ class Boss(Enemy):
                 # Trigger Final Ember Ability
                 from entities.boss_mechanics import perform_The_Final_Ember
                 perform_The_Final_Ember(self, self.game)
-                self._load_phase_texture("texture_phase_3")
+                self._load_phase_assets(3)
 
             # Need to import constants for timeouts
             from entities.boss_mechanics import SHIELD_DURATION, DASH_DURATION, DASH_SPEED_MULTIPLIER
@@ -94,17 +94,41 @@ class Boss(Enemy):
         # Normal Behavior Update
         super().update(target_pos_or_flow_field, entities)
 
-    def _load_phase_texture(self, config_key):
+    def _load_phase_assets(self, phase_num):
+        """
+        Loads texture and animation CSV for the given phase.
+        Expects keys like 'texture_phase_2', 'animation_csv_phase_2' in config.
+        """
         from core.registry import Registry
         import os
+        from config.animation_constants import ANIM_IDLE
+        
         config = Registry.get_enemy_config(self.enemy_type)
-        p_path = config.get(config_key)
+        if not config: return
+
+        # Texture Key
+        tex_key = f"texture_phase_{phase_num}"
+        p_path = config.get(tex_key)
+        
+        # Animation Key
+        anim_key = f"animation_csv_phase_{phase_num}"
+        a_path = config.get(anim_key)
+        
         if p_path:
              try:
                  full_path = os.path.normpath(os.path.join("src/config", p_path))
-                 if not os.path.exists(full_path):
-                     pass 
-                 self.texture = pygame.image.load(full_path).convert_alpha()
-                 debug.log(f"Loaded Phase texture from {full_path}")
+                 if os.path.exists(full_path):
+                     self.texture = pygame.image.load(full_path).convert_alpha()
+                     debug.log(f"Loaded Phase {phase_num} texture from {full_path}")
+                     
+                     # Also try to load animation if provided
+                     if a_path:
+                         full_anim_path = os.path.normpath(os.path.join("src/config", a_path))
+                         if self.animator.load_from_paths(full_anim_path, full_path):
+                             self.use_animation = True
+                             self.animator.play(ANIM_IDLE) # Reset to idle on phase change
+                             debug.log(f"Loaded Phase {phase_num} animations from {full_anim_path}")
+                 else:
+                     debug.log(f"Phase {phase_num} texture path not found: {full_path}")
              except Exception as e:
-                 print(f"Failed to load Phase texture: {e}")
+                 print(f"Failed to load Phase {phase_num} assets: {e}")

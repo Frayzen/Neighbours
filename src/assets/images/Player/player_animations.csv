@@ -1,0 +1,7 @@
+Name,StartX,StartY,Width,Height,Count,FPS,Loop
+idle,-21,0,341,300,4,10,True
+walk,-21,320,341,300,6,10,True
+dash,-21,667,341,300,6,10,True
+closeRangeAttack,-21,1009,341,300,6,10,False
+rangeAttack,-21,1352,341,300,6,10,False
+death,-21,1698,341,300,5,10,False

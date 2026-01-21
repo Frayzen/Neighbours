@@ -25,6 +25,9 @@ from core.physics import check_collision
 from core.physics import check_collision
 from core.debug import debug
 from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL, ITEM_TYPE_WEAPON, TAG_FIRE, TAG_RANGED
+from core.animation import AnimationController
+from core.animation import AnimationController
+from config.animation_constants import ANIM_IDLE, ANIM_WALK, ANIM_DASH, ANIM_RUN, ANIM_ATTACK_MELEE, ANIM_ATTACK_RANGED
 
 class Player(GridObject):
     def __init__(self, game, x, y, size, speed):
@@ -37,17 +40,36 @@ class Player(GridObject):
         # Load texture
         import os
         from config.settings import BASE_DIR
-        self.image = None
+        # Load texture / Animation
+        import os
+        from config.settings import BASE_DIR
+        self.animator = AnimationController()
+        self.image = None # Fallback or unused if animation works
+        
         try:
-            image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
-            if os.path.exists(image_path):
-                raw_image = pygame.image.load(image_path).convert_alpha()
-                self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
-                debug.log(f"Loaded player texture: {image_path}")
+            # Try loading animation first. Support both singular and plural names.
+            anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimations.png")
+            if not os.path.exists(anim_sheet_path):
+                anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimation.png")
+            
+            anim_csv_path = os.path.join(BASE_DIR, "assets", "images", "Player", "player_animations.csv")
+            
+            # Use the helper
+            if self.animator.load_from_paths(anim_csv_path, anim_sheet_path):
+                 debug.log(f"Loaded player animation system from {anim_sheet_path}")
+                 self.animator.play(ANIM_IDLE)
             else:
-                debug.log(f"Player texture not found at: {image_path}")
+                 debug.log("Animation files not found, falling back to static image logic.")
+                 # Fallback (keep existing logic just in case animation fails)
+                 image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+                 if os.path.exists(image_path):
+                     raw_image = pygame.image.load(image_path).convert_alpha()
+                     self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                     debug.log(f"Loaded player static texture: {image_path}")
+                 else:
+                     debug.log(f"Player texture not found at: {image_path}")
         except Exception as e:
-            debug.log(f"Error loading player texture: {e}")
+            debug.log(f"Error loading player texture/animation: {e}")
 
         self.invulnerable = False
         self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
@@ -234,7 +256,55 @@ class Player(GridObject):
             if current_time - self.last_hit_time > self.invulnerability_duration:
                 self.invulnerable = False
 
+        
+        # Animation State Logic
+        is_moving = False
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] or keys[pygame.K_a] or keys[pygame.K_RIGHT] or keys[pygame.K_d] or \
+           keys[pygame.K_UP] or keys[pygame.K_w] or keys[pygame.K_DOWN] or keys[pygame.K_s]:
+             is_moving = True
+
+        # Direction for flipping
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            self.animator.flip_x = True
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            self.animator.flip_x = False
+
+        if self.is_dashing:
+             # User requested "Dash is Dash"
+             self.animator.play(ANIM_DASH) 
+        
+        elif self.animator.playing and self.animator.current_animation.name in [ANIM_ATTACK_MELEE, ANIM_ATTACK_RANGED]:
+             # If attacking and animation is still playing, don't interrupt with walk/idle
+             # We check 'self.animator.playing' because non-looping anims set playing=False when done.
+             pass
+             
+        elif is_moving:
+             self.animator.play(ANIM_WALK)
+        else:
+             self.animator.play(ANIM_IDLE)
+       
+        # Update Animator with approx 60 FPS dt
+        dt = 1.0 / 60.0 
+        if hasattr(self.game, 'dt'):
+             dt = self.game.dt
+        self.animator.update(dt)
+
         self.combat.update(target_pos, current_time)
+
+    def trigger_attack_animation(self, weapon_behavior):
+        """
+        Triggers an attack animation based on weapon type.
+        Prioritizes attack over movement, but Dash overrides everything.
+        """
+        if self.is_dashing: return
+        
+        anim_name = ANIM_ATTACK_MELEE
+        if "ranged" in weapon_behavior or "fireball" in weapon_behavior:
+             anim_name = ANIM_ATTACK_RANGED
+             
+        # Play one-shot (force restart if re-triggered, though usually cooldown prevents this)
+        self.animator.play(anim_name, force_restart=True)
 
     def take_damage(self, amount):
         if amount <= 0: return # Ignore 0 or negative damage (heals should use heal logic)
@@ -330,32 +400,24 @@ class Player(GridObject):
 
     def draw(self, screen):
         # Draw player
-        if self.image:
+        # Draw player
+        frame = self.animator.get_frame()
+        if frame:
+             # Scale if needed. 
+             target_w = int(self.w * CELL_SIZE)
+             target_h = int(self.h * CELL_SIZE)
+             
+             if frame.get_width() != target_w or frame.get_height() != target_h:
+                  frame = pygame.transform.scale(frame, (target_w, target_h))
+             
+             screen.blit(frame, (self.x, self.y))
+        
+        elif self.image:
              screen.blit(self.image, (self.x, self.y))
         else:
              pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
         
-        # Draw weapon
-        weapon = self.combat.current_weapon
-        if weapon:
-            # Simple representation: a small colored rect next to the player
-            weapon_color = (200, 200, 200)
-            weapon_color = (200, 200, 200)
-            if TAG_FIRE in weapon.tags:
-                weapon_color = (255, 100, 0)
-            elif TAG_RANGED in weapon.tags:
-                weapon_color = (100, 255, 100)
-            
-            # Draw slightly offset
-            wx = self.x + (self.w * CELL_SIZE) * 0.8
-            wy = self.y + (self.h * CELL_SIZE) * 0.2
-            
-            if weapon.image:
-                 # Scale weapon image if needed (arbitrary size choice or based on tiles)
-                 scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
-                 screen.blit(scaled_weapon, (wx, wy))
-            else:
-                 pygame.draw.rect(screen, weapon_color, (wx, wy, 4, 10))
+        # Weapon drawing removed as per user request
 
     # Serialization
     def __getstate__(self):
