@@ -37,7 +37,7 @@ def perform_summon(boss, game, enemy_type=None, count=None):
     Phase 1: Spawn minions using Director Budget.
     """
     from core.director import Director
-    from entities.enemy import Enemy
+    from entities.factory import create_enemy
     
     debug.log(f"JörnBoss initiating Summon...")
     
@@ -69,7 +69,7 @@ def perform_summon(boss, game, enemy_type=None, count=None):
         # Determine valid position?
         # For boss arena, usually open space, so simple check or center bias
         
-        minion = Enemy(game, spawn_x, spawn_y, etype)
+        minion = create_enemy(game, spawn_x, spawn_y, etype)
         game.gridObjects.append(minion)
         
     debug.log(f"JörnBoss summoned {len(wave)} minions (Budget: {boss_budget})!")

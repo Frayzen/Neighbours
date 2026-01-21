@@ -2,6 +2,7 @@ import pygame
 import random
 from random import randint, choice
 from entities.enemy import Enemy
+from entities.factory import create_enemy
 from items.item import Item
 from items.factory import ItemFactory
 from entities.xp_orb import XPOrb
@@ -345,7 +346,7 @@ class GameLogic:
                     
                     if valid:
                          self.game.gridObjects.append(
-                            Enemy(self.game, spawn_x, spawn_y, enemy_type=e_type)
+                            create_enemy(self.game, spawn_x, spawn_y, enemy_type=e_type)
                          )
                          debug.log(f"Spawned {e_type} from spawner.")
 
@@ -371,7 +372,7 @@ class GameLogic:
                     if cell and cell.walkable:
                         enemy_type = choice(enemy_types)
                         self.game.gridObjects.append(
-                            Enemy(
+                            create_enemy(
                                 self.game,
                                 rx,
                                 ry,

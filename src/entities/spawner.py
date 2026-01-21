@@ -102,13 +102,13 @@ class Spawner(GridObject):
                 wave = ["basic_enemy"]
             
         # Spawn enemies
-        from entities.enemy import Enemy
+        from entities.factory import create_enemy
         
         for enemy_type in wave:
             # Attempt to spawn in valid adjacent tile
             spawn_x, spawn_y = self._find_spawn_pos()
             if spawn_x is not None:
-                enemy = Enemy(self.game, spawn_x, spawn_y, enemy_type)
+                enemy = create_enemy(self.game, spawn_x, spawn_y, enemy_type)
                 self.game.gridObjects.append(enemy)
                 
     def _find_spawn_pos(self):
