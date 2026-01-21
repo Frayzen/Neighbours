@@ -21,9 +21,24 @@ class Cell:
         self.height = height
         self.trigger = trigger
         self.texture = None  # Will hold the pygame Surface
+        self.textures = [] # List of textures for randomization
 
     def __str__(self):
         return self.name
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Exclude Pygame surfaces
+        state['texture'] = None
+        state['textures'] = [] # Clear the list of surfaces
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Textures will be reloaded by post_load logic in SaveManager
+        self.texture = None
+        self.textures = []
+
 
 
 class World:
@@ -36,6 +51,14 @@ class World:
         self.grid: List[List[Tuple[Cell, Tuple[int, int]]]] = [
             [(empty_cell, (0, 0)) for _ in range(width)] for _ in range(height)
         ]
+        self.spawn_points = []
+
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
 
     def set_cell(self, x, y, cell):
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -65,3 +88,36 @@ class World:
     def display(self):
         for row in self.grid:
             print(" ".join(str(cell[0]) for cell in row))
+
+    def scale(self, s: int):
+        if s <= 0:
+            raise ValueError("Scale factor must be > 0")
+
+        new_width = self.width * s
+        new_height = self.height * s
+
+        # Prepare new grid
+        new_grid: List[List[Tuple[Cell, Tuple[int, int]]]] = [
+            [None for _ in range(new_width)] for _ in range(new_height)
+        ]
+
+        for y in range(self.height):
+            for x in range(self.width):
+                cell, _ = self.grid[y][x]
+
+                # Top-left position in scaled grid
+                base_x = x * s
+                base_y = y * s
+
+                # Fill s x s block
+                for dy in range(s):
+                    for dx in range(s):
+                        new_grid[base_y + dy][base_x + dx] = (
+                            cell,
+                            (dx, dy),
+                        )
+
+        # Replace world data
+        self.width = new_width
+        self.height = new_height
+        self.grid = new_grid

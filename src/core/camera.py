@@ -20,4 +20,4 @@ class Camera:
         self.y = max(min(GRID_HEIGHT_PIX - SCREEN_HEIGHT_PIX, self.y), 0)
 
     def get_subregion(self):
-        return pygame.Rect(self.x, self.y, GRID_WIDTH_PIX, GRID_HEIGHT_PIX)
+        return pygame.Rect(self.x, self.y, SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX)

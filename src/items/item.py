@@ -24,18 +24,38 @@ class Item(GridObject):
 
         # Texture handling
         self.image = None
-        texture_path = item_data.get("texture_path", None)
-        if texture_path:
-            full_path = os.path.join(BASE_DIR, texture_path)
+        self.texture_path = item_data.get("texture_path", None)
+        
+        if self.texture_path:
+            full_path = os.path.join(BASE_DIR, self.texture_path)
             if os.path.exists(full_path):
                 try:
                     loaded_image = pygame.image.load(full_path).convert_alpha()
                     self.image = loaded_image
-                    debug.log(f"Loaded texture for {self.name}: {texture_path}")
+                    debug.log(f"Loaded texture for {self.name}: {self.texture_path}")
                 except Exception as e:
-                    debug.log(f"Failed to load texture {texture_path}: {e}")
+                    debug.log(f"Failed to load texture {self.texture_path}: {e}")
             else:
                 debug.log(f"Texture not found: {full_path}")
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['image'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.image = None
+
+    def post_load(self):
+        if hasattr(self, 'texture_path') and self.texture_path:
+            try:
+                from config.settings import BASE_DIR
+                full_path = os.path.join(BASE_DIR, self.texture_path)
+                if os.path.exists(full_path):
+                    self.image = pygame.image.load(full_path).convert_alpha()
+            except Exception as e:
+                debug.log(f"Failed to reload texture for {self.name}: {e}")
 
     def move_towards(self, target_x, target_y):
         # Direct movement behavior (no inertia)

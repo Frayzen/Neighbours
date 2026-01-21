@@ -12,7 +12,7 @@
             255,
             0
         ],
-        "texture_path": "assets/images/SpeedBoots.png",
+        "texture_path": "assets/images/Items/SpeedBoots.png",
         "effects": {
             "speed": {
                 "op": "add",
@@ -33,7 +33,7 @@
             0,
             0
         ],
-        "texture_path": "assets/images/PowerRing.png",
+        "texture_path": "assets/images/Items/PowerRing.png",
         "effects": {
             "damage": {
                 "op": "add",
@@ -53,7 +53,7 @@
             105,
             180
         ],
-        "texture_path": "assets/images/HealthPotion.png",
+        "texture_path": "assets/images/Items/HealthPotion.png",
         "effects": {
             "heal": {
                 "op": "add",
@@ -73,7 +73,7 @@
             255,
             255
         ],
-        "texture_path": "assets/images/SwordEnchants.png",
+        "texture_path": "assets/images/Items/SwordEnchants.png",
         "effects": {
             "damage": {
                 "op": "add",
@@ -98,7 +98,7 @@
             165,
             0
         ],
-        "texture_path": "assets/images/FireEssence.png",
+        "texture_path": "assets/images/Items/FireEssence.png",
         "target_weapon": "fireball_staff",
         "effects": {
             "aoe_radius": {
@@ -124,7 +124,7 @@
             0,
             128
         ],
-        "texture_path": "assets/images/MagicEssence.png",
+        "texture_path": "assets/images/Items/MagicEssence.png",
         "target_tag": "magic",
         "effects": {
             "damage": {
@@ -150,7 +150,7 @@
             255,
             0
         ],
-        "texture_path": "assets/images/SpeedPotion.png",
+        "texture_path": "assets/images/Items/SpeedPotion.png",
         "duration": 10000,
         "effects": {
             "speed": {
@@ -173,7 +173,7 @@
             192,
             192
         ],
-        "texture_path": "assets/images/ScopeLens.png",
+        "texture_path": "assets/images/Items/ScopeLens.png",
         "target_tag": "ranged",
         "effects": {
             "range": {
@@ -196,7 +196,7 @@
             100,
             255
         ],
-        "texture_path": "assets/images/MagnetRing.png",
+        "texture_path": "assets/images/Items/MagnetRing.png",
         "effects": {
             "pickup_range": {
                 "op": "add",

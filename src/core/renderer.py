@@ -1,5 +1,7 @@
-from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX
+import random # Ensure this is imported
+from config.settings import CELL_SIZE, GRID_HEIGHT_PIX, GRID_WIDTH_PIX, DEBUG_MODE, MAZE_SCALE_UP, BASE_DIR
 import pygame
+import os
 from core.camera import Camera
 from core.debug import debug
 from core.vfx import vfx_manager
@@ -33,26 +35,130 @@ class GameRenderer:
 
         self.background_world = pygame.Surface((GRID_WIDTH_PIX, GRID_HEIGHT_PIX))
         self.background_world.fill(COLOR_BACKGROUND)
+        
+        # Load Wall Overlays
+        self.overlays = {}
+        overlay_path = os.path.join(BASE_DIR, "assets", "images", "Wall", "Wallpiec.png")
+        if os.path.exists(overlay_path):
+             try:
+                 base_overlay = pygame.image.load(overlay_path).convert_alpha()
+                 base_overlay = pygame.transform.scale(base_overlay, (CELL_SIZE, CELL_SIZE))
+                 
+                 # Assume base is Top/North.
+                 # Rotations for neighbors:
+                 # Standard Pygame rotation is counter-clockwise.
+                 # (0, -1) [North]: No rotation
+                 # (0, 1) [South]: 180
+                 # (-1, 0) [West]: 90 (or -270)
+                 # (1, 0) [East]: -90 (or 270)
+                 
+                 self.overlays[(0, -1)] = base_overlay
+                 self.overlays[(0, 1)] = pygame.transform.rotate(base_overlay, 180)
+                 self.overlays[(-1, 0)] = pygame.transform.rotate(base_overlay, 90)
+                 self.overlays[(1, 0)] = pygame.transform.rotate(base_overlay, -90)
+                 print("DEBUG: Loaded Wall Overlays.")
+             except Exception as e:
+                 print(f"Failed to load wall overlay: {e}")
+        else:
+             print(f"Warning: Wall overlay not found at {overlay_path}")
+
+        self.texture_seed = random.randint(0, 100000)
+        self._draw_world()
+
+    def reload_world(self):
+        self.background_world.fill(COLOR_BACKGROUND)
+        self.texture_seed = random.randint(0, 100000)
         self._draw_world()
 
     def draw(self, camera : Camera):
         self.game.screen.fill(COLOR_BACKGROUND)
-        self.rendering_surface.blit(self.background_world, (0,0))
 
         self.cam_rect = camera.get_subregion()
+        self.rendering_surface.blit(self.background_world, (self.cam_rect.x,self.cam_rect.y), area=self.cam_rect)
+
         self._draw_entities()
 
         self.game.screen.blit(self.rendering_surface, (0,0), area=self.cam_rect)
 
         self.game.damage_texts.draw(self.game.screen, self.game.camera)
-        vfx_manager.draw(self.game.screen)
+        vfx_manager.draw(self.game.screen, self.game.camera)
         self._draw_ui()
         
         if self.game.paused:
             self.draw_pause_menu()
             
-        debug.draw(self.game.screen)
+        if self.game.game_over:
+             self.draw_game_over_screen()
+             
+        if self.game.victory:
+             self.draw_victory_screen()
+            
+        if getattr(self.game, 'debug_mode', False): # Only draw explicit debug info if enabled
+            if self.game.show_debug_path and self.game.debug_path_points:
+                 if len(self.game.debug_path_points) > 1:
+                     # Adjust points for camera
+                     cam_x, cam_y = self.game.camera.x, self.game.camera.y
+                     adjusted_points = [(p[0] - cam_x, p[1] - cam_y) for p in self.game.debug_path_points]
+                     pygame.draw.lines(self.game.screen, (255, 255, 0), False, adjusted_points, 4)
+            
+            debug.draw(self.game.screen)
+            
+            if DEBUG_MODE: 
+                fps = self.game.clock.get_fps()
+                fps_text = self.font.render(f"FPS: {int(fps)}", True, (0, 255, 0))
+                rect = fps_text.get_rect(topright=(SCREEN_WIDTH_PIX - 10, 10))
+                self.game.screen.blit(fps_text, rect)
+            
         pygame.display.flip()
+
+    def draw_game_over_screen(self):
+         overlay = pygame.Surface((SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX))
+         overlay.set_alpha(200)
+         overlay.fill((50, 0, 0)) # Dark Red
+         self.game.screen.blit(overlay, (0, 0))
+         
+         font_big = pygame.font.SysFont("Arial", 64, bold=True)
+         text = font_big.render("YOU DIED", True, (255, 0, 0))
+         rect = text.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 - 50))
+         self.game.screen.blit(text, rect)
+         
+         # Time Display
+         font_med = pygame.font.SysFont("Arial", 36)
+         time_str = self.game.get_run_time_string()
+         text_time = font_med.render(f"Time: {time_str}", True, (255, 200, 200))
+         rect_time = text_time.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 10))
+         self.game.screen.blit(text_time, rect_time)
+         
+         font_small = pygame.font.SysFont("Arial", 32)
+         text2 = font_small.render("Press R to Restart", True, (255, 255, 255))
+         rect2 = text2.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 60))
+         self.game.screen.blit(text2, rect2)
+
+    def draw_victory_screen(self):
+         overlay = pygame.Surface((SCREEN_WIDTH_PIX, SCREEN_HEIGHT_PIX))
+         overlay.set_alpha(200)
+         overlay.fill((50, 50, 0)) # Dark Gold
+         self.game.screen.blit(overlay, (0, 0))
+         
+         font_big = pygame.font.SysFont("Arial", 64, bold=True)
+         text = font_big.render("VICTORY", True, (255, 215, 0)) # Gold
+         rect = text.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 - 60))
+         self.game.screen.blit(text, rect)
+         
+         font_small = pygame.font.SysFont("Arial", 32)
+         text2 = font_small.render("You defeated Jörn!", True, (255, 255, 255))
+         rect2 = text2.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2))
+         self.game.screen.blit(text2, rect2)
+
+         # Time Display
+         time_str = self.game.get_run_time_string()
+         text_time = font_small.render(f"Time: {time_str}", True, (255, 255, 200))
+         rect_time = text_time.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 40))
+         self.game.screen.blit(text_time, rect_time)
+
+         text3 = font_small.render("Press R to Play Again", True, (200, 200, 200))
+         rect3 = text3.get_rect(center=(SCREEN_WIDTH_PIX//2, SCREEN_HEIGHT_PIX//2 + 90))
+         self.game.screen.blit(text3, rect3)
 
     def _draw_ui(self):
         # Common data 
@@ -144,35 +250,120 @@ class GameRenderer:
         pygame.draw.rect(self.game.screen, (0, 200, 255), (health_x, health_y + bar_height + 30, int(bar_width * xp_pct), 10))
         pygame.draw.rect(self.game.screen, (255, 255, 255), (health_x, health_y + bar_height + 30, bar_width, 10), 1)
 
+        # Draw Dash Charges
+        from config.settings import UI_DASH_X, UI_DASH_Y, COLOR_DASH_ACTIVE, COLOR_DASH_INACTIVE
+        
+        dash_size = 15
+        dash_spacing = 20
+        
+        player = self.game.player
+        # Check if hasattr in case old player object
+        charges = getattr(player, 'dash_charges', 0)
+        max_charges = getattr(player, 'max_dash_charges', 3)
+        
+        for i in range(max_charges):
+            color = COLOR_DASH_ACTIVE if i < charges else COLOR_DASH_INACTIVE
+            
+            # Draw diamond or rect
+            dx = UI_DASH_X + i * (dash_size + dash_spacing)
+            dy = UI_DASH_Y
+            
+            # Diamond shape
+            # Top, Right, Bottom, Left
+            cx, cy = dx + dash_size//2, dy + dash_size//2
+            points = [
+                (cx, dy), 
+                (dx + dash_size, cy),
+                (cx, dy + dash_size),
+                (dx, cy)
+            ]
+            
+            pygame.draw.polygon(self.game.screen, color, points)
+            pygame.draw.polygon(self.game.screen, (200, 200, 200), points, 1) # Border
+
     def _draw_world(self):
-        skip = 0
         for y in range(self.game.world.height):
             for x in range(self.game.world.width):
-                cell = self.game.world.get_cell(x, y)
-                if cell:
+                cell_data = self.game.world.get_cell_full(x, y)
+                if cell_data:
+                    cell, (offset_x, offset_y) = cell_data
+                    
                     rect = pygame.Rect(
                         x * CELL_SIZE,
                         y * CELL_SIZE,
                         CELL_SIZE,
                         CELL_SIZE,
                     )
-                    if cell.texture:
+                    
+                    if cell.name == "Trapdoor":
+                        if offset_x == 0 and offset_y == 0:
+                            # Draw big texture spanning MAZE_SCALE_UP cells
+                            size = CELL_SIZE * MAZE_SCALE_UP
+                            if cell.texture:
+                                tex = pygame.transform.scale(cell.texture, (size, size))
+                                self.background_world.blit(tex, rect)
+                        continue # Skip standard drawing for trapdoor parts
+                    
+                    texture_to_draw = cell.texture
+                    
+                    # Randomized texture selection
+                    if cell.textures:
+                        # Simple deterministic hash with seed
+                        index = ((x * 73856093) ^ (y * 19349663) ^ self.texture_seed) % len(cell.textures)
+                        texture_to_draw = cell.textures[index]
+
+                    if texture_to_draw:
                         if (
-                            cell.texture.get_width() != CELL_SIZE
-                            or cell.texture.get_height() != CELL_SIZE
+                            texture_to_draw.get_width() != CELL_SIZE
+                            or texture_to_draw.get_height() != CELL_SIZE
                         ):
-                            cell.texture = pygame.transform.scale(
-                                cell.texture, (CELL_SIZE, CELL_SIZE)
+                            texture_to_draw = pygame.transform.scale(
+                                texture_to_draw, (CELL_SIZE, CELL_SIZE)
                             )
-                        self.background_world.blit(cell.texture, rect)
+                        self.background_world.blit(texture_to_draw, rect)
+                        
+                        # Wall Overlay Logic
+                        if cell.name == "Wall" and self.overlays:
+                             # Check Neighbors
+                             for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+                                 nx, ny = x + dx, y + dy
+                                 
+                                 # Determine if neighbor is NOT a wall (e.g. None or Ground or Floor)
+                                 # get_cell returns None if out of bounds -> Treat as wall/void? Or treat as non-wall?
+                                 # Usually void is "nothing", so maybe border? Let's say we border valid non-wall cells.
+                                 neighbor = self.game.world.get_cell(nx, ny)
+                                 
+                                 # If neighbor exists and is NOT Wall, draw overlay
+                                 if neighbor and neighbor.name != "Wall":
+                                     overlay_img = self.overlays.get((dx, dy))
+                                     if overlay_img:
+                                         self.background_world.blit(overlay_img, rect)
+                                         
                     else:
                         pygame.draw.rect(self.background_world, cell.color, rect)
-        print("SKIP", skip)
 
     def _draw_entities(self):
-        self.game.player.draw(self.rendering_surface)
-        for obj in self.game.gridObjects:
+        # 1. Separate Player from other entities
+        others = [obj for obj in self.game.gridObjects if obj != self.game.player]
+        
+        # 2. Sort other entities by Y-depth (draw top-to-bottom)
+        sorted_others = sorted(
+            others, 
+            key=lambda obj: obj.y + getattr(obj, 'h', 0) * CELL_SIZE
+        )
+        
+        # 3. Draw sorted entities (Walls/Props/Enemies)
+        for obj in sorted_others:
             obj.draw(self.rendering_surface)
+            
+        # 4. Draw Projectiles (usually fly over props, but under UI/VFX)
+        # If user wants Player over EVERYTHING, Player draws after Projectiles.
+        for proj in self.game.projectiles:
+            proj.draw(self.rendering_surface)
+
+        # 5. Draw Player LAST (Always on Top of World & Projectiles)
+        if self.game.player:
+            self.game.player.draw(self.rendering_surface)
 
     def draw_pause_menu(self):
         # Semi-transparent overlay

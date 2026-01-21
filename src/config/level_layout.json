@@ -1,0 +1,16 @@
+[
+    {
+        "type": "file",
+        "path": "config/levels/spawn.json"
+    },
+    {
+        "type": "dungeon",
+        "count": 2,
+        "width": 64,
+        "height": 64
+    },
+    {
+        "type": "file",
+        "path": "config/levels/boss.json"
+    }
+]

@@ -33,6 +33,22 @@ class Player(GridObject):
         self.speed = speed
         self.health = PLAYER_MAX_HEALTH
         self.max_health = PLAYER_MAX_HEALTH
+        
+        # Load texture
+        import os
+        from config.settings import BASE_DIR
+        self.image = None
+        try:
+            image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+            if os.path.exists(image_path):
+                raw_image = pygame.image.load(image_path).convert_alpha()
+                self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                debug.log(f"Loaded player texture: {image_path}")
+            else:
+                debug.log(f"Player texture not found at: {image_path}")
+        except Exception as e:
+            debug.log(f"Error loading player texture: {e}")
+
         self.invulnerable = False
         self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
         self.last_hit_time = 0
@@ -60,6 +76,21 @@ class Player(GridObject):
             self.combat.add_weapon(WeaponFactory.create_weapon("basic_sword"))
         except Exception as e:
             print(f"Failed to equip default weapons: {e}")
+
+        # Physics / Forces
+        self.external_force = [0, 0]
+        self.force_decay = 0.9 # Retain 90% per frame (slippery) or 0.5 for fast stop
+
+        # Dash Mechanic
+        self.dash_charges = 3
+        self.max_dash_charges = 3
+        self.dash_recharge_time = 3000 # 3 seconds to recharge one dash
+        self.dash_last_recharge = 0
+        self.is_dashing = False
+        self.dash_duration = 200 # ms
+        self.dash_start_time = 0
+        self.dash_speed_mult = 3.0 # 3x speed
+        self.dash_direction = (0, 0)
 
     def _modify_stat(self, effect, op, value, revert=False):
         if effect == STAT_HEAL:
@@ -114,9 +145,76 @@ class Player(GridObject):
             val = data["value"]
             self._modify_stat(effect, op, val, revert=False)
 
+    def dash(self):
+        """
+        Activates dash if charges available.
+        """
+        current_time = pygame.time.get_ticks()
+        
+        if self.is_dashing:
+            return # Already dashing
+            
+        if self.dash_charges > 0:
+            self.dash_charges -= 1
+            self.is_dashing = True
+            self.invulnerable = True # I-Frames
+            self.dash_start_time = current_time
+            # Keep dash_last_recharge relative to last update or reset? 
+            # If we are at 3 charges, timer is dormant. If we drop to 2, timer starts? 
+            # Let's handle recharge in update.
+            
+            # Determine direction from last input or default
+            keys = pygame.key.get_pressed()
+            dx, dy = 0, 0
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]: dx = -1
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]: dx = 1
+            if keys[pygame.K_UP] or keys[pygame.K_w]: dy = -1
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]: dy = 1
+            
+            # Normalize
+            if dx != 0 or dy != 0:
+                length = (dx*dx + dy*dy)**0.5
+                self.dash_direction = (dx/length, dy/length)
+            else:
+                # Default dash forward (right?) or last faced? 
+                # For now default right if static
+                self.dash_direction = (0, 0) # No dash if standing still? Or dash forward?
+                # User says "movement direction". If no movement, no dash velocity? 
+                # Let's assume no dash movement if stationary, but still consume charge? 
+                # Or just abort? Most games dash forward.
+                # Let's abort if no input.
+                if dx == 0 and dy == 0:
+                     self.is_dashing = False
+                     self.invulnerable = False
+                     self.dash_charges += 1 # Refund
+                     return
+
+            debug.log(f"Dash! Charges remaining: {self.dash_charges}")
+
     def update(self, target_pos=None):
         current_time = pygame.time.get_ticks()
         
+        # Dash Logic
+        if self.is_dashing:
+            if current_time - self.dash_start_time > self.dash_duration:
+                self.is_dashing = False
+                self.invulnerable = False
+                # If we were invulnerable due to hit, we might accidentally clear it.
+                # But typically dash i-frames override everything.
+                # Better: Check if invulnerable_duration from hit is still active? 
+                # For simplicity: Dash end clears invulnerability. 
+                # If player gets hit right after dash, normal logic applies.
+
+        # Dash Recharge
+        if self.dash_charges < self.max_dash_charges:
+            if current_time - self.dash_last_recharge > self.dash_recharge_time:
+                self.dash_charges += 1
+                self.dash_last_recharge = current_time
+                debug.log(f"Dash Recharged. Total: {self.dash_charges}")
+        else:
+             self.dash_last_recharge = current_time # Reset timer while full
+
+
         # Manage active effects
         for effect_data in self.active_effects[:]: # Iterate copy to safe remove
             if current_time - effect_data["start_time"] > effect_data["duration"]:
@@ -131,14 +229,16 @@ class Player(GridObject):
                 
                 self.active_effects.remove(effect_data)
         
-        # Handle invulnerability
-        if self.invulnerable:
+        # Handle invulnerability (Hit based)
+        if self.invulnerable and not self.is_dashing: # Only check hit timer if not dashing
             if current_time - self.last_hit_time > self.invulnerability_duration:
                 self.invulnerable = False
 
         self.combat.update(target_pos, current_time)
 
     def take_damage(self, amount):
+        if amount <= 0: return # Ignore 0 or negative damage (heals should use heal logic)
+        
         if self.invulnerable:
             return
 
@@ -153,7 +253,7 @@ class Player(GridObject):
 
     def die(self):
         debug.log("Player died!")
-        # TODO: Handle player death (restart game, show game over screen, etc.)
+        self.game.trigger_game_over()
 
     def gain_xp(self, amount):
         self.xp += amount
@@ -176,14 +276,31 @@ class Player(GridObject):
         
         current_speed = self.speed * self.speed_mult
         
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
-            dx -= current_speed
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            dx += current_speed
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            dy -= current_speed
-        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            dy += current_speed
+        # Dash Override
+        if self.is_dashing:
+             dx = self.dash_direction[0] * current_speed * self.dash_speed_mult
+             dy = self.dash_direction[1] * current_speed * self.dash_speed_mult
+        else:
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
+                dx -= current_speed
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                dx += current_speed
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
+                dy -= current_speed
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                dy += current_speed
+
+        # Apply external forces (e.g. Gravity Smash)
+        dx += self.external_force[0]
+        dy += self.external_force[1]
+        
+        # Decay force
+        self.external_force[0] *= self.force_decay
+        self.external_force[1] *= self.force_decay
+        
+        # Snap to 0 if small
+        if abs(self.external_force[0]) < 0.1: self.external_force[0] = 0
+        if abs(self.external_force[1]) < 0.1: self.external_force[1] = 0
 
         bounds = (0, 0, GRID_WIDTH_PIX, GRID_HEIGHT_PIX)
 
@@ -213,7 +330,10 @@ class Player(GridObject):
 
     def draw(self, screen):
         # Draw player
-        pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
+        if self.image:
+             screen.blit(self.image, (self.x, self.y))
+        else:
+             pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
         
         # Draw weapon
         weapon = self.combat.current_weapon
@@ -240,16 +360,31 @@ class Player(GridObject):
     # Serialization
     def __getstate__(self):
         state = self.__dict__.copy()
-        # Exclude non-serializable game reference
-        del state['game']
+        # Exclude non-serializable game reference and surface
+        if 'game' in state:
+            del state['game']
+        state['image'] = None
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         # 'game' will be re-assigned by SaveManager
         self.game = None 
+        self.image = None
 
     def post_load(self):
+        # Reload player texture
+        try:
+            import os
+            from config.settings import BASE_DIR, CELL_SIZE
+            image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+            if os.path.exists(image_path):
+                raw_image = pygame.image.load(image_path).convert_alpha()
+                self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                debug.log(f"Reloaded player texture from {image_path}")
+        except Exception as e:
+            debug.log(f"Failed to reload player texture: {e}")
+
         # Reload weapon images
         for weapon in self.combat.weapons:
             if hasattr(weapon, 'reload_texture'):
