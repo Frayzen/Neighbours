@@ -46,7 +46,6 @@ class Game:
         # Auto-load logic
         from core.save_manager import SaveManager
 
-        print(f"DEBUG: Checking for save file at {SaveManager.SAVE_FILE_PATH}")
         if SaveManager.has_save_file():
             print("DEBUG: Save file found. Auto-loading...")
             if SaveManager.load_game(self):
@@ -57,11 +56,25 @@ class Game:
                 self.restart_game()
         else:
             print("DEBUG: No save file. Starting fresh.")
+            # Initial setup was already done at line 24-25, so we just proceed
             self.paused = False
 
-        self.setup.perform_setup()
-        self.logic = GameLogic(self)
+    def restart_game(self):
+        print("DEBUG: Restarting Game...")
+        self.game_over = False
+        self.victory = False
         self.paused = False
+        
+        # Reset basic stats
+        self.current_layer_index = 0
+        self.level_manager.current_level_index = 0
+        
+        # Re-run setup
+        self.setup.perform_setup()
+        
+        # Re-init logic to bind new player/entities
+        self.logic = GameLogic(self)
+        
         self.start_time = pygame.time.get_ticks()
         self.end_time = 0
 
