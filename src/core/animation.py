@@ -101,26 +101,22 @@ class AnimationController:
         import csv
         import os
         
-        print(f"Loading animations from CSV: {csv_path}")
-
         if not os.path.exists(csv_path):
-            print(f"Animation CSV not found: {csv_path}")
+            # print(f"Animation CSV not found: {csv_path}")
             return
 
         with open(csv_path, 'r', encoding='utf-8-sig') as f:
             reader = csv.reader(f)
             try:
                 header = next(reader) # Skip header
-                print(f"CSV Header: {header}")
+                # print(f"CSV Header: {header}")
             except StopIteration:
-                print("CSV is empty!")
                 return
 
             loaded_count = 0
             for row in reader:
                 # Name,StartX,StartY,Width,Height,Count,FPS,Loop
                 if len(row) < 8: 
-                    print(f"Skipping malformed row: {row}")
                     continue
                 
                 name = row[0].strip()
@@ -149,11 +145,7 @@ class AnimationController:
                     })
                 
                 self.add_animation(name, sprite_sheet, frames_data)
-                print(f"Registered animation: '{name}' with {count} frames.")
                 loaded_count += 1
-            
-            print(f"Total animations loaded: {loaded_count}")
-            print(f"Available keys: {list(self.animations.keys())}")
 
     def load_from_paths(self, csv_path, sprite_sheet_path):
         import pygame

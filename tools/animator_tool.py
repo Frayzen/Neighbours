@@ -6,8 +6,6 @@ import os
 
 # Layout Constants
 SIDEBAR_WIDTH = 380 
-MINIMAP_WIDTH = 300
-MINIMAP_HEIGHT = 150
 
 # Material Design 3 Dark Mode Palette
 COLORS = {
@@ -225,13 +223,7 @@ class AnimationEditor:
         
         # -- Sidebar Content --
         
-        # Minimap
-        tk.Label(sidebar, text="PREVIEW", bg=COLORS["bg_surface"], fg=COLORS["primary"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=20, pady=(20, 5))
-        self.minimap_frame = tk.Frame(sidebar, bg="black", width=MINIMAP_WIDTH, height=MINIMAP_HEIGHT)
-        self.minimap_frame.pack(padx=20, pady=0)
-        self.minimap_frame.pack_propagate(False) # Force size
-        self.minimap_label = tk.Label(self.minimap_frame, bg="black")
-        self.minimap_label.place(relx=0.5, rely=0.5, anchor="center")
+        # -- Sidebar Content --
         
         # Animation List
         tk.Label(sidebar, text="ANIMATIONS", bg=COLORS["bg_surface"], fg=COLORS["primary"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, padx=20, pady=(20, 5))
@@ -385,7 +377,7 @@ class AnimationEditor:
             self.tk_image = ImageTk.PhotoImage(self.pil_image)
             self.cached_bg_removed = None
             if self.remove_bg_var.get(): self._update_bg_cache()
-            self._create_minimap()
+            # self._create_minimap() -> Removed
             self.canvas.delete("all")
             self._draw_checkerboard(self.tk_image.width(), self.tk_image.height())
             self.canvas.create_image(0, 0, image=self.tk_image, anchor=tk.NW, tags="image")
@@ -393,22 +385,7 @@ class AnimationEditor:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load image: {e}")
 
-    def _create_minimap(self):
-        if not self.pil_image: return
-        target_size = (MINIMAP_WIDTH, MINIMAP_HEIGHT)
-        w, h = self.pil_image.size
-        scale = min(MINIMAP_WIDTH/w, MINIMAP_HEIGHT/h)
-        new_w, new_h = int(w * scale), int(h * scale)
-        resized = self.pil_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
-        
-        # Create dark background for minimap
-        final_img = Image.new("RGBA", target_size, (20, 20, 20, 255))
-        pad_x = (MINIMAP_WIDTH - new_w) // 2
-        pad_y = (MINIMAP_HEIGHT - new_h) // 2
-        final_img.paste(resized, (pad_x, pad_y), resized)
-        
-        self.minimap_image = ImageTk.PhotoImage(final_img)
-        self.minimap_label.config(image=self.minimap_image, width=MINIMAP_WIDTH, height=MINIMAP_HEIGHT)
+    # _create_minimap Removed
 
     def _on_bg_toggle(self):
         if self.remove_bg_var.get():

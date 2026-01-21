@@ -417,27 +417,7 @@ class Player(GridObject):
         else:
              pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
         
-        # Draw weapon
-        weapon = self.combat.current_weapon
-        if weapon:
-            # Simple representation: a small colored rect next to the player
-            weapon_color = (200, 200, 200)
-            weapon_color = (200, 200, 200)
-            if TAG_FIRE in weapon.tags:
-                weapon_color = (255, 100, 0)
-            elif TAG_RANGED in weapon.tags:
-                weapon_color = (100, 255, 100)
-            
-            # Draw slightly offset
-            wx = self.x + (self.w * CELL_SIZE) * 0.8
-            wy = self.y + (self.h * CELL_SIZE) * 0.2
-            
-            if weapon.image:
-                 # Scale weapon image if needed (arbitrary size choice or based on tiles)
-                 scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
-                 screen.blit(scaled_weapon, (wx, wy))
-            else:
-                 pygame.draw.rect(screen, weapon_color, (wx, wy, 4, 10))
+        # Weapon drawing removed as per user request
 
     # Serialization
     def __getstate__(self):

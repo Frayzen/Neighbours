@@ -11,6 +11,7 @@
             0
         ],
         "texture_path": "../assets/images/Enemys/basic_enemy.png",
+        "animation_csv_path": "",
         "width": 1,
         "height": 1,
         "behavior": "melee"
@@ -27,6 +28,7 @@
             0
         ],
         "texture_path": "../assets/images/Enemys/fast_enemy.png",
+        "animation_csv_path": "",
         "width": 1,
         "height": 1,
         "behavior": "melee"
@@ -43,6 +45,7 @@
             0
         ],
         "texture_path": "../assets/images/Enemys/tank_enemy.png",
+        "animation_csv_path": "",
         "width": 1.5,
         "height": 1.5,
         "behavior": "melee"
@@ -59,6 +62,7 @@
             255
         ],
         "texture_path": "../assets/images/Enemys/ranger.png",
+        "animation_csv_path": "",
         "width": 1,
         "height": 1,
         "behavior": "ranged",
@@ -78,6 +82,7 @@
             255
         ],
         "texture_path": "../assets/images/Enemys/healer.png",
+        "animation_csv_path": "",
         "width": 1,
         "height": 1,
         "behavior": "healer"
@@ -89,11 +94,14 @@
         "xp_value": 500,
         "cost": 0,
         "texture_path": "../assets/images/Boss/JörnPhase1.png",
+        "animation_csv_path": "",
         "width": 3,
         "height": 3,
         "behavior": "boss_joern",
         "texture_phase_1": "../assets/images/Boss/JörnPhase1.png",
         "texture_phase_2": "../assets/images/Boss/JörnPhase2.png",
-        "texture_phase_3": "../assets/images/Boss/JörnPhase3.png"
+        "texture_phase_3": "../assets/images/Boss/JörnPhase3.png",
+        "animation_csv_phase_2": "",
+        "animation_csv_phase_3": ""
     }
 }
