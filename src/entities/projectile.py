@@ -2,6 +2,7 @@ import pygame
 import math
 from entities.base import GridObject
 from config.settings import CELL_SIZE
+"""Florian LAINE"""
 
 class Projectile(GridObject):
     def __init__(self, x, y, direction, speed, damage, owner_type, texture=None, behavior="LINEAR", visual_type="ARROW", target_pos=None, color=(255, 255, 0), explode_radius=0, start_delay=0):

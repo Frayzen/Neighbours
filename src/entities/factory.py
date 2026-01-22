@@ -3,6 +3,7 @@ from entities.enemies.boss import Boss
 from entities.enemies.healer import Healer
 from entities.enemies.ranged import RangedEnemy
 from core.registry import Registry
+"""Lara KHREIS"""
 
 def create_enemy(game, x, y, enemy_type="basic_enemy", modifiers=None):
     """

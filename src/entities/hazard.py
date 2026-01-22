@@ -3,6 +3,7 @@ import random
 from entities.base import GridObject
 from config.settings import CELL_SIZE
 from core.debug import debug
+"""Maude BOUDINEAU"""
 
 class FireHazard(GridObject):
     def __init__(self, x, y, duration_min, duration_max, damage, game):

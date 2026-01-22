@@ -4,6 +4,7 @@ from core.director import Director
 from config.settings import CELL_SIZE, COLOR_ENEMY
 from core.debug import debug
 from random import randint
+"""Janis REISENAUER"""
 
 class Spawner(GridObject):
     def __init__(self, game, x, y, trigger_distance=8, fixed_wave=None):
