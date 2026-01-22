@@ -1,11 +1,22 @@
-#0 at the top left corner of the screen
-#moving a cube smothly using arrow
+# 0 at the top left corner of the screen
+# moving a cube smothly using arrow
 from typing import Tuple
 import pygame
+
 # Initialize Pygame
 pygame.init()
 
 # Set up the display
+from config.settings import (
+    CELL_SIZE,
+    GRID_HEIGHT,
+    GRID_HEIGHT_PIX,
+    GRID_WIDTH,
+    GRID_WIDTH_PIX,
+    SCREEN_WIDTH_PIX,
+    SCREEN_HEIGHT_PIX,
+)
+
 from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_PLAYER, PLAYER_MAX_HEALTH, PLAYER_INVULNERABILITY_DURATION
 from combat.combat_manager import CombatManager
 from combat.factory import WeaponFactory
@@ -14,6 +25,9 @@ from core.physics import check_collision
 from core.physics import check_collision
 from core.debug import debug
 from config.constants import OP_ADD, OP_MULTIPLY, STAT_HEAL, ITEM_TYPE_WEAPON, TAG_FIRE, TAG_RANGED
+from core.animation import AnimationController
+from core.animation import AnimationController
+from config.animation_constants import ANIM_IDLE, ANIM_WALK, ANIM_DASH, ANIM_RUN, ANIM_ATTACK_MELEE, ANIM_ATTACK_RANGED
 
 """Florian LAINE"""
 
@@ -24,6 +38,41 @@ class Player(GridObject):
         self.speed = speed
         self.health = PLAYER_MAX_HEALTH
         self.max_health = PLAYER_MAX_HEALTH
+        
+        # Load texture
+        import os
+        from config.settings import BASE_DIR
+        # Load texture / Animation
+        import os
+        from config.settings import BASE_DIR
+        self.animator = AnimationController()
+        self.image = None # Fallback or unused if animation works
+        
+        try:
+            # Try loading animation first. Support both singular and plural names.
+            anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimations.png")
+            if not os.path.exists(anim_sheet_path):
+                anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimation.png")
+            
+            anim_csv_path = os.path.join(BASE_DIR, "assets", "images", "Player", "player_animations.csv")
+            
+            # Use the helper
+            if self.animator.load_from_paths(anim_csv_path, anim_sheet_path):
+                 debug.log(f"Loaded player animation system from {anim_sheet_path}")
+                 self.animator.play(ANIM_IDLE)
+            else:
+                 debug.log("Animation files not found, falling back to static image logic.")
+                 # Fallback (keep existing logic just in case animation fails)
+                 image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+                 if os.path.exists(image_path):
+                     raw_image = pygame.image.load(image_path).convert_alpha()
+                     self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                     debug.log(f"Loaded player static texture: {image_path}")
+                 else:
+                     debug.log(f"Player texture not found at: {image_path}")
+        except Exception as e:
+            debug.log(f"Error loading player texture/animation: {e}")
+
         self.invulnerable = False
         self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
         self.last_hit_time = 0
@@ -51,6 +100,21 @@ class Player(GridObject):
             self.combat.add_weapon(WeaponFactory.create_weapon("basic_sword"))
         except Exception as e:
             print(f"Failed to equip default weapons: {e}")
+
+        # Physics / Forces
+        self.external_force = [0, 0]
+        self.force_decay = 0.9 # Retain 90% per frame (slippery) or 0.5 for fast stop
+
+        # Dash Mechanic
+        self.dash_charges = 3
+        self.max_dash_charges = 3
+        self.dash_recharge_time = 3000 # 3 seconds to recharge one dash
+        self.dash_last_recharge = 0
+        self.is_dashing = False
+        self.dash_duration = 200 # ms
+        self.dash_start_time = 0
+        self.dash_speed_mult = 3.0 # 3x speed
+        self.dash_direction = (0, 0)
 
     def _modify_stat(self, effect, op, value, revert=False):
         if effect == STAT_HEAL:
@@ -105,9 +169,76 @@ class Player(GridObject):
             val = data["value"]
             self._modify_stat(effect, op, val, revert=False)
 
-    def update(self, enemies):
+    def dash(self):
+        """
+        Activates dash if charges available.
+        """
         current_time = pygame.time.get_ticks()
         
+        if self.is_dashing:
+            return # Already dashing
+            
+        if self.dash_charges > 0:
+            self.dash_charges -= 1
+            self.is_dashing = True
+            self.invulnerable = True # I-Frames
+            self.dash_start_time = current_time
+            # Keep dash_last_recharge relative to last update or reset? 
+            # If we are at 3 charges, timer is dormant. If we drop to 2, timer starts? 
+            # Let's handle recharge in update.
+            
+            # Determine direction from last input or default
+            keys = pygame.key.get_pressed()
+            dx, dy = 0, 0
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]: dx = -1
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]: dx = 1
+            if keys[pygame.K_UP] or keys[pygame.K_w]: dy = -1
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]: dy = 1
+            
+            # Normalize
+            if dx != 0 or dy != 0:
+                length = (dx*dx + dy*dy)**0.5
+                self.dash_direction = (dx/length, dy/length)
+            else:
+                # Default dash forward (right?) or last faced? 
+                # For now default right if static
+                self.dash_direction = (0, 0) # No dash if standing still? Or dash forward?
+                # User says "movement direction". If no movement, no dash velocity? 
+                # Let's assume no dash movement if stationary, but still consume charge? 
+                # Or just abort? Most games dash forward.
+                # Let's abort if no input.
+                if dx == 0 and dy == 0:
+                     self.is_dashing = False
+                     self.invulnerable = False
+                     self.dash_charges += 1 # Refund
+                     return
+
+            debug.log(f"Dash! Charges remaining: {self.dash_charges}")
+
+    def update(self, target_pos=None):
+        current_time = pygame.time.get_ticks()
+        
+        # Dash Logic
+        if self.is_dashing:
+            if current_time - self.dash_start_time > self.dash_duration:
+                self.is_dashing = False
+                self.invulnerable = False
+                # If we were invulnerable due to hit, we might accidentally clear it.
+                # But typically dash i-frames override everything.
+                # Better: Check if invulnerable_duration from hit is still active? 
+                # For simplicity: Dash end clears invulnerability. 
+                # If player gets hit right after dash, normal logic applies.
+
+        # Dash Recharge
+        if self.dash_charges < self.max_dash_charges:
+            if current_time - self.dash_last_recharge > self.dash_recharge_time:
+                self.dash_charges += 1
+                self.dash_last_recharge = current_time
+                debug.log(f"Dash Recharged. Total: {self.dash_charges}")
+        else:
+             self.dash_last_recharge = current_time # Reset timer while full
+
+
         # Manage active effects
         for effect_data in self.active_effects[:]: # Iterate copy to safe remove
             if current_time - effect_data["start_time"] > effect_data["duration"]:
@@ -122,14 +253,64 @@ class Player(GridObject):
                 
                 self.active_effects.remove(effect_data)
         
-        # Handle invulnerability
-        if self.invulnerable:
+        # Handle invulnerability (Hit based)
+        if self.invulnerable and not self.is_dashing: # Only check hit timer if not dashing
             if current_time - self.last_hit_time > self.invulnerability_duration:
                 self.invulnerable = False
 
-        self.combat.update(enemies, current_time)
+        
+        # Animation State Logic
+        is_moving = False
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] or keys[pygame.K_a] or keys[pygame.K_RIGHT] or keys[pygame.K_d] or \
+           keys[pygame.K_UP] or keys[pygame.K_w] or keys[pygame.K_DOWN] or keys[pygame.K_s]:
+             is_moving = True
+
+        # Direction for flipping
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            self.animator.flip_x = True
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            self.animator.flip_x = False
+
+        if self.is_dashing:
+             # User requested "Dash is Dash"
+             self.animator.play(ANIM_DASH) 
+        
+        elif self.animator.playing and self.animator.current_animation.name in [ANIM_ATTACK_MELEE, ANIM_ATTACK_RANGED]:
+             # If attacking and animation is still playing, don't interrupt with walk/idle
+             # We check 'self.animator.playing' because non-looping anims set playing=False when done.
+             pass
+             
+        elif is_moving:
+             self.animator.play(ANIM_WALK)
+        else:
+             self.animator.play(ANIM_IDLE)
+       
+        # Update Animator with approx 60 FPS dt
+        dt = 1.0 / 60.0 
+        if hasattr(self.game, 'dt'):
+             dt = self.game.dt
+        self.animator.update(dt)
+
+        self.combat.update(target_pos, current_time)
+
+    def trigger_attack_animation(self, weapon_behavior):
+        """
+        Triggers an attack animation based on weapon type.
+        Prioritizes attack over movement, but Dash overrides everything.
+        """
+        if self.is_dashing: return
+        
+        anim_name = ANIM_ATTACK_MELEE
+        if "ranged" in weapon_behavior or "fireball" in weapon_behavior:
+             anim_name = ANIM_ATTACK_RANGED
+             
+        # Play one-shot (force restart if re-triggered, though usually cooldown prevents this)
+        self.animator.play(anim_name, force_restart=True)
 
     def take_damage(self, amount):
+        if amount <= 0: return # Ignore 0 or negative damage (heals should use heal logic)
+        
         if self.invulnerable:
             return
 
@@ -144,7 +325,7 @@ class Player(GridObject):
 
     def die(self):
         debug.log("Player died!")
-        # TODO: Handle player death (restart game, show game over screen, etc.)
+        self.game.trigger_game_over()
 
     def gain_xp(self, amount):
         self.xp += amount
@@ -160,25 +341,44 @@ class Player(GridObject):
         debug.log(f"Level Up! New Level: {self.level}")
         # TODO: Trigger level up UI or choices
 
-    def move(self, keys, bounds: Tuple[int, int, int, int], world, tile_size: int): #movement using arrow keys or WASD
-#pygame.K_ DIRECTION is used to detect key presses on this precise touch
+    def move(self, keys, world):  # movement using arrow keys or WASD
+        # pygame.K_ DIRECTION is used to detect key presses on this precise touch
         dx = 0
         dy = 0
         
         current_speed = self.speed * self.speed_mult
         
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
-            dx -= current_speed
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            dx += current_speed
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
-            dy -= current_speed
-        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            dy += current_speed
+        # Dash Override
+        if self.is_dashing:
+             dx = self.dash_direction[0] * current_speed * self.dash_speed_mult
+             dy = self.dash_direction[1] * current_speed * self.dash_speed_mult
+        else:
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]: 
+                dx -= current_speed
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                dx += current_speed
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
+                dy -= current_speed
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                dy += current_speed
+
+        # Apply external forces (e.g. Gravity Smash)
+        dx += self.external_force[0]
+        dy += self.external_force[1]
+        
+        # Decay force
+        self.external_force[0] *= self.force_decay
+        self.external_force[1] *= self.force_decay
+        
+        # Snap to 0 if small
+        if abs(self.external_force[0]) < 0.1: self.external_force[0] = 0
+        if abs(self.external_force[1]) < 0.1: self.external_force[1] = 0
+
+        bounds = (0, 0, GRID_WIDTH_PIX, GRID_HEIGHT_PIX)
 
         # Try moving X
         new_x = self.x + dx
-        collision_x = check_collision(new_x, self.y, self.w, self.h, bounds, world, tile_size)
+        collision_x = check_collision(new_x, self.y, self.w, self.h, bounds, world)
         
         final_collision = None
         
@@ -189,7 +389,7 @@ class Player(GridObject):
 
         # Try moving Y
         new_y = self.y + dy
-        collision_y = check_collision(self.x, new_y, self.w, self.h, bounds, world, tile_size)
+        collision_y = check_collision(self.x, new_y, self.w, self.h, bounds, world)
         
         if not collision_y:
             self.y = new_y
@@ -200,46 +400,56 @@ class Player(GridObject):
         # Return trigger if any collision was a trigger
         return final_collision
 
-    def draw(self, surface, tile_size):
+    def draw(self, screen):
         # Draw player
-        pygame.draw.rect(surface, (255, 255, 255), (self.x, self.y, self.w * tile_size, self.h * tile_size))
+        # Draw player
+        frame = self.animator.get_frame()
+        if frame:
+             # Scale if needed. 
+             target_w = int(self.w * CELL_SIZE)
+             target_h = int(self.h * CELL_SIZE)
+             
+             if frame.get_width() != target_w or frame.get_height() != target_h:
+                  frame = pygame.transform.scale(frame, (target_w, target_h))
+             
+             screen.blit(frame, (self.x, self.y))
         
-        # Draw weapon
-        weapon = self.combat.current_weapon
-        if weapon:
-            # Simple representation: a small colored rect next to the player
-            weapon_color = (200, 200, 200)
-            weapon_color = (200, 200, 200)
-            if TAG_FIRE in weapon.tags:
-                weapon_color = (255, 100, 0)
-            elif TAG_RANGED in weapon.tags:
-                weapon_color = (100, 255, 100)
-            
-            # Draw slightly offset
-            wx = self.x + (self.w * tile_size) * 0.8
-            wy = self.y + (self.h * tile_size) * 0.2
-            
-            if weapon.image:
-                 # Scale weapon image if needed (arbitrary size choice or based on tiles)
-                 scaled_weapon = pygame.transform.scale(weapon.image, (10, 20)) 
-                 surface.blit(scaled_weapon, (wx, wy))
-            else:
-                 pygame.draw.rect(surface, weapon_color, (wx, wy, 4, 10))
+        elif self.image:
+             screen.blit(self.image, (self.x, self.y))
+        else:
+             pygame.draw.rect(screen, (255, 255, 255), (self.x, self.y, self.w * CELL_SIZE, self.h * CELL_SIZE))
+        
+        # Weapon drawing removed as per user request
 
     """Janis REISENAUER"""
     # Serialization
     def __getstate__(self):
         state = self.__dict__.copy()
-        # Exclude non-serializable game reference
-        del state['game']
+        # Exclude non-serializable game reference and surface
+        if 'game' in state:
+            del state['game']
+        state['image'] = None
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         # 'game' will be re-assigned by SaveManager
         self.game = None 
+        self.image = None
 
     def post_load(self):
+        # Reload player texture
+        try:
+            import os
+            from config.settings import BASE_DIR, CELL_SIZE
+            image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+            if os.path.exists(image_path):
+                raw_image = pygame.image.load(image_path).convert_alpha()
+                self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                debug.log(f"Reloaded player texture from {image_path}")
+        except Exception as e:
+            debug.log(f"Failed to reload player texture: {e}")
+
         # Reload weapon images
         for weapon in self.combat.weapons:
             if hasattr(weapon, 'reload_texture'):

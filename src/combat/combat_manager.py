@@ -96,9 +96,14 @@ class CombatManager:
                 return
 
             distance = self.get_distance_to(self.target)
+            distance = self.get_distance_to(self.target)
             if distance <= self.current_weapon.range:
                 if self.current_weapon.can_attack(current_time):
-                    self.attack(self.target, enemies, current_time)
+                    # Check Line of Sight
+                    if self.current_weapon.has_clear_shot(self.owner, self.target):
+                        self.attack(self.target, enemies, current_time)
+                    else:
+                        pass # Line of sight blocked
             else:
                 # If target is out of range clear target
                 pass
@@ -115,14 +120,32 @@ class CombatManager:
         
         return nearest_enemy
 
+    def _get_center(self, entity):
+        from config.settings import CELL_SIZE
+        # Assuming entities have w/h in grid coords, or size
+        w = getattr(entity, 'w', 1) * CELL_SIZE
+        h = getattr(entity, 'h', 1) * CELL_SIZE
+        return entity.x + w / 2, entity.y + h / 2
+
     def get_distance_to(self, target):
-        dx = self.owner.x - target.x
-        dy = self.owner.y - target.y
+        ox, oy = self._get_center(self.owner)
+        tx, ty = self._get_center(target)
+        dx = ox - tx
+        dy = oy - ty
         return math.sqrt(dx * dx + dy * dy)
 
     def attack(self, target, enemies, current_time):
         self.current_weapon.attack(current_time, owner=self.owner, target=target, enemies=enemies)
         
+        # Trigger Animation on Owner
+        if hasattr(self.owner, 'trigger_attack_animation'):
+             self.owner.trigger_attack_animation(self.current_weapon.behavior_name)
+        
+        # Prevent double damage for projectile weapons
+        PROJECTILE_BEHAVIORS = ["fireball_cast", "ranged_shot"]
+        if self.current_weapon.behavior_name in PROJECTILE_BEHAVIORS:
+            return
+
         targets_hit = self.current_weapon.get_targets(target, enemies)
         
         for hit_target in targets_hit:

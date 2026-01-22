@@ -1,0 +1,283 @@
+import pygame
+import random
+import math
+from core.debug import debug
+from config.settings import CELL_SIZE
+
+# Ability Cooldowns (ms)
+COOLDOWN_GRAVITY = 5000
+COOLDOWN_SUMMON = 10000
+COOLDOWN_DASH = 8000
+COOLDOWN_SHIELD = 15000
+COOLDOWN_BULLET_HELL = 6000
+
+# Other constants
+SHIELD_DURATION = 3000
+DASH_DURATION = 500
+DASH_SPEED_MULTIPLIER = 10
+
+def perform_gravity_smash(boss, player):
+    # Smooth Gravity Smash (Pull)
+    dx = boss.x - player.x
+    dy = boss.y - player.y
+    dist = (dx**2 + dy**2)**0.5
+    
+    if dist > 0:
+        # Normalize
+        ndx = dx / dist
+        ndy = dy / dist
+        
+        player.external_force[0] = ndx * 50
+        player.external_force[1] = ndy * 50
+        
+        debug.log("JörnBoss used Gravity Smash!")
+
+def perform_summon(boss, game, enemy_type=None, count=None):
+    """
+    Phase 1: Spawn minions using Director Budget.
+    """
+    from core.director import Director
+    from entities.factory import create_enemy
+    
+    debug.log(f"JörnBoss initiating Summon...")
+    
+    # Calculate Budget
+    # Boss adds extra pressure but not full floor worth?
+    director = Director(game)
+    full_budget = director.calculate_difficulty_budget()
+    
+    # Use 50% of floor budget for this ability
+    boss_budget = max(20, int(full_budget * 0.5))
+    
+    if count is not None:
+        # Override: specific count of specific type (Legacy support or specific mechanics)
+        wave = [enemy_type if enemy_type else "basic_enemy"] * count
+    else:
+        # Director Logic
+        wave = director.generate_wave(boss_budget)
+        
+    if not wave:
+        wave = ["basic_enemy"] # Fallback
+    
+    for etype in wave:
+        # Random pos around boss
+        angle = random.uniform(0, 6.28)
+        radius = random.randint(50, 100)
+        spawn_x = boss.x + math.cos(angle) * radius
+        spawn_y = boss.y + math.sin(angle) * radius
+        
+        # Determine valid position?
+        # For boss arena, usually open space, so simple check or center bias
+        
+        minion = create_enemy(game, spawn_x, spawn_y, etype)
+        game.gridObjects.append(minion)
+        
+    debug.log(f"JörnBoss summoned {len(wave)} minions (Budget: {boss_budget})!")
+
+def perform_dash(boss, player):
+    """
+    Phase 2: Dash behind player.
+    """
+    # Calculate target point behind player
+    dx = player.x - boss.x
+    dy = player.y - boss.y
+    dist = math.sqrt(dx*dx + dy*dy)
+
+    boss.speed = 4
+    
+    if dist > 0:
+        # Vector Boss -> Player
+        dir_x = dx / dist
+        dir_y = dy / dist
+        
+        # Target: Player Pos + (Vector * 50)
+        target_x = player.x + dir_x * 50
+        target_y = player.y + dir_y * 50
+        
+        # For simple dash implementation: Teleport for now, or high speed move?
+        # Prompt: "Erhöhe boss.speed für 0.5s drastisch... Setze Bewegungsvektor"
+        # We can simulate the dash by setting a dash timer in boss and overriding movement
+        
+        boss.dash_timer = pygame.time.get_ticks()
+        boss.dash_target = (target_x, target_y)
+        boss.is_dashing = True
+        
+        debug.log("JörnBoss Dashing!")
+
+def activate_shield(boss):
+    """
+    Phase 3: Shield.
+    """
+    boss.is_shielded = True
+    boss.shield_timer = pygame.time.get_ticks()
+    boss.color = (0, 0, 255) # Blue shield visual
+    debug.log("JörnBoss Shield Activated!")
+
+def perform_firebreath(boss, game, player):
+    """
+    Firebreath: Stream of fireballs towards player with random angle spread.
+    """
+    from entities.projectile import Projectile
+    
+    NUM_PROJECTILES = 30
+    CONE_ANGLE = 45 # Degrees spread (+/- 22.5)
+    
+    # Calculate base direction to player
+    dx = player.x - boss.x
+    dy = player.y - boss.y
+    base_angle = math.degrees(math.atan2(dy, dx))
+    
+    debug.log("JörnBoss uses FIREBREATH!")
+    
+    for _ in range(NUM_PROJECTILES):
+        # Random offset angle
+        offset = random.uniform(-CONE_ANGLE/2, CONE_ANGLE/2)
+        angle_deg = base_angle + offset
+        angle_rad = math.radians(angle_deg)
+        
+        p_dx = math.cos(angle_rad)
+        p_dy = math.sin(angle_rad)
+        
+        # Random speed variation
+        speed = random.uniform(4, 7)
+        
+        # Random delay for stream effect (0 to 1 second)
+        # 60 frames = 1 sec approx
+        delay = random.randint(0, 60)
+        
+        proj = Projectile(
+            boss.x + boss.w*CELL_SIZE/2, 
+            boss.y + boss.h*CELL_SIZE/2,
+            direction=(p_dx, p_dy),
+            speed=speed,
+            damage=12,
+            owner_type="enemy",
+            visual_type="FIREBALL",
+            color=(255, 100, 0),
+            start_delay=delay
+        )
+        game.projectiles.append(proj)
+
+def perform_powerful_fireball(boss, game, player):
+    """
+    Single massive fireball. Slow, high damage, explodes on impact.
+    """
+    from entities.projectile import Projectile
+    
+    # Calculate direction
+    
+    target_pos = (player.x + player.w*CELL_SIZE/2, player.y + player.h*CELL_SIZE/2)
+    
+    proj = Projectile(
+        boss.x + boss.w*CELL_SIZE/2, 
+        boss.y + boss.h*CELL_SIZE/2,
+        direction=None, # Will be calculated by update based on target
+        speed=4, 
+        damage=50, 
+        owner_type="enemy",
+        behavior="TARGET_EXPLOSION",
+        visual_type="METEOR", 
+        target_pos=target_pos,
+        color=(139, 0, 0),
+        explode_radius=3 * CELL_SIZE 
+    )
+    game.projectiles.append(proj)
+    debug.log("JörnBoss casts METEOR at coordinates!")
+def perform_bullet_hell(boss, game):
+    """
+    Phase 3: 360 shots.
+    """
+    from entities.projectile import Projectile
+    
+    num_rings = 4
+    num_projectiles_per_ring = 18
+    angle_step = 360 / num_projectiles_per_ring
+    
+    num_rings = 4
+    num_projectiles_per_ring = 18
+    angle_step = 360 / num_projectiles_per_ring
+    
+    DELAY_PER_RING = 30 # Approx 0.5 seconds
+
+    for ring in range(num_rings):
+        # Rotation offset for this ring
+        angle_offset = ring * 15 # 15 degrees shift per ring
+        
+        # Delay for this ring
+        ring_delay = ring * DELAY_PER_RING
+        
+        for i in range(num_projectiles_per_ring):
+            angle_deg = i * angle_step + angle_offset
+            angle_rad = math.radians(angle_deg)
+            
+            dx = math.cos(angle_rad)
+            dy = math.sin(angle_rad)
+            
+            proj = Projectile(
+                boss.x + boss.w*CELL_SIZE/2, 
+                boss.y + boss.h*CELL_SIZE/2,
+                direction=(dx, dy),
+                speed=5,
+                damage=15,
+                owner_type="enemy",
+                visual_type="FIREBALL", # Or any boss projectile
+                color=(255, 0, 0),
+                start_delay=ring_delay
+            )
+            game.projectiles.append(proj)
+            
+    debug.log(f"JörnBoss BULLET HELL! ({num_rings} rings)")
+
+def perform_The_Final_Ember(boss, game):
+    """
+    Perform the final Ember attack on phase switch from 2 to 3.
+    Set random World tiles on fire.
+    """
+    from entities.hazard import FireHazard
+
+    boss.speed = 1.5
+    
+    # Configuration
+    NUM_FIRES = 20 
+    DURATION_MIN = 5000
+    DURATION_MAX = 10000
+    DAMAGE = 10
+    
+    debug.log("JörnBoss unleashes THE FINAL EMBER!")
+    
+    debug.log("JörnBoss unleashes THE FINAL EMBER!")
+    
+    # Optimization: Spawn fires only near the boss
+    # Rejection sampling is faster than scanning the whole map
+    RADIUS = 15 # Tiles radius
+    boss_gx = int(boss.x / CELL_SIZE)
+    boss_gy = int(boss.y / CELL_SIZE)
+    
+    spawned_count = 0
+    max_attempts = NUM_FIRES * 5 # Allow some failures
+    
+    for _ in range(max_attempts):
+        if spawned_count >= NUM_FIRES:
+            break
+            
+        # Random offset within radius
+        off_x = random.randint(-RADIUS, RADIUS)
+        off_y = random.randint(-RADIUS, RADIUS)
+        
+        tx = boss_gx + off_x
+        ty = boss_gy + off_y
+        
+        # Check bounds
+        if 0 <= tx < game.world.width and 0 <= ty < game.world.height:
+            cell = game.world.get_cell(tx, ty)
+            if cell and cell.walkable:
+                # Convert grid to pixels
+                px = tx * CELL_SIZE
+                py = ty * CELL_SIZE
+                
+                # Create Hazard
+                fire = FireHazard(px, py, DURATION_MIN, DURATION_MAX, DAMAGE, game)
+                game.gridObjects.append(fire)
+                spawned_count += 1
+                
+    debug.log(f"Ignited {spawned_count} tiles near JörnBoss with Final Ember.")

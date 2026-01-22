@@ -44,7 +44,10 @@ class WeaponFactory:
             aoe_radius=data.get("aoe_radius", 0),
             tags=data.get("tags", []),
             texture_path=data.get("texture_path", None),
-            behavior_name=behavior_name
+            behavior_name=behavior_name,
+            line_of_sight=data.get("line_of_sight", False),
+            projectile_speed=data.get("projectile_speed", 0),
+            projectile_texture_path=data.get("projectile_texture_path", None)
         )
         
         # Attach the behavior function
