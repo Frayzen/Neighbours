@@ -4,6 +4,7 @@ from random import randint
 from core.world import World
 from typing import List, Tuple
 
+"""Janis REISENAUER"""
 
 def quadrangle_intersect(quadA, quadB):
     ax, ay, aw, ah = quadA

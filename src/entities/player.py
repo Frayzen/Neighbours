@@ -29,6 +29,8 @@ from core.animation import AnimationController
 from core.animation import AnimationController
 from config.animation_constants import ANIM_IDLE, ANIM_WALK, ANIM_DASH, ANIM_RUN, ANIM_ATTACK_MELEE, ANIM_ATTACK_RANGED
 
+"""Florian LAINE"""
+
 class Player(GridObject):
     def __init__(self, game, x, y, size, speed):
         super().__init__(x, y, size, size, color=COLOR_PLAYER)
@@ -419,6 +421,7 @@ class Player(GridObject):
         
         # Weapon drawing removed as per user request
 
+    """Janis REISENAUER"""
     # Serialization
     def __getstate__(self):
         state = self.__dict__.copy()

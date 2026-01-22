@@ -1,5 +1,7 @@
 import pygame
 
+"""Maude BOUDINEAU"""
+
 
 class DamageText:
     def __init__(self, x, y, amount, color=(255, 0, 0), prefix="-"):

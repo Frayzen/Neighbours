@@ -1,6 +1,8 @@
 from typing import List, Optional, Tuple
 from config.settings import GRID_HEIGHT, GRID_WIDTH
 
+"""Lara KHREIS"""
+
 
 class Cell:
     def __init__(
@@ -21,24 +23,13 @@ class Cell:
         self.height = height
         self.trigger = trigger
         self.texture = None  # Will hold the pygame Surface
-        self.textures = [] # List of textures for randomization
+        self.textures = []  # List of textures for randomization
 
     def __str__(self):
         return self.name
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # Exclude Pygame surfaces
-        state['texture'] = None
-        state['textures'] = [] # Clear the list of surfaces
-        return state
 
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        # Textures will be reloaded by post_load logic in SaveManager
-        self.texture = None
-        self.textures = []
-
+"""Florian LAINE"""
 
 
 class World:
@@ -58,7 +49,6 @@ class World:
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-
 
     def set_cell(self, x, y, cell):
         if 0 <= x < self.width and 0 <= y < self.height:

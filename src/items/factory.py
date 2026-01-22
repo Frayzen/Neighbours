@@ -5,6 +5,7 @@ import copy
 from config.settings import BASE_DIR, RARITY_WEIGHTS, RARITY_SCALING
 from config.constants import RARITY_COMMON, RARITY_RARE, RARITY_LEGENDARY
 from items.item import Item
+"""Florian LAINE and Janis REISENAUER"""
 
 class ItemFactory:
     _items = []

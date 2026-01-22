@@ -14,6 +14,7 @@ from core.registry import Registry
 from core.pathfinding import FlowField
 
 
+"""Florian LAINE and Janis REISENAUER"""
 class GameLogic:
     def __init__(self, game):
         self.game = game

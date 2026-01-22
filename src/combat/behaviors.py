@@ -3,6 +3,8 @@ from core.debug import debug
 from core.vfx import vfx_manager, SlashEffect, ExplosionEffect
 from config.settings import CELL_SIZE
 
+"""Janis REISENAUER """
+
 class WeaponBehaviors:
     """
     This class contains the definitions for different weapon behaviors.

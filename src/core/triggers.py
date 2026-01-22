@@ -1,4 +1,5 @@
 from core.debug import debug
+"""Lara KHREIS"""
 
 def trigger_door(game, x, y):
     debug.log(f"Door triggered at {x}, {y}!")

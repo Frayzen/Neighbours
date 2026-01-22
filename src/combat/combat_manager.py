@@ -5,6 +5,8 @@ from combat.weapon import Weapon
 from config.settings import MAX_WEAPONS, TARGET_CHECK_INTERVAL
 from config.constants import OP_ADD, OP_MULTIPLY
 
+
+"""Florian LAINE"""
 class CombatManager:
     def __init__(self, owner):
         self.owner = owner

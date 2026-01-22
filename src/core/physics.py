@@ -1,5 +1,7 @@
 from config.settings import CELL_SIZE
 
+"""Lara KHREIS"""
+
 
 def check_collision(x, y, width, height, bounds, world):
     min_x, min_y, max_x, max_y = bounds
@@ -36,6 +38,7 @@ def check_collision(x, y, width, height, bounds, world):
 
     return False
 
+
 def has_line_of_sight(start_x, start_y, end_x, end_y, world):
     """
     Checks if there is a clear line of sight between two points using Bresenham's line algorithm.
@@ -68,5 +71,5 @@ def has_line_of_sight(start_x, start_y, end_x, end_y, world):
         if e2 < dx:
             err += dx
             y0 += sy
-            
+
     return True

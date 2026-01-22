@@ -1,6 +1,6 @@
 from config.settings import CELL_SIZE
 import pygame
-
+"""Maude BOUDINEAU"""
 
 class GridObject:
 

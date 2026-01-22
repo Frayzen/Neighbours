@@ -25,6 +25,7 @@ from config.settings import (
     SCREEN_WIDTH_PIX,
     SCREEN_HEIGHT_PIX
     )
+"""Maude BOUDINEAU and Florian LAINE"""
 
 
 class GameRenderer:

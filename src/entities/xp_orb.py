@@ -4,6 +4,8 @@ from config.settings import CELL_SIZE
 from entities.base import GridObject
 from core.debug import debug
 
+"""Janis REISENAUER"""
+
 
 class XPOrb(GridObject):
     def __init__(self, x, y, value):

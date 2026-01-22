@@ -3,6 +3,8 @@ import os
 import pygame
 from config.settings import BASE_DIR
 
+"""Janis REISENAUER"""
+
 class Weapon:
     def __init__(self, id: str, name: str, damage: int, range: float, cooldown: int, is_aoe: bool = False, aoe_radius: float = 0, tags: list = None, texture_path: str = None, behavior_name: str = None, line_of_sight: bool = False, projectile_speed: float = 0, projectile_texture_path: str = None):
         """

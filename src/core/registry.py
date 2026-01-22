@@ -2,6 +2,7 @@ import json
 import os
 import pygame
 from core.world import Cell
+"""Janis REISENAUER"""
 
 class Registry:
     _cells = {}

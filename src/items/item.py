@@ -3,6 +3,7 @@ from config.settings import CELL_SIZE, COLOR_RARITY, BASE_DIR
 from core.debug import debug
 import pygame
 import os
+"""Maude BOUDINEAU"""
 
 
 class Item(GridObject):
