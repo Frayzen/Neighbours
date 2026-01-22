@@ -48,41 +48,20 @@ class Player(GridObject):
         self.animator = AnimationController()
         self.image = None # Fallback or unused if animation works
         
-        try:
-            # Try loading animation first. Support both singular and plural names.
-            anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimations.png")
-            if not os.path.exists(anim_sheet_path):
-                anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimation.png")
-            
-            anim_csv_path = os.path.join(BASE_DIR, "assets", "images", "Player", "player_animations.csv")
-            
-            # Use the helper
-            if self.animator.load_from_paths(anim_csv_path, anim_sheet_path):
-                 debug.log(f"Loaded player animation system from {anim_sheet_path}")
-                 self.animator.play(ANIM_IDLE)
-            else:
-                 debug.log("Animation files not found, falling back to static image logic.")
-                 # Fallback (keep existing logic just in case animation fails)
-                 image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
-                 if os.path.exists(image_path):
-                     raw_image = pygame.image.load(image_path).convert_alpha()
-                     self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
-                     debug.log(f"Loaded player static texture: {image_path}")
-                 else:
-                     debug.log(f"Player texture not found at: {image_path}")
-        except Exception as e:
-            debug.log(f"Error loading player texture/animation: {e}")
-
-        self.invulnerable = False
-        self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
-        self.last_hit_time = 0
-        
         # Stats Multipliers
         self.speed_mult = 1.0
         self.damage_mult = 1.0
         self.defense_mult = 1.0
         self.cooldown_mult = 1.0
         self.luck_mult = 1.0
+
+        self.load_resources()
+
+        self.invulnerable = False
+        self.invulnerability_duration = PLAYER_INVULNERABILITY_DURATION  # ms
+        self.last_hit_time = 0
+        
+
 
         # XP and Leveling
         self.xp = 0
@@ -429,6 +408,7 @@ class Player(GridObject):
         if 'game' in state:
             del state['game']
         state['image'] = None
+        state['animator'] = None
         return state
 
     def __setstate__(self, state):
@@ -436,19 +416,44 @@ class Player(GridObject):
         # 'game' will be re-assigned by SaveManager
         self.game = None 
         self.image = None
+        # self.animator will be recreated in post_load
+
+    def load_resources(self):
+        import os
+        from config.settings import BASE_DIR
+        
+        # Ensure animator exists (it might be None after unpickling)
+        if not hasattr(self, 'animator') or self.animator is None:
+             self.animator = AnimationController()
+
+        try:
+            # Try loading animation first. Support both singular and plural names.
+            anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimations.png")
+            if not os.path.exists(anim_sheet_path):
+                anim_sheet_path = os.path.join(BASE_DIR, "assets", "images", "Player", "AliceAnimation.png")
+            
+            anim_csv_path = os.path.join(BASE_DIR, "assets", "images", "Player", "player_animations.csv")
+            
+            # Use the helper
+            if self.animator.load_from_paths(anim_csv_path, anim_sheet_path):
+                 debug.log(f"Loaded player animation system from {anim_sheet_path}")
+                 self.animator.play(ANIM_IDLE)
+            else:
+                 debug.log("Animation files not found, falling back to static image logic.")
+                 # Fallback (keep existing logic just in case animation fails)
+                 image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
+                 if os.path.exists(image_path):
+                     raw_image = pygame.image.load(image_path).convert_alpha()
+                     self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
+                     debug.log(f"Loaded player static texture: {image_path}")
+                 else:
+                     debug.log(f"Player texture not found at: {image_path}")
+        except Exception as e:
+            debug.log(f"Error loading player texture/animation: {e}")
 
     def post_load(self):
         # Reload player texture
-        try:
-            import os
-            from config.settings import BASE_DIR, CELL_SIZE
-            image_path = os.path.join(BASE_DIR, "assets", "images", "Alice.png")
-            if os.path.exists(image_path):
-                raw_image = pygame.image.load(image_path).convert_alpha()
-                self.image = pygame.transform.scale(raw_image, (int(self.w * CELL_SIZE), int(self.h * CELL_SIZE)))
-                debug.log(f"Reloaded player texture from {image_path}")
-        except Exception as e:
-            debug.log(f"Failed to reload player texture: {e}")
+        self.load_resources()
 
         # Reload weapon images
         for weapon in self.combat.weapons:

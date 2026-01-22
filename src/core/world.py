@@ -28,6 +28,17 @@ class Cell:
     def __str__(self):
         return self.name
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['texture'] = None
+        state['textures'] = []
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.texture = None
+        self.textures = []
+
 
 """Florian LAINE"""
 

@@ -28,6 +28,7 @@ class Enemy(GridObject):
             xp_value = 10
             texture = None
             behavior_name = "melee"
+            animation_csv_path = None
         else:
             w = config.get("width", 1)
             h = config.get("height", 1)
@@ -69,35 +70,7 @@ class Enemy(GridObject):
         self.texture = texture
         self.enemy_type = enemy_type
         
-        # Animation Setup
-        from core.animation import AnimationController
-        from config.animation_constants import ANIM_IDLE, ANIM_WALK
-        import os
-        from config.settings import BASE_DIR
-        
-        self.animator = AnimationController()
-        self.use_animation = False
-        
-        if self.animation_csv_path:
-             # Assume texture_path in config (which loaded self.texture) acts as the sheet?
-             # Or we need the raw path. 
-             # Registry loaded 'texture' but we might need the path to reload if needed?
-             # Actually, AnimationController needs the Surface. self.texture is the Surface.
-             # But 'load_from_csv' expects the surface.
-             # 'load_from_paths' expects the path.
-             
-             # Let's try to use the raw path if we can find it, or use the loaded texture surface.
-             # The registry config has 'texture_path'.
-             texture_config_path = config.get("texture_path")
-             if texture_config_path:
-                 full_texture_path = os.path.normpath(os.path.join("src/config", texture_config_path))
-                 full_csv_path = os.path.normpath(os.path.join("src/config", self.animation_csv_path))
-                 
-                 # Try loading
-                 if self.animator.load_from_paths(full_csv_path, full_texture_path):
-                     self.use_animation = True
-                     self.animator.play(ANIM_IDLE)
-                     debug.log(f"Enemy {enemy_type} animation loaded.")
+        self.load_resources()
         
         self.behavior = EnemyBehaviors.get_behavior(behavior_name)
         
@@ -216,6 +189,7 @@ class Enemy(GridObject):
         if "behavior" in state:
             del state["behavior"]
         state["texture"] = None 
+        state["animator"] = None
         return state
 
     def __setstate__(self, state):
@@ -225,13 +199,45 @@ class Enemy(GridObject):
 
     def post_load(self):
         # Restore texture
-        if hasattr(self, "enemy_type"):
-            from core.registry import Registry
-            config = Registry.get_enemy_config(self.enemy_type)
-            if config:
-                self.texture = config.get("texture")
+        self.load_resources()
                 
         # Restore behavior
         from entities.behaviors import EnemyBehaviors
         b_name = getattr(self, "behavior_name", "melee")
         self.behavior = EnemyBehaviors.get_behavior(b_name)
+
+    def load_resources(self):
+        from core.registry import Registry
+        from core.animation import AnimationController
+        from config.animation_constants import ANIM_IDLE
+        import os
+        
+        # Ensure animator exists
+        if not hasattr(self, 'animator') or self.animator is None:
+             self.animator = AnimationController()
+             
+        self.use_animation = False
+
+        if not hasattr(self, "enemy_type"):
+             return
+
+        config = Registry.get_enemy_config(self.enemy_type)
+        if not config:
+             return
+             
+        # Reload texture
+        self.texture = config.get("texture")
+        
+        # Reload animation
+        # Need to re-fetch paths since 'self.animation_csv_path' is stored but other paths might need config
+        animation_csv_path = config.get("animation_csv_path") or getattr(self, 'animation_csv_path', None)
+        texture_config_path = config.get("texture_path")
+        
+        if animation_csv_path and texture_config_path:
+             full_texture_path = os.path.normpath(os.path.join("src/config", texture_config_path))
+             full_csv_path = os.path.normpath(os.path.join("src/config", animation_csv_path))
+             
+             if self.animator.load_from_paths(full_csv_path, full_texture_path):
+                 self.use_animation = True
+                 self.animator.play(ANIM_IDLE)
+                 debug.log(f"Enemy {self.enemy_type} animation reloaded.")
