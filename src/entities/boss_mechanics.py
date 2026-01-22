@@ -15,6 +15,7 @@ COOLDOWN_BULLET_HELL = 6000
 SHIELD_DURATION = 3000
 DASH_DURATION = 500
 DASH_SPEED_MULTIPLIER = 10
+"""Janis REISENAUER"""
 
 def perform_gravity_smash(boss, player):
     # Smooth Gravity Smash (Pull)

@@ -2,6 +2,7 @@ import pygame
 from core.debug import debug
 from config.settings import CELL_SIZE
 
+"""Maude BOUDINEAU"""
 class EnemyBehaviors:
     
     @staticmethod
